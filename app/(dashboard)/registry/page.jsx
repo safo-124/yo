@@ -1,49 +1,82 @@
 // app/(dashboard)/registry/page.jsx
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/actions/auth.actions';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { getCenters, getAllUsers, getPotentialCoordinators } from '@/lib/actions/registry.actions.js'; // Corrected import path
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card,CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Toaster } from "@/components/ui/sonner"; // For notifications
+import ManageCentersTab from './_components/ManageCentersTab';
+import ManageUsersTab from './_components/ManageUsersTab';
+
+// We will create these client components next
+
 
 export default async function RegistryPage() {
   const session = await getSession();
 
-  // Additional role check specific to this page (optional, as layout might handle general auth)
   if (!session || session.role !== 'REGISTRY') {
-    // If not registry, redirect to a generic dashboard or login
-    // This provides an extra layer of security for role-specific pages
     console.warn("Unauthorized access attempt to /registry by user:", session?.email, "with role:", session?.role);
-    redirect(session ? '/' : '/login'); // Redirect to home if logged in but wrong role, else to login
+    redirect(session ? '/' : '/login');
   }
 
+  // Fetch initial data on the server
+  const centersData = await getCenters();
+  const usersData = await getAllUsers();
+  const potentialCoordinatorsData = await getPotentialCoordinators(); // For the "Create Center" form
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Registry Dashboard</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Welcome, Registry Administrator!</CardTitle>
-          <CardDescription>
-            This is your central hub for managing the application.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="mb-4">From here, you will be able to:</p>
-          <ul className="list-disc list-inside space-y-2">
-            <li>Create and manage Centers.</li>
-            <li>Assign Coordinators to Centers.</li>
-            <li>Oversee the overall system.</li>
-            {/* Add more items as functionality is built */}
-          </ul>
-          <p className="mt-6 text-sm text-gray-600 dark:text-gray-400">
-            Current User: {session.name} ({session.email})
-          </p>
-        </CardContent>
-      </Card>
-      {/* More components and functionality will be added here */}
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Registry Dashboard</h1>
+        <p className="text-muted-foreground">
+          Manage centers, users, and system settings.
+        </p>
+      </div>
+
+      <Tabs defaultValue="centers" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+          <TabsTrigger value="centers">Manage Centers</TabsTrigger>
+          <TabsTrigger value="users">Manage Users</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="centers" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Centers</CardTitle>
+              <CardDescription>
+                View, create, and manage academic centers.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ManageCentersTab
+                initialCenters={centersData.centers || []}
+                potentialCoordinators={potentialCoordinatorsData.users || []}
+                fetchError={centersData.error || potentialCoordinatorsData.error}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="users" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Users</CardTitle>
+              <CardDescription>
+                View, create, and manage user accounts (Coordinators, Lecturers).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ManageUsersTab
+                initialUsers={usersData.users || []}
+                centers={centersData.centers || []} // Pass centers for assigning lecturers
+                fetchError={usersData.error}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+      <Toaster richColors position="top-right" /> {/* For displaying toast notifications */}
     </div>
   );
 }
