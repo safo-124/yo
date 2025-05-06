@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import {
   createLecturerInCenter,
   assignLecturerToDepartment
@@ -41,7 +42,7 @@ export default function ManageCoordinatorLecturersTab({
   centerId,
   initialLecturers = [],
   departmentsForAssignment = [], // Departments within this center
-  coordinatorUserId
+  coordinatorUserId // Not directly used in this version but good to have for future
 }) {
   const [lecturers, setLecturers] = useState(initialLecturers);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -53,11 +54,11 @@ export default function ManageCoordinatorLecturersTab({
   const [newLecturerName, setNewLecturerName] = useState('');
   const [newLecturerEmail, setNewLecturerEmail] = useState('');
   const [newLecturerPassword, setNewLecturerPassword] = useState('');
-  const [selectedDepartmentForNewLecturer, setSelectedDepartmentForNewLecturer] = useState('');
+  const [selectedDepartmentForNewLecturer, setSelectedDepartmentForNewLecturer] = useState(''); // Empty string for placeholder
 
   // State for assigning department to existing lecturer
   const [selectedLecturerToAssign, setSelectedLecturerToAssign] = useState(null); // Stores lecturer object
-  const [targetDepartmentId, setTargetDepartmentId] = useState('');
+  const [targetDepartmentId, setTargetDepartmentId] = useState(''); // Empty string for placeholder
 
   useEffect(() => {
     setLecturers(initialLecturers);
@@ -98,16 +99,16 @@ export default function ManageCoordinatorLecturersTab({
       email: newLecturerEmail.trim(),
       password: newLecturerPassword.trim(),
       centerId: centerId,
-      departmentId: selectedDepartmentForNewLecturer || null,
+      departmentId: selectedDepartmentForNewLecturer || null, // Server action handles empty string as null
     };
 
     const result = await createLecturerInCenter(lecturerData);
 
     if (result.success) {
       toast.success(`Lecturer "${result.user.name}" created successfully!`);
-      // Parent page revalidation will update initialLecturers prop, then useEffect updates local state.
       setIsCreateDialogOpen(false);
       resetCreateForm();
+      // Parent page revalidation should update initialLecturers prop, then useEffect updates local state.
     } else {
       setFormError(result.error || "Failed to create lecturer.");
       toast.error(result.error || "Failed to create lecturer.");
@@ -117,14 +118,16 @@ export default function ManageCoordinatorLecturersTab({
 
   const handleOpenAssignDialog = (lecturer) => {
     setSelectedLecturerToAssign(lecturer);
-    setTargetDepartmentId(lecturer.departmentId || ''); // Pre-fill if already assigned
+    setTargetDepartmentId(lecturer.departmentId || ''); // Pre-fill if already assigned, or empty for placeholder
+    setFormError('');
     setIsAssignDialogOpen(true);
   };
 
   const handleAssignDepartment = async (event) => {
     event.preventDefault();
-    if (!selectedLecturerToAssign || !targetDepartmentId) {
+    if (!selectedLecturerToAssign || !targetDepartmentId) { // targetDepartmentId cannot be empty if 'required'
       setFormError("Lecturer and target department must be selected.");
+      setIsLoading(false); // Ensure loading is set to false
       return;
     }
     setIsLoading(true);
@@ -133,14 +136,14 @@ export default function ManageCoordinatorLecturersTab({
     const result = await assignLecturerToDepartment({
       lecturerId: selectedLecturerToAssign.id,
       departmentId: targetDepartmentId,
-      centerId: centerId, // For revalidation path
+      centerId: centerId,
     });
 
     if (result.success) {
       toast.success(`Lecturer ${selectedLecturerToAssign.name} assigned to department successfully!`);
       setIsAssignDialogOpen(false);
       resetAssignForm();
-      // Parent page revalidation will update data.
+      // Parent page revalidation should update data.
     } else {
       setFormError(result.error || "Failed to assign department.");
       toast.error(result.error || "Failed to assign department.");
@@ -165,36 +168,40 @@ export default function ManageCoordinatorLecturersTab({
           <DialogHeader>
             <DialogTitle>Create New Lecturer</DialogTitle>
             <DialogDescription>
-              Enter details for the new lecturer in your center.
+              Enter details for the new lecturer in your center. Password will be hashed.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateLecturer}>
             <div className="grid gap-4 py-4">
               <div className="space-y-1">
-                <Label htmlFor="lecturerName">Full Name</Label>
-                <Input id="lecturerName" value={newLecturerName} onChange={(e) => setNewLecturerName(e.target.value)} placeholder="e.g., Dr. Ada Lovelace" disabled={isLoading} required />
+                <Label htmlFor="lecturerNameCreate">Full Name</Label>
+                <Input id="lecturerNameCreate" value={newLecturerName} onChange={(e) => setNewLecturerName(e.target.value)} placeholder="e.g., Dr. Ada Lovelace" disabled={isLoading} required />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="lecturerEmail">Email Address</Label>
-                <Input id="lecturerEmail" type="email" value={newLecturerEmail} onChange={(e) => setNewLecturerEmail(e.target.value)} placeholder="lecturer@example.com" disabled={isLoading} required />
+                <Label htmlFor="lecturerEmailCreate">Email Address</Label>
+                <Input id="lecturerEmailCreate" type="email" value={newLecturerEmail} onChange={(e) => setNewLecturerEmail(e.target.value)} placeholder="lecturer@example.com" disabled={isLoading} required />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="lecturerPassword">Password</Label>
-                <Input id="lecturerPassword" type="password" value={newLecturerPassword} onChange={(e) => setNewLecturerPassword(e.target.value)} placeholder="Min. 6 characters" disabled={isLoading} required />
+                <Label htmlFor="lecturerPasswordCreate">Password</Label>
+                <Input id="lecturerPasswordCreate" type="password" value={newLecturerPassword} onChange={(e) => setNewLecturerPassword(e.target.value)} placeholder="Min. 6 characters" disabled={isLoading} required />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="lecturerNewDepartment">Assign to Department (Optional)</Label>
+                <Label htmlFor="lecturerNewDepartmentCreate">Assign to Department (Optional)</Label>
                 <Select value={selectedDepartmentForNewLecturer} onValueChange={setSelectedDepartmentForNewLecturer} disabled={isLoading}>
-                  <SelectTrigger id="lecturerNewDepartment"><SelectValue placeholder="Select a department" /></SelectTrigger>
+                  <SelectTrigger id="lecturerNewDepartmentCreate"><SelectValue placeholder="Select a department (optional)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {departmentsForAssignment.map((dept) => (
-                      <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
-                    ))}
+                    {/* No explicit "None" item needed if placeholder works for empty state */}
+                    {departmentsForAssignment.length > 0 ? (
+                      departmentsForAssignment.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">No departments created yet.</div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
-              {formError && <p className="text-sm text-red-600 text-center">{formError}</p>}
+              {formError && <p className="text-sm text-red-600 text-center bg-red-100 dark:bg-red-900/30 p-2 rounded-md">{formError}</p>}
             </div>
             <DialogFooter>
               <DialogClose asChild><Button type="button" variant="outline" disabled={isLoading}>Cancel</Button></DialogClose>
@@ -220,17 +227,21 @@ export default function ManageCoordinatorLecturersTab({
             <form onSubmit={handleAssignDepartment}>
               <div className="grid gap-4 py-4">
                 <div className="space-y-1">
-                  <Label htmlFor="targetDepartment">Department</Label>
+                  <Label htmlFor="targetDepartmentAssign">Department</Label>
                   <Select value={targetDepartmentId} onValueChange={setTargetDepartmentId} disabled={isLoading} required>
-                    <SelectTrigger id="targetDepartment"><SelectValue placeholder="Select a department" /></SelectTrigger>
+                    <SelectTrigger id="targetDepartmentAssign"><SelectValue placeholder="Select a department" /></SelectTrigger>
                     <SelectContent>
-                      {departmentsForAssignment.length > 0 ? departmentsForAssignment.map((dept) => (
-                        <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
-                      )) : <SelectItem value="" disabled>No departments available</SelectItem>}
+                      {departmentsForAssignment.length > 0 ? (
+                        departmentsForAssignment.map((dept) => (
+                          <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                        ))
+                      ) : (
+                         <div className="px-2 py-1.5 text-sm text-muted-foreground">No departments available.</div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
-                {formError && <p className="text-sm text-red-600 text-center">{formError}</p>}
+                {formError && <p className="text-sm text-red-600 text-center bg-red-100 dark:bg-red-900/30 p-2 rounded-md">{formError}</p>}
               </div>
               <DialogFooter>
                 <DialogClose asChild><Button type="button" variant="outline" disabled={isLoading}>Cancel</Button></DialogClose>
@@ -242,46 +253,53 @@ export default function ManageCoordinatorLecturersTab({
       )}
 
       {/* Table of Lecturers */}
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px] hidden sm:table-cell"><Users className="h-4 w-4" /></TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lecturers.length > 0 ? (
-              lecturers.map((lecturer) => (
-                <TableRow key={lecturer.id}>
-                  <TableCell className="hidden sm:table-cell"><Users className="h-5 w-5 text-muted-foreground"/></TableCell>
-                  <TableCell className="font-medium">{lecturer.name}</TableCell>
-                  <TableCell>{lecturer.email}</TableCell>
-                  <TableCell>{lecturer.departmentName || 'N/A'}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" size="sm" onClick={() => handleOpenAssignDialog(lecturer)} disabled={departmentsForAssignment.length === 0}>
-                      <Edit3 className="mr-1 h-3 w-3" /> Assign Dept.
-                    </Button>
-                    {/* Add more actions like Edit Lecturer Details if needed */}
-                  </TableCell>
+      <Card>
+        <CardHeader>
+            <CardTitle>Center Lecturers</CardTitle>
+            <CardDescription>Manage lecturers assigned to your center.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div className="border rounded-lg">
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead className="w-[50px] hidden sm:table-cell"><Users className="h-4 w-4" /></TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center h-24">
-                  No lecturers found in this center.
-                </TableCell>
-              </TableRow>
+                </TableHeader>
+                <TableBody>
+                {lecturers.length > 0 ? (
+                    lecturers.map((lecturer) => (
+                    <TableRow key={lecturer.id}>
+                        <TableCell className="hidden sm:table-cell"><Users className="h-5 w-5 text-muted-foreground"/></TableCell>
+                        <TableCell className="font-medium">{lecturer.name}</TableCell>
+                        <TableCell>{lecturer.email}</TableCell>
+                        <TableCell>{lecturer.departmentName || 'N/A'}</TableCell>
+                        <TableCell className="text-right">
+                        <Button variant="outline" size="sm" onClick={() => handleOpenAssignDialog(lecturer)} disabled={departmentsForAssignment.length === 0}>
+                            <Edit3 className="mr-1 h-3 w-3" /> Assign Dept.
+                        </Button>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                    <TableCell colSpan={5} className="text-center h-24">
+                        No lecturers found in this center.
+                    </TableCell>
+                    </TableRow>
+                )}
+                </TableBody>
+            </Table>
+            </div>
+            {lecturers.length === 0 && (
+                <p className="text-center text-muted-foreground mt-4">Click "Add New Lecturer" to get started.</p>
             )}
-          </TableBody>
-        </Table>
-      </div>
-      {lecturers.length === 0 && (
-         <p className="text-center text-muted-foreground">Click "Add New Lecturer" to get started.</p>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
