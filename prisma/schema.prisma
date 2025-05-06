@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Center {
+  id                                String       @id @default(cuid()) // Added @default(cuid())
+  name                              String       @unique
+  createdAt                         DateTime     @default(now())
+  updatedAt                         DateTime     @updatedAt // Added @updatedAt
+  coordinatorId                     String       @unique
+  User_Center_coordinatorIdToUser User         @relation("Center_coordinatorIdToUser", fields: [coordinatorId], references: [id])
+  Claim                             Claim[]
+  Department                        Department[]
+  User_User_lecturerCenterIdToCenter User[]       @relation("User_lecturerCenterIdToCenter")
+}
+
+model Claim {
+  id                               String                    @id @default(cuid()) // Added @default(cuid())
+  claimType                        Claim_claimType
+  status                           Claim_status              @default(PENDING)
+  submittedAt                      DateTime                  @default(now())
+  updatedAt                        DateTime                  @updatedAt // Added @updatedAt
+  processedAt                      DateTime?
+  submittedById                    String
+  centerId                         String
+  processedById                    String?
+  teachingDate                     DateTime?
+  teachingStartTime                String?
+  teachingEndTime                  String?
+  teachingHours                    Float?
+  transportType                    Claim_transportType?
+  transportDestinationTo           String?
+  transportDestinationFrom         String?
+  transportRegNumber               String?
+  transportCubicCapacity           Int?
+  transportAmount                  Float?
+  thesisType                       Claim_thesisType?
+  thesisSupervisionRank            Claim_thesisSupervisionRank?
+  thesisExamCourseCode             String?
+  thesisExamDate                   DateTime?
+  Center                           Center                    @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  User_Claim_processedByIdToUser   User?                     @relation("Claim_processedByIdToUser", fields: [processedById], references: [id])
+  User_Claim_submittedByIdToUser   User                      @relation("Claim_submittedByIdToUser", fields: [submittedById], references: [id], onDelete: Cascade)
+  SupervisedStudent                SupervisedStudent[]
+
+  @@index([centerId])
+  @@index([claimType])
+  @@index([processedById])
+  @@index([status])
+  @@index([submittedById])
+}
+
+model Department {
+  id        String   @id @default(cuid()) // Added @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // Added @updatedAt
+  centerId  String
+  Center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  User      User[]
+
+  @@unique([name, centerId])
+  @@index([centerId])
+}
+
+model SupervisedStudent {
+  id           String @id @default(cuid()) // Added @default(cuid())
+  studentName  String
+  thesisTitle  String
+  claimId      String
+  supervisorId String
+  Claim        Claim  @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  User         User   @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+
+  @@index([claimId])
+  @@index([supervisorId])
+}
+
+model User {
+  id                                   String              @id @default(cuid()) // Added @default(cuid())
+  email                                String              @unique
+  name                                 String?
+  password                             String
+  role                                 User_role
+  createdAt                            DateTime            @default(now())
+  updatedAt                            DateTime            @updatedAt // Added @updatedAt
+  lecturerCenterId                     String?
+  departmentId                         String?
+  Center_Center_coordinatorIdToUser    Center?             @relation("Center_coordinatorIdToUser")
+  Claim_Claim_processedByIdToUser      Claim[]             @relation("Claim_processedByIdToUser")
+  Claim_Claim_submittedByIdToUser      Claim[]             @relation("Claim_submittedByIdToUser")
+  SupervisedStudent                    SupervisedStudent[]
+  Department                           Department?         @relation(fields: [departmentId], references: [id])
+  Center_User_lecturerCenterIdToCenter Center?             @relation("User_lecturerCenterIdToCenter", fields: [lecturerCenterId], references: [id])
+
+  @@index([departmentId])
+  @@index([lecturerCenterId])
+}
+
+enum Claim_claimType {
+  TEACHING
+  TRANSPORTATION
+  THESIS_PROJECT
+}
+
+enum Claim_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum User_role {
+  REGISTRY
+  COORDINATOR
+  LECTURER
+}
+
+enum Claim_transportType {
+  PUBLIC
+  PRIVATE
+}
+
+enum Claim_thesisType {
+  SUPERVISION
+  EXAMINATION
+}
+
+enum Claim_thesisSupervisionRank {
+  PHD
+  MPHIL
+  MA
+  MSC
+  BED
+  BSC
+  BA
+  ED
+}
