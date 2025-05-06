@@ -30,9 +30,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { createUserByRegistry } from '@/lib/actions/registry.actions.js'; // Ensure this path is correct
+import { createUserByRegistry } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
-import { PlusCircle, UserPlus } from "lucide-react"; // Icons
+import { UserPlus } from "lucide-react"; // Icon
 
 export default function ManageUsersTab({ initialUsers = [], centers = [], fetchError }) {
   const [users, setUsers] = useState(initialUsers);
@@ -71,12 +71,11 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
       return;
     }
 
-    if (newUserRole === 'LECTURER' && !selectedCenterForLecturer) {
-      // Make center assignment optional for lecturers at creation, can be assigned later.
-      // If mandatory, uncomment the following:
-      // setFormError("Please assign a center for the lecturer.");
-      // setIsLoading(false);
-      // return;
+    // Basic password validation (example)
+    if (newUserPassword.trim().length < 6) {
+      setFormError("Password must be at least 6 characters long.");
+      setIsLoading(false);
+      return;
     }
 
     const userData = {
@@ -84,7 +83,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
       email: newUserEmail.trim(),
       password: newUserPassword.trim(), // Password will be hashed by the server action
       role: newUserRole,
-      lecturerCenterId: newUserRole === 'LECTURER' ? selectedCenterForLecturer : null,
+      lecturerCenterId: newUserRole === 'LECTURER' ? selectedCenterForLecturer || null : null,
     };
 
     const result = await createUserByRegistry(userData);
@@ -116,11 +115,11 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
             <UserPlus className="mr-2 h-4 w-4" /> Add New User
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md"> {/* Adjusted width */}
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create New User</DialogTitle>
             <DialogDescription>
-              Enter details for the new Coordinator or Lecturer.
+              Enter details for the new Coordinator or Lecturer. The password will be hashed.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateUser}>
@@ -131,8 +130,9 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                   id="userName"
                   value={newUserName}
                   onChange={(e) => setNewUserName(e.target.value)}
-                  placeholder="e.g., John Doe"
+                  placeholder="e.g., Jane Smith"
                   disabled={isLoading}
+                  required
                 />
               </div>
               <div className="space-y-1">
@@ -144,6 +144,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                   onChange={(e) => setNewUserEmail(e.target.value)}
                   placeholder="user@example.com"
                   disabled={isLoading}
+                  required
                 />
               </div>
               <div className="space-y-1">
@@ -155,6 +156,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                   onChange={(e) => setNewUserPassword(e.target.value)}
                   placeholder="Min. 6 characters"
                   disabled={isLoading}
+                  required
                 />
               </div>
               <div className="space-y-1">
@@ -163,8 +165,9 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                   value={newUserRole}
                   onValueChange={setNewUserRole}
                   disabled={isLoading}
+                  required
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="userRole">
                     <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
                   <SelectContent>
@@ -176,17 +179,17 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
 
               {newUserRole === 'LECTURER' && (
                 <div className="space-y-1">
-                  <Label htmlFor="lecturerCenter">Assign to Center (Optional for Lecturer)</Label>
+                  <Label htmlFor="lecturerCenter">Assign to Center (Optional)</Label>
                   <Select
                     value={selectedCenterForLecturer}
                     onValueChange={setSelectedCenterForLecturer}
                     disabled={isLoading}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a center" />
+                    <SelectTrigger id="lecturerCenter">
+                      <SelectValue placeholder="Select a center if applicable" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem> {/* Option for no center initially */}
+                      <SelectItem value="">None</SelectItem>
                       {centers.length > 0 ? (
                         centers.map((center) => (
                           <SelectItem key={center.id} value={center.id}>
@@ -195,7 +198,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                         ))
                       ) : (
                         <SelectItem value="no-centers" disabled>
-                          No centers available. Create centers first.
+                          No centers available.
                         </SelectItem>
                       )}
                     </SelectContent>
@@ -228,7 +231,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>Center / Coordinated Center</TableHead>
+              <TableHead>Associated Center</TableHead>
               <TableHead>Created At</TableHead>
               {/* <TableHead>Actions</TableHead> */}
             </TableRow>
@@ -245,13 +248,13 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                       ? `Coordinates: ${user.coordinatedCenter.name}`
                       : user.role === 'LECTURER' && user.lecturerCenter?.name
                         ? `Lecturer at: ${user.lecturerCenter.name}`
-                        : user.role === 'LECTURER' && user.lecturerCenterId // Fallback if lecturerCenter object isn't populated
-                          ? `Center ID: ${user.lecturerCenterId}`
+                        : user.role === 'LECTURER' && !user.lecturerCenter?.name && user.lecturerCenterId
+                          ? `(Center ID: ${user.lecturerCenterId})` // Fallback if name not populated but ID exists
                           : 'N/A'}
                   </TableCell>
                   <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                   {/* <TableCell>
-                    <Button variant="outline" size="sm" disabled>Edit</Button>
+                    <Button variant="outline" size="sm" disabled>Edit</Button> <Button variant="destructive" size="sm" disabled>Delete</Button>
                   </TableCell> */}
                 </TableRow>
               ))
