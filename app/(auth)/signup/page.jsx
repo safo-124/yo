@@ -30,6 +30,7 @@ import { requestSignup } from '@/lib/actions/auth.actions'; // Action to submit 
 import { getPublicCenters } from '@/lib/actions/registry.actions.js'; // Action to get centers list
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import Image from 'next/image'; // Import Next.js Image component
 import { UserPlus } from 'lucide-react';
 
 // Zod Schema for Signup Request Form
@@ -43,13 +44,6 @@ const signupRequestSchema = z.object({
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match.",
   path: ["confirmPassword"],
-}).superRefine((data, ctx) => {
-    // If role is Lecturer and centers are available, requestedCenterId becomes required
-    // Note: We can't directly check available centers here, so this validation might be better handled post-submit or based on fetched centers state.
-    // For now, we make it optional in the schema and rely on the form logic.
-    // if (data.role === "LECTURER" && !data.requestedCenterId) {
-    //   ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select a center for the lecturer role.", path: ["requestedCenterId"] });
-    // }
 });
 
 
@@ -124,44 +118,53 @@ export default function SignupRequestPage() {
       }
     }
   };
-  
+
   const onError = (errors) => {
     console.error("Signup Form Validation Errors:", errors);
     // Toast maybe too noisy for validation errors, rely on field messages
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Request Account Signup</CardTitle>
-          <CardDescription className="text-center">
-            Enter your details below. Your request will be sent to the Registry for approval.
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-red-300 via-red-100 to-blue-700 dark:from-red-800 dark:via-red-900 dark:to-blue-900 p-4 selection:bg-blue-500 selection:text-white">
+      <Card className="w-full max-w-lg shadow-2xl rounded-xl overflow-hidden"> {/* Increased max-width for signup form */}
+        <CardHeader className="text-center bg-white dark:bg-gray-800 p-6">
+          <div className="mx-auto mb-4 h-20 w-20 sm:h-24 sm:w-24 relative">
+            <Image
+              src="/uew.png" // IMPORTANT: Replace with your actual logo file name in /public
+              alt="University of Education, Winneba Logo"
+              layout="fill"
+              objectFit="contain"
+              priority
+            />
+          </div>
+          <CardTitle className="text-2xl sm:text-3xl font-bold text-blue-800 dark:text-blue-300">
+            Request Account
+          </CardTitle>
+          <CardDescription className="text-gray-600 dark:text-gray-400 pt-1 text-sm">
+            UEW CODeL Claims Portal - New User Signup
           </CardDescription>
         </CardHeader>
         <form onSubmit={form.handleSubmit(onSubmit, onError)}>
-          <CardContent className="grid gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardContent className="grid gap-5 p-6 sm:p-8 bg-gray-50 dark:bg-gray-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
               <div className="space-y-1">
                 <Label htmlFor="name">Full Name</Label>
-                <Input id="name" {...form.register("name")} disabled={isLoading} />
+                <Input id="name" {...form.register("name")} disabled={isLoading} className={form.formState.errors.name ? "border-red-500" : "dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"}/>
                 {form.formState.errors.name && <p className="text-sm text-red-500 mt-1">{form.formState.errors.name.message}</p>}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="email">Email Address</Label>
-                <Input id="email" type="email" {...form.register("email")} disabled={isLoading} />
+                <Input id="email" type="email" {...form.register("email")} disabled={isLoading} className={form.formState.errors.email ? "border-red-500" : "dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"}/>
                  {form.formState.errors.email && <p className="text-sm text-red-500 mt-1">{form.formState.errors.email.message}</p>}
               </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" {...form.register("password")} disabled={isLoading} />
+                <Input id="password" type="password" {...form.register("password")} disabled={isLoading} className={form.formState.errors.password ? "border-red-500" : "dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"}/>
                 {form.formState.errors.password && <p className="text-sm text-red-500 mt-1">{form.formState.errors.password.message}</p>}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input id="confirmPassword" type="password" {...form.register("confirmPassword")} disabled={isLoading} />
+                <Input id="confirmPassword" type="password" {...form.register("confirmPassword")} disabled={isLoading} className={form.formState.errors.confirmPassword ? "border-red-500" : "dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"}/>
                 {form.formState.errors.confirmPassword && <p className="text-sm text-red-500 mt-1">{form.formState.errors.confirmPassword.message}</p>}
               </div>
             </div>
@@ -172,10 +175,10 @@ export default function SignupRequestPage() {
                 control={form.control}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value || undefined} required>
-                    <SelectTrigger id="role" className={form.formState.errors.role ? "border-red-500" : ""}>
+                    <SelectTrigger id="role" className={form.formState.errors.role ? "border-red-500" : "dark:bg-gray-600 dark:text-white"}>
                       <SelectValue placeholder="Select the role you are applying for" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="dark:bg-gray-700 dark:text-white">
                       <SelectItem value="COORDINATOR">Coordinator</SelectItem>
                       <SelectItem value="LECTURER">Lecturer</SelectItem>
                     </SelectContent>
@@ -188,25 +191,21 @@ export default function SignupRequestPage() {
             {/* Conditional Center Selection for Lecturers */}
             {watchRole === "LECTURER" && (
               <div className="space-y-1">
-                <Label htmlFor="requestedCenterId">Requested Center {availableCenters.length > 0 ? "" : "(Optional)"}</Label>
+                <Label htmlFor="requestedCenterId">Requested Center {availableCenters.length > 0 ? "" : "(Optional for now)"}</Label>
                 <Controller
                   name="requestedCenterId"
                   control={form.control}
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value || ""} disabled={isLoading || fetchCentersError || availableCenters.length === 0}>
-                      <SelectTrigger id="requestedCenterId" className={form.formState.errors.requestedCenterId ? "border-red-500" : ""}>
-                        <SelectValue placeholder={fetchCentersError ? "Error loading centers" : "Select the center you wish to join"} />
+                    <Select onValueChange={field.onChange} value={field.value || ""} disabled={isLoading || !!fetchCentersError || availableCenters.length === 0}>
+                      <SelectTrigger id="requestedCenterId" className={form.formState.errors.requestedCenterId ? "border-red-500" : "dark:bg-gray-600 dark:text-white"}>
+                        <SelectValue placeholder={fetchCentersError ? "Error loading centers" : (availableCenters.length === 0 ? "No centers available" : "Select the center you wish to join")} />
                       </SelectTrigger>
-                      <SelectContent>
-                        {availableCenters.length > 0 ? (
+                      <SelectContent className="dark:bg-gray-700 dark:text-white">
+                        {/* No explicit "None" item needed; placeholder handles it */}
+                        {availableCenters.length > 0 &&
                           availableCenters.map((center) => (
                             <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
-                          ))
-                        ) : (
-                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                            {fetchCentersError ? "Could not load centers." : "No centers available for selection."}
-                          </div>
-                        )}
+                          ))}
                       </SelectContent>
                     </Select>
                   )}
@@ -217,19 +216,23 @@ export default function SignupRequestPage() {
              {form.formState.errors.root?.serverError && <p className="text-sm text-red-600 text-center bg-red-100 dark:bg-red-900/30 p-2 rounded-md">{form.formState.errors.root.serverError.message}</p>}
 
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
+          <CardFooter className="flex flex-col gap-4 p-6 bg-gray-50 dark:bg-gray-700">
+            <Button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white transition-all duration-300 ease-in-out transform hover:scale-105 rounded-lg" disabled={isLoading} size="lg">
+              <UserPlus className="mr-2 h-5 w-5" />
               {isLoading ? "Submitting Request..." : "Request Signup"}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="underline hover:text-primary">
+              <Link href="/login" className="underline text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
                 Login here
               </Link>
             </p>
           </CardFooter>
         </form>
       </Card>
+      <footer className="text-center mt-8 text-xs text-white/70">
+        <p>&copy; {new Date().getFullYear()} University of Education, Winneba. All rights reserved.</p>
+      </footer>
       <Toaster richColors position="top-right" />
     </div>
   );

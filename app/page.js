@@ -1,110 +1,61 @@
-// app/(auth)/login/page.jsx
-"use client"; // This directive is needed for components with client-side interactivity
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+// app/page.jsx
+import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { loginUser } from '@/lib/actions/auth.actions'; // Import the server action
+import { LogIn, UserPlus } from 'lucide-react'; // Icons
+import Image from 'next/image'; // Import Next.js Image component for optimized images
 
-export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    if (!email || !password) {
-      setError('Please enter both email and password.');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const result = await loginUser({ email, password });
-
-      if (result.success && result.redirectTo) {
-        // On successful login, redirect to the path provided by the server action
-        router.push(result.redirectTo);
-        // Optionally, you might want to refresh the page to ensure all server-side contexts are updated
-        // router.refresh(); // Uncomment if you find session state isn't immediately reflected
-      } else if (result.error) {
-        setError(result.error);
-      } else {
-        // Fallback error if the server action response is not as expected
-        setError('An unexpected response was received from the server.');
-      }
-    } catch (err) {
-      console.error('Login submission error:', err);
-      setError('An unexpected error occurred during login. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+export default function HomePage() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Login</CardTitle>
-          <CardDescription className="text-center">
-            Enter your email and password to access your account.
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-red-300 via-red-100 to-blue-700 dark:from-red-800 dark:via-red-900 dark:to-blue-900 p-4 selection:bg-blue-500 selection:text-white">
+      <Card className="w-full max-w-md shadow-2xl rounded-xl overflow-hidden">
+        <CardHeader className="text-center bg-white dark:bg-gray-800 p-6">
+          {/* Logo Placeholder - Replace with your actual logo path */}
+          {/* Place your logo (e.g., uew_logo.png) in the /public folder */}
+          <div className="mx-auto mb-4 h-24 w-24 relative"> {/* Added relative positioning for Next/Image */}
+            <Image
+              src="/uew.png" // IMPORTANT: Replace with your actual logo file name in /public
+              alt="University of Education, Winneba Logo"
+              layout="fill" // Makes the image fill the container
+              objectFit="contain" // Ensures the image is scaled correctly within the container
+              priority // Load the logo faster
+            />
+          </div>
+          <CardTitle className="text-2xl sm:text-3xl font-bold text-blue-800 dark:text-blue-300">
+            University of Education, Winneba
+          </CardTitle>
+          <CardDescription className="text-gray-600 dark:text-gray-400 pt-1 text-sm sm:text-base">
+            College of Distance Education - Claims Portal
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading}
-                required
-                autoComplete="email"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                required
-                autoComplete="current-password"
-              />
-            </div>
-            {error && (
-              <p className="text-sm text-red-600 dark:text-red-400 text-center bg-red-100 dark:bg-red-900/30 p-3 rounded-md">
-                {error}
-              </p>
-            )}
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Logging in...' : 'Login'}
-            </Button>
-          </CardFooter>
-        </form>
+        <CardContent className="flex flex-col items-center space-y-5 p-6 sm:p-8 bg-gray-50 dark:bg-gray-700">
+          <p className="text-center text-gray-700 dark:text-gray-300 text-sm sm:text-base">
+            Please log in to manage claims or request an account if you're a new Coordinator or Lecturer.
+          </p>
+          <Button asChild size="lg" className="w-full sm:w-4/5 bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white transition-all duration-300 ease-in-out transform hover:scale-105 rounded-lg">
+            <Link href="/login">
+              <LogIn className="mr-2 h-5 w-5" /> Login
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="w-full sm:w-4/5 border-blue-700 text-blue-700 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-400 dark:hover:bg-gray-600 transition-all duration-300 ease-in-out transform hover:scale-105 rounded-lg">
+            <Link href="/signup">
+              <UserPlus className="mr-2 h-5 w-5" /> Request Account
+            </Link>
+          </Button>
+          <p className="text-xs text-center text-gray-500 dark:text-gray-400 pt-3">
+            Account requests require approval from the Registry.
+          </p>
+        </CardContent>
       </Card>
+      <footer className="text-center mt-8 text-xs text-white/70">
+        <p>&copy; {new Date().getFullYear()} University of Education, Winneba. All rights reserved.</p>
+      </footer>
     </div>
   );
 }
