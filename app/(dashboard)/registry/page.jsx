@@ -1,16 +1,21 @@
 // app/(dashboard)/registry/page.jsx
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/actions/auth.actions';
-import { getCenters, getAllUsers, getPotentialCoordinators } from '@/lib/actions/registry.actions.js'; // Corrected import path
+import {
+  getCenters,
+  getAllUsers,
+  getPotentialCoordinators,
+  getAllClaimsSystemWide // Import the new action
+} from '@/lib/actions/registry.actions.js';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card,CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Toaster } from "@/components/ui/sonner"; // For notifications
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Toaster } from "@/components/ui/sonner";
+
 import ManageCentersTab from './_components/ManageCentersTab';
 import ManageUsersTab from './_components/ManageUsersTab';
-
-// We will create these client components next
-
+import ManageSystemClaimsTab from './_components/ManageSystemClaimsTab'; // Import the new tab component
+import { FileText, Users, Building } from 'lucide-react'; // Icons for tabs
 
 export default async function RegistryPage() {
   const session = await getSession();
@@ -20,24 +25,38 @@ export default async function RegistryPage() {
     redirect(session ? '/' : '/login');
   }
 
-  // Fetch initial data on the server
-  const centersData = await getCenters();
-  const usersData = await getAllUsers();
-  const potentialCoordinatorsData = await getPotentialCoordinators(); // For the "Create Center" form
+  // Fetch initial data on the server for all tabs
+  const centersDataPromise = getCenters();
+  const usersDataPromise = getAllUsers();
+  const potentialCoordinatorsDataPromise = getPotentialCoordinators();
+  const systemClaimsDataPromise = getAllClaimsSystemWide(); // Fetch all claims initially (no filters)
+
+  const [
+    centersData,
+    usersData,
+    potentialCoordinatorsData,
+    systemClaimsData
+  ] = await Promise.all([
+    centersDataPromise,
+    usersDataPromise,
+    potentialCoordinatorsDataPromise,
+    systemClaimsDataPromise
+  ]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Registry Dashboard</h1>
         <p className="text-muted-foreground">
-          Manage centers, users, and system settings.
+          Manage centers, users, claims, and system settings.
         </p>
       </div>
 
       <Tabs defaultValue="centers" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
-          <TabsTrigger value="centers">Manage Centers</TabsTrigger>
-          <TabsTrigger value="users">Manage Users</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 md:w-auto md:inline-grid">
+          <TabsTrigger value="centers"><Building className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Manage Centers</TabsTrigger>
+          <TabsTrigger value="users"><Users className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Manage Users</TabsTrigger>
+          <TabsTrigger value="system-claims"><FileText className="mr-2 h-4 w-4 sm:hidden md:inline-block" />System Claims</TabsTrigger>
         </TabsList>
 
         <TabsContent value="centers" className="mt-4">
@@ -75,8 +94,18 @@ export default async function RegistryPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="system-claims" className="mt-4">
+          {/* Content for the new System Claims Tab */}
+          <ManageSystemClaimsTab
+            initialClaimsData={{ claims: systemClaimsData.claims || [], error: systemClaimsData.error }}
+            allCenters={centersData.centers || []} // For the center filter dropdown
+            registryUserId={session.userId} // Pass the logged-in registry user's ID
+          />
+          {/* Note: The Card wrapper is now inside ManageSystemClaimsTab for better encapsulation */}
+        </TabsContent>
       </Tabs>
-      <Toaster richColors position="top-right" /> {/* For displaying toast notifications */}
+      <Toaster richColors position="top-right" />
     </div>
   );
 }
