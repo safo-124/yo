@@ -22,14 +22,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { FileWarning, History, FilePlus } from "lucide-react"; // Icons
-import { Toaster } from '@/components/ui/sonner'; // For any potential notifications
-
-// Helper to format claim details for display in a tooltip or modal later
-// For now, we'll keep the table simple.
-// const formatClaimDetailsForTooltip = (claim) => {
-//   // ... implementation similar to ManageCoordinatorClaimsTab ...
-//   return "Detailed summary...";
-// };
+import { Toaster } from '@/components/ui/sonner';
 
 export default async function MyClaimsPage({ params }) {
   const session = await getSession();
@@ -59,7 +52,7 @@ export default async function MyClaimsPage({ params }) {
     );
   }
 
-  const { claims, center } = result.data; // We get all claims from getLecturerDashboardData
+  const { claims, center, profile } = result.data; // We get all claims from getLecturerDashboardData
 
   // Ensure the fetched center data matches the URL's centerId for consistency
   if (center?.id !== centerId) {
@@ -70,7 +63,7 @@ export default async function MyClaimsPage({ params }) {
   const getStatusBadgeVariant = (status) => {
     switch (status) {
       case 'PENDING': return 'outline';
-      case 'APPROVED': return 'default'; // Usually a success-like color
+      case 'APPROVED': return 'default'; // Usually a success-like color (often green in shadcn default)
       case 'REJECTED': return 'destructive';
       default: return 'secondary';
     }
@@ -131,7 +124,7 @@ export default async function MyClaimsPage({ params }) {
                       </TableCell>
                       <TableCell>{claim.processedByCoordinator || (claim.status !== 'PENDING' ? 'N/A' : '')}</TableCell>
                       {/* <TableCell className="text-right">
-                        <Button variant="outline" size="sm" disabled>View</Button>
+                        <Button variant="outline" size="sm" disabled>View Details</Button>
                       </TableCell> */}
                     </TableRow>
                   ))}
