@@ -1,7 +1,8 @@
 // app/(dashboard)/UserProfileDropdown.jsx
+// Or app/(dashboard)/_components/UserProfileDropdown.jsx (adjust path as needed in imports)
 "use client";
 
-import Link from 'next/link';
+import Link from 'next/link'; // Keep if any items still use Link directly
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,7 +14,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { logoutUser } from '@/lib/actions/auth.actions'; // Assuming logoutUser is a server action
+import { logoutUser } from '@/lib/actions/auth.actions';
+import { UserCircle, Settings as SettingsIcon, LogOut } from 'lucide-react'; // Added icons
 
 // Function to get initials from name
 const getInitials = (name) => {
@@ -55,24 +57,22 @@ export default function UserProfileDropdown({ session }) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => handleNavigation('/profile')}>
-          Profile {/* Placeholder for profile page */}
+          <UserCircle className="mr-2 h-4 w-4" />
+          <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => handleNavigation('/settings')}>
-          Settings {/* Placeholder for settings page */}
+        {/* The "Settings" link now also points to /profile as it serves as the settings page */}
+        <DropdownMenuItem onSelect={() => handleNavigation('/profile')}>
+          <SettingsIcon className="mr-2 h-4 w-4" />
+          <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        {/* The form for logout can still call the server action directly */}
         <DropdownMenuItem asChild>
-          {/*
-            We wrap the form in a DropdownMenuItem to keep consistent styling and behavior.
-            The form itself will be the item.
-            Alternatively, use onSelect to trigger form submission if preferred.
-          */}
           <form action={logoutUser} className="w-full">
             <button
               type="submit"
               className="w-full text-left relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
             >
+              <LogOut className="mr-2 h-4 w-4" />
               Logout
             </button>
           </form>
