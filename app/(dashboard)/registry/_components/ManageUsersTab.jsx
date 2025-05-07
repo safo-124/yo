@@ -30,14 +30,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"; // Ensure Card components are imported
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import {
   createUserByRegistry,
   updateUserRoleAndAssignmentsByRegistry,
-  updateUserPasswordByRegistry
+  updateUserPasswordByRegistry,
 } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
-import { UserPlus, Users, Edit, KeyRound } from "lucide-react"; // Icons
+import { UserPlus, Users, Edit3, KeyRound } from "lucide-react"; // Icons
 
 export default function ManageUsersTab({ initialUsers = [], centers = [], fetchError }) {
   const [users, setUsers] = useState(initialUsers);
@@ -47,23 +47,24 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
 
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState('');
+  const [passwordFormError, setPasswordFormError] = useState('');
 
-  // State for creating new user
+
+  // Form state for new user
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('');
-  const [newSelectedCenterForLecturer, setNewSelectedCenterForLecturer] = useState('');
+  const [selectedCenterForNewLecturer, setSelectedCenterForNewLecturer] = useState(''); // Empty string for placeholder
 
   // State for editing existing user
-  const [editingUser, setEditingUser] = useState(null); // Stores the full user object being edited
+  const [editingUser, setEditingUser] = useState(null);
   const [editUserRole, setEditUserRole] = useState('');
-  const [editSelectedCenter, setEditSelectedCenter] = useState('');
-  const [editSelectedDepartment, setEditSelectedDepartment] = useState(''); // For future use if assigning dept directly
+  const [editUserCenterId, setEditUserCenterId] = useState(''); // Empty string for placeholder
+  const [editUserDepartmentId, setEditUserDepartmentId] = useState('');
 
   // State for changing password
-  const [userForPasswordChange, setUserForPasswordChange] = useState(null);
-  const [newPasswordForChange, setNewPasswordForChange] = useState('');
+  const [newPasswordForUser, setNewPasswordForUser] = useState('');
 
 
   useEffect(() => {
@@ -75,23 +76,22 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     setNewUserEmail('');
     setNewUserPassword('');
     setNewUserRole('');
-    setNewSelectedCenterForLecturer('');
+    setSelectedCenterForNewLecturer('');
     setFormError('');
   };
 
   const resetEditForm = () => {
     setEditingUser(null);
     setEditUserRole('');
-    setEditSelectedCenter('');
-    setEditSelectedDepartment('');
+    setEditUserCenterId('');
+    setEditUserDepartmentId('');
     setFormError('');
   };
 
-  const resetChangePasswordForm = () => {
-    setUserForPasswordChange(null);
-    setNewPasswordForChange('');
-    setFormError('');
-  };
+  const resetPasswordChangeForm = () => {
+    setNewPasswordForUser('');
+    setPasswordFormError('');
+  }
 
   const handleCreateUser = async (event) => {
     event.preventDefault();
@@ -114,16 +114,16 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
       email: newUserEmail.trim(),
       password: newUserPassword.trim(),
       role: newUserRole,
-      lecturerCenterId: newUserRole === 'LECTURER' ? newSelectedCenterForLecturer || null : null,
+      lecturerCenterId: newUserRole === 'LECTURER' ? selectedCenterForNewLecturer || null : null,
     };
 
     const result = await createUserByRegistry(userData);
     setIsLoading(false);
     if (result.success) {
       toast.success(`User "${result.user.name}" created successfully!`);
-      // Parent page revalidation will update initialUsers prop, then useEffect updates local state.
       setIsCreateUserDialogOpen(false);
       resetCreateForm();
+      // Parent page revalidation will update initialUsers prop, then useEffect updates local state.
     } else {
       setFormError(result.error || "Failed to create user.");
       toast.error(result.error || "Failed to create user.");
@@ -133,8 +133,8 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   const handleOpenEditDialog = (user) => {
     setEditingUser(user);
     setEditUserRole(user.role);
-    setEditSelectedCenter(user.lecturerCenterId || '');
-    // setEditSelectedDepartment(user.departmentId || ''); // If managing department here
+    setEditUserCenterId(user.lecturerCenterId || ''); // Use empty string if null/undefined
+    setEditUserDepartmentId(user.departmentId || '');
     setFormError('');
     setIsEditUserDialogOpen(true);
   };
@@ -148,9 +148,22 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     const updateData = {
       userId: editingUser.id,
       newRole: editUserRole,
-      newCenterId: editUserRole === 'LECTURER' ? editSelectedCenter || null : null,
-      // newDepartmentId: editUserRole === 'LECTURER' ? editSelectedDepartment || null : null, // If managing dept
+      newCenterId: editUserRole === 'LECTURER' ? editUserCenterId || null : null,
+      newDepartmentId: editUserRole === 'LECTURER' ? editUserDepartmentId || null : null,
     };
+
+    if (!updateData.newRole) {
+        setFormError("Role is required.");
+        setIsLoading(false);
+        return;
+    }
+    // Making center assignment optional on edit for now
+    // if (updateData.newRole === 'LECTURER' && !updateData.newCenterId) {
+    //     setFormError("Center assignment is required for lecturers.");
+    //     setIsLoading(false);
+    //     return;
+    // }
+
 
     const result = await updateUserRoleAndAssignmentsByRegistry(updateData);
     setIsLoading(false);
@@ -166,44 +179,42 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   };
 
   const handleOpenChangePasswordDialog = (user) => {
-    setUserForPasswordChange(user);
-    setNewPasswordForChange('');
-    setFormError('');
+    if (!editingUser || editingUser.id !== user.id) {
+        setEditingUser(user);
+    }
+    setPasswordFormError('');
+    setNewPasswordForUser('');
     setIsChangePasswordDialogOpen(true);
   };
 
   const handleChangePassword = async (event) => {
     event.preventDefault();
-    if (!userForPasswordChange || !newPasswordForChange.trim()) {
-      setFormError("New password is required.");
+    if (!editingUser || !newPasswordForUser.trim()) {
+      setPasswordFormError("New password is required.");
       return;
     }
-    if (newPasswordForChange.trim().length < 6) {
-      setFormError("Password must be at least 6 characters.");
-      setIsLoading(false);
+    if (newPasswordForUser.trim().length < 6) {
+      setPasswordFormError("Password must be at least 6 characters.");
       return;
     }
     setIsLoading(true);
-    setFormError('');
+    setPasswordFormError('');
 
     const result = await updateUserPasswordByRegistry({
-      userId: userForPasswordChange.id,
-      newPassword: newPasswordForChange.trim(),
+      userId: editingUser.id,
+      newPassword: newPasswordForUser.trim(),
     });
     setIsLoading(false);
     if (result.success) {
-      toast.success(`Password for ${userForPasswordChange.name} updated successfully!`);
+      toast.success(`Password for user "${editingUser.name}" updated successfully!`);
       setIsChangePasswordDialogOpen(false);
-      resetChangePasswordForm();
+      resetPasswordChangeForm();
     } else {
-      setFormError(result.error || "Failed to update password.");
+      setPasswordFormError(result.error || "Failed to update password.");
       toast.error(result.error || "Failed to update password.");
     }
   };
 
-  if (fetchError) {
-    return <p className="text-red-600">Error loading user data: {fetchError}</p>;
-  }
 
   return (
     <div className="space-y-6">
@@ -224,23 +235,13 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
           </DialogHeader>
           <form onSubmit={handleCreateUser}>
             <div className="grid gap-4 py-4">
-              {/* ... Create User Form Fields (same as manage_users_tab_v1) ... */}
-              <div className="space-y-1">
-                <Label htmlFor="newUserName">Full Name</Label>
-                <Input id="newUserName" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required disabled={isLoading} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="newUserEmail">Email</Label>
-                <Input id="newUserEmail" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required disabled={isLoading} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="newUserPassword">Password</Label>
-                <Input id="newUserPassword" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} required disabled={isLoading} placeholder="Min. 6 characters" />
-              </div>
+              <div className="space-y-1"><Label htmlFor="newUserName">Full Name</Label><Input id="newUserName" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required disabled={isLoading} /></div>
+              <div className="space-y-1"><Label htmlFor="newUserEmail">Email</Label><Input id="newUserEmail" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required disabled={isLoading} /></div>
+              <div className="space-y-1"><Label htmlFor="newUserPassword">Password</Label><Input id="newUserPassword" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} required disabled={isLoading} /></div>
               <div className="space-y-1">
                 <Label htmlFor="newUserRole">Role</Label>
                 <Select value={newUserRole} onValueChange={setNewUserRole} disabled={isLoading} required>
-                  <SelectTrigger id="newUserRole"><SelectValue placeholder="Select role" /></SelectTrigger>
+                  <SelectTrigger id="newUserRole"><SelectValue placeholder="Select a role" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="COORDINATOR">Coordinator</SelectItem>
                     <SelectItem value="LECTURER">Lecturer</SelectItem>
@@ -249,17 +250,22 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
               </div>
               {newUserRole === 'LECTURER' && (
                 <div className="space-y-1">
-                  <Label htmlFor="newLecturerCenter">Assign to Center (Optional)</Label>
-                  <Select value={newSelectedCenterForLecturer} onValueChange={setNewSelectedCenterForLecturer} disabled={isLoading}>
-                    <SelectTrigger id="newLecturerCenter"><SelectValue placeholder="Select center" /></SelectTrigger>
+                  <Label htmlFor="selectedCenterForNewLecturer">Assign to Center (Optional)</Label>
+                  {/* Ensure value is controlled and use empty string for placeholder state */}
+                  <Select value={selectedCenterForNewLecturer} onValueChange={setSelectedCenterForNewLecturer} disabled={isLoading}>
+                    <SelectTrigger id="selectedCenterForNewLecturer"><SelectValue placeholder="Select a center (optional)" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {centers.map(center => <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>)}
+                      {/* REMOVED: <SelectItem value="">None</SelectItem> */}
+                      {centers.length > 0 ? (
+                         centers.map((center) => (<SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>))
+                      ) : (
+                         <div className="px-2 py-1.5 text-sm text-muted-foreground">No centers available.</div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
               )}
-              {formError && <p className="text-sm text-red-600 text-center">{formError}</p>}
+              {formError && <p className="text-sm text-red-600 text-center bg-red-100 dark:bg-red-900/30 p-2 rounded-md">{formError}</p>}
             </div>
             <DialogFooter>
               <DialogClose asChild><Button type="button" variant="outline" disabled={isLoading}>Cancel</Button></DialogClose>
@@ -278,7 +284,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Edit User: {editingUser.name}</DialogTitle>
-              <DialogDescription>Update user role and assignments.</DialogDescription>
+              <DialogDescription>Modify user role and assignments. Email cannot be changed here.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleUpdateUser}>
               <div className="grid gap-4 py-4">
@@ -289,32 +295,41 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                 <div className="space-y-1">
                   <Label htmlFor="editUserRole">Role</Label>
                   <Select value={editUserRole} onValueChange={setEditUserRole} disabled={isLoading} required>
-                    <SelectTrigger id="editUserRole"><SelectValue placeholder="Select role" /></SelectTrigger>
+                    <SelectTrigger id="editUserRole"><SelectValue placeholder="Select new role" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="COORDINATOR">Coordinator</SelectItem>
                       <SelectItem value="LECTURER">Lecturer</SelectItem>
-                      {/* REGISTRY role changes should be handled with extreme care, maybe not here */}
                     </SelectContent>
                   </Select>
                 </div>
                 {editUserRole === 'LECTURER' && (
-                  <div className="space-y-1">
-                    <Label htmlFor="editLecturerCenter">Assign to Center</Label>
-                    <Select value={editSelectedCenter} onValueChange={setEditSelectedCenter} disabled={isLoading}>
-                      <SelectTrigger id="editLecturerCenter"><SelectValue placeholder="Select center" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">None (Unassign)</SelectItem>
-                        {centers.map(center => <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <>
+                    <div className="space-y-1">
+                      <Label htmlFor="editUserCenterId">Assign to Center (Optional)</Label>
+                      {/* Ensure value is controlled and use empty string for placeholder state */}
+                      <Select value={editUserCenterId} onValueChange={setEditUserCenterId} disabled={isLoading}>
+                        <SelectTrigger id="editUserCenterId"><SelectValue placeholder="Select a center (optional)" /></SelectTrigger>
+                        <SelectContent>
+                          {/* REMOVED: <SelectItem value="">None</SelectItem> */}
+                          {centers.length > 0 ? (
+                             centers.map((center) => (<SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>))
+                          ) : (
+                             <div className="px-2 py-1.5 text-sm text-muted-foreground">No centers available.</div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Department assignment could be added here if needed */}
+                  </>
                 )}
-                {/* Add department assignment here if needed when role is LECTURER */}
-                {formError && <p className="text-sm text-red-600 text-center">{formError}</p>}
+                {formError && <p className="text-sm text-red-600 text-center bg-red-100 dark:bg-red-900/30 p-2 rounded-md">{formError}</p>}
+                <Button type="button" variant="outline" onClick={() => handleOpenChangePasswordDialog(editingUser)} className="w-full mt-2" disabled={isLoading}>
+                  <KeyRound className="mr-2 h-4 w-4" /> Change Password
+                </Button>
               </div>
               <DialogFooter>
                 <DialogClose asChild><Button type="button" variant="outline" disabled={isLoading}>Cancel</Button></DialogClose>
-                <Button type="submit" disabled={isLoading}>{isLoading ? "Updating..." : "Update User"}</Button>
+                <Button type="submit" disabled={isLoading}>{isLoading ? "Updating..." : "Save Changes"}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -322,31 +337,31 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
       )}
 
       {/* Change Password Dialog */}
-      {userForPasswordChange && (
-         <Dialog open={isChangePasswordDialogOpen} onOpenChange={(isOpen) => {
-          setIsChangePasswordDialogOpen(isOpen);
-          if (!isOpen) resetChangePasswordForm();
-        }}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Change Password for {userForPasswordChange.name}</DialogTitle>
-              <DialogDescription>Enter a new password for the user.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleChangePassword}>
-              <div className="grid gap-4 py-4">
-                <div className="space-y-1">
-                  <Label htmlFor="newPasswordChange">New Password</Label>
-                  <Input id="newPasswordChange" type="password" value={newPasswordForChange} onChange={(e) => setNewPasswordForChange(e.target.value)} required disabled={isLoading} placeholder="Min. 6 characters" />
-                </div>
-                {formError && <p className="text-sm text-red-600 text-center">{formError}</p>}
-              </div>
-              <DialogFooter>
-                <DialogClose asChild><Button type="button" variant="outline" disabled={isLoading}>Cancel</Button></DialogClose>
-                <Button type="submit" disabled={isLoading}>{isLoading ? "Updating..." : "Change Password"}</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+      {editingUser && isChangePasswordDialogOpen && (
+          <Dialog open={isChangePasswordDialogOpen} onOpenChange={(isOpen) => {
+              setIsChangePasswordDialogOpen(isOpen);
+              if (!isOpen) resetPasswordChangeForm();
+          }}>
+              <DialogContent className="sm:max-w-sm">
+                  <DialogHeader>
+                      <DialogTitle>Change Password for {editingUser.name}</DialogTitle>
+                      <DialogDescription>Enter a new password for the user.</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleChangePassword}>
+                      <div className="grid gap-4 py-4">
+                          <div className="space-y-1">
+                              <Label htmlFor="newPasswordForUser">New Password</Label>
+                              <Input id="newPasswordForUser" type="password" value={newPasswordForUser} onChange={(e) => setNewPasswordForUser(e.target.value)} required disabled={isLoading} />
+                          </div>
+                          {passwordFormError && <p className="text-sm text-red-600 text-center bg-red-100 dark:bg-red-900/30 p-2 rounded-md">{passwordFormError}</p>}
+                      </div>
+                      <DialogFooter>
+                          <DialogClose asChild><Button type="button" variant="outline" disabled={isLoading}>Cancel</Button></DialogClose>
+                          <Button type="submit" disabled={isLoading}>{isLoading ? "Updating..." : "Set New Password"}</Button>
+                      </DialogFooter>
+                  </form>
+              </DialogContent>
+          </Dialog>
       )}
 
 
@@ -354,7 +369,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
       <Card>
         <CardHeader>
             <CardTitle>System Users</CardTitle>
-            <CardDescription>View and manage all users in the system.</CardDescription>
+            <CardDescription>Manage all user accounts in the system.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="border rounded-lg">
@@ -364,8 +379,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
-                    <TableHead>Associated Center</TableHead>
-                    <TableHead>Department</TableHead>
+                    <TableHead>Associated Center/Dept.</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
                 </TableHeader>
@@ -380,23 +394,21 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                         {user.role === 'COORDINATOR' && user.coordinatedCenter?.name
                             ? `Coordinates: ${user.coordinatedCenter.name}`
                             : user.role === 'LECTURER' && user.lecturerCenter?.name
-                            ? `Lecturer at: ${user.lecturerCenter.name}`
-                            : 'N/A'}
+                            ? `Center: ${user.lecturerCenter.name}${user.department?.name ? ` / Dept: ${user.department.name}` : ''}`
+                            : user.role === 'LECTURER' && !user.lecturerCenter?.name && user.lecturerCenterId
+                                ? `(Center ID: ${user.lecturerCenterId})`
+                                : 'N/A'}
                         </TableCell>
-                        <TableCell>{user.department?.name || 'N/A'}</TableCell>
-                        <TableCell className="text-right space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => handleOpenEditDialog(user)} disabled={user.role === 'REGISTRY'}> {/* Disable editing REGISTRY itself */}
-                                <Edit className="mr-1 h-3 w-3" /> Edit Role
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={() => handleOpenChangePasswordDialog(user)}>
-                                <KeyRound className="mr-1 h-3 w-3" /> Password
-                            </Button>
+                        <TableCell className="text-right">
+                        <Button variant="outline" size="sm" onClick={() => handleOpenEditDialog(user)} disabled={user.role === 'REGISTRY'}>
+                            <Edit3 className="mr-1 h-3 w-3" /> Edit
+                        </Button>
                         </TableCell>
                     </TableRow>
                     ))
                 ) : (
                     <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">
+                    <TableCell colSpan={5} className="text-center h-24">
                         No users found.
                     </TableCell>
                     </TableRow>

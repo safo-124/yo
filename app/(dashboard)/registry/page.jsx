@@ -1,111 +1,130 @@
 // app/(dashboard)/registry/page.jsx
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { getSession } from '@/lib/actions/auth.actions';
 import {
   getCenters,
   getAllUsers,
-  getPotentialCoordinators,
-  getAllClaimsSystemWide // Import the new action
+  getAllClaimsSystemWide
 } from '@/lib/actions/registry.actions.js';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Building, Users, FileText, AlertTriangle } from "lucide-react"; // Icons
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Toaster } from "@/components/ui/sonner";
-
-import ManageCentersTab from './_components/ManageCentersTab';
-import ManageUsersTab from './_components/ManageUsersTab';
-import ManageSystemClaimsTab from './_components/ManageSystemClaimsTab'; // Import the new tab component
-import { FileText, Users, Building } from 'lucide-react'; // Icons for tabs
-
-export default async function RegistryPage() {
+export default async function RegistryOverviewPage() {
   const session = await getSession();
 
   if (!session || session.role !== 'REGISTRY') {
-    console.warn("Unauthorized access attempt to /registry by user:", session?.email, "with role:", session?.role);
-    redirect(session ? '/' : '/login');
+    // This check is also in the layout, but good for belt-and-suspenders
+    redirect(session ? '/unauthorized' : '/login');
   }
 
-  // Fetch initial data on the server for all tabs
+  // Fetch data for statistics
   const centersDataPromise = getCenters();
   const usersDataPromise = getAllUsers();
-  const potentialCoordinatorsDataPromise = getPotentialCoordinators();
-  const systemClaimsDataPromise = getAllClaimsSystemWide(); // Fetch all claims initially (no filters)
+  // Fetch all claims to get a count; could be filtered for pending if preferred for the stat card
+  const claimsDataPromise = getAllClaimsSystemWide({ status: "PENDING" }); // Example: show pending claims count
 
   const [
-    centersData,
-    usersData,
-    potentialCoordinatorsData,
-    systemClaimsData
+    centersResult,
+    usersResult,
+    claimsResult
   ] = await Promise.all([
     centersDataPromise,
     usersDataPromise,
-    potentialCoordinatorsDataPromise,
-    systemClaimsDataPromise
+    claimsDataPromise
   ]);
+
+  const stats = [
+    {
+      title: "Total Centers",
+      count: centersResult.success ? centersResult.centers.length : "Error",
+      icon: Building,
+      href: "/registry/centers",
+      description: "Manage all academic centers.",
+      error: centersResult.error
+    },
+    {
+      title: "Total Users",
+      // Exclude Registry user from count if desired, or show all.
+      // For simplicity, showing all users fetched by getAllUsers.
+      count: usersResult.success ? usersResult.users.length : "Error",
+      icon: Users,
+      href: "/registry/users",
+      description: "Manage all user accounts.",
+      error: usersResult.error
+    },
+    {
+      title: "Pending System Claims", // Changed to pending for more actionable stat
+      count: claimsResult.success ? claimsResult.claims.length : "Error",
+      icon: FileText,
+      href: "/registry/claims", // This page will allow filtering for all statuses
+      description: "Review and process claims.",
+      error: claimsResult.error
+    },
+  ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Registry Dashboard</h1>
+        <h1 className="text-3xl font-bold">Registry Overview</h1>
         <p className="text-muted-foreground">
-          Manage centers, users, claims, and system settings.
+          Key statistics and quick access to management sections.
         </p>
       </div>
 
-      <Tabs defaultValue="centers" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 md:w-auto md:inline-grid">
-          <TabsTrigger value="centers"><Building className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Manage Centers</TabsTrigger>
-          <TabsTrigger value="users"><Users className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Manage Users</TabsTrigger>
-          <TabsTrigger value="system-claims"><FileText className="mr-2 h-4 w-4 sm:hidden md:inline-block" />System Claims</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="centers" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Centers</CardTitle>
-              <CardDescription>
-                View, create, and manage academic centers.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ManageCentersTab
-                initialCenters={centersData.centers || []}
-                potentialCoordinators={potentialCoordinatorsData.users || []}
-                fetchError={centersData.error || potentialCoordinatorsData.error}
-              />
-            </CardContent>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {stats.map((stat) => (
+          <Card key={stat.title} className="hover:shadow-lg transition-shadow">
+            <Link href={stat.href} className="block">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                <stat.icon className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {stat.error ? (
+                  <div className="flex items-center text-red-600">
+                    <AlertTriangle className="mr-2 h-6 w-6" />
+                    <p className="text-2xl font-bold">Error</p>
+                  </div>
+                ) : (
+                  <div className="text-2xl font-bold">{stat.count}</div>
+                )}
+                <p className="text-xs text-muted-foreground pt-1">
+                  {stat.error ? stat.error : stat.description}
+                </p>
+              </CardContent>
+            </Link>
           </Card>
-        </TabsContent>
+        ))}
+      </div>
 
-        <TabsContent value="users" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Users</CardTitle>
-              <CardDescription>
-                View, create, and manage user accounts (Coordinators, Lecturers).
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ManageUsersTab
-                initialUsers={usersData.users || []}
-                centers={centersData.centers || []} // Pass centers for assigning lecturers
-                fetchError={usersData.error}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="system-claims" className="mt-4">
-          {/* Content for the new System Claims Tab */}
-          <ManageSystemClaimsTab
-            initialClaimsData={{ claims: systemClaimsData.claims || [], error: systemClaimsData.error }}
-            allCenters={centersData.centers || []} // For the center filter dropdown
-            registryUserId={session.userId} // Pass the logged-in registry user's ID
-          />
-          {/* Note: The Card wrapper is now inside ManageSystemClaimsTab for better encapsulation */}
-        </TabsContent>
-      </Tabs>
-      <Toaster richColors position="top-right" />
+      {/* You can add more sections here, like recent activities or important alerts */}
+      <Card>
+        <CardHeader>
+          <CardTitle>System Health & Activity</CardTitle>
+          <CardDescription>Overview of recent system events or notifications.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            This area can be used for important system-wide announcements, a summary of recent user registrations,
+            or critical pending tasks. For now, it's a placeholder for future enhancements.
+          </p>
+          {/* Example:
+          <ul className="mt-4 space-y-2 text-sm">
+            <li>New center "Faculty of Arts" created on [Date].</li>
+            <li>5 new claims submitted today.</li>
+            <li>User "coordinator@example.com" password changed.</li>
+          </ul>
+          */}
+        </CardContent>
+      </Card>
     </div>
   );
 }
