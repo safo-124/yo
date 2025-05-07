@@ -4,10 +4,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/actions/auth.actions';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Building, Users, FileText } from 'lucide-react';
-// Assuming UserProfileDropdown is in app/(dashboard)/UserProfileDropdown.jsx
-// Adjust path if it's in app/(dashboard)/_components/UserProfileDropdown.jsx
-import UserProfileDropdown from '../UserProfileDropdown'
+import { LayoutDashboard, Building, Users, FileText, UserCheck as UserCheckIcon } from 'lucide-react'; // Added UserCheckIcon
+import UserProfileDropdown from '../UserProfileDropdown';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -28,11 +26,11 @@ export default async function RegistryLayout({ children }) {
     { name: 'Manage Centers', href: '/registry/centers', icon: Building },
     { name: 'Manage Users', href: '/registry/users', icon: Users },
     { name: 'System Claims', href: '/registry/claims', icon: FileText },
+    { name: 'Signup Requests', href: '/registry/requests', icon: UserCheckIcon }, // New Link
   ];
 
   return (
     <div className={`min-h-screen bg-gray-100 dark:bg-gray-800 ${inter.className} flex`}>
-      {/* Sidebar Navigation for Registry */}
       <aside className="w-64 bg-white dark:bg-gray-900 shadow-md p-4 flex flex-col">
         <div className="mb-6">
           <Link href="/registry" className="text-2xl font-semibold text-gray-800 dark:text-white">
@@ -44,7 +42,7 @@ export default async function RegistryLayout({ children }) {
           {navigationItems.map((item) => (
             <Button
               key={item.name}
-              variant="ghost" // Or "default" if you want active state styling later
+              variant="ghost"
               className="w-full justify-start"
               asChild
             >
@@ -60,16 +58,10 @@ export default async function RegistryLayout({ children }) {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden"> {/* Added overflow-hidden */}
-        {/* The main dashboard layout already provides a top header.
-            If you want a secondary header specific to registry, add it here.
-            For now, we assume the main dashboard header is sufficient.
-        */}
-        <main className="flex-grow p-4 sm:p-6 lg:p-8 overflow-y-auto"> {/* Added overflow-y-auto */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-grow p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {children}
         </main>
-        {/* Footer can be part of the main app/(dashboard)/layout.jsx or added here if specific */}
       </div>
     </div>
   );
