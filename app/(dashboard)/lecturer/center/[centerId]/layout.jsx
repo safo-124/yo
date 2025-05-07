@@ -6,14 +6,16 @@ import { getSession } from '@/lib/actions/auth.actions';
 import prisma from '@/lib/prisma'; // To fetch center name for display
 import { Button } from '@/components/ui/button';
 import { LayoutDashboard, FilePlus, History } from 'lucide-react';
-import UserProfileDropdown from '@/app/(dashboard)/UserProfileDropdown';
-
+import UserProfileDropdown from '../../../UserProfileDropdown'; // Adjusted path
 
 const inter = Inter({ subsets: ['latin'] });
 
-export default async function LecturerCenterLayout({ children, params }) {
+export default async function LecturerCenterLayout({ children, params: rawParams }) { // Renamed params to rawParams
   const session = await getSession();
-  const { centerId } = params; // Get centerId from the URL
+
+  // Await params as per the Next.js error message
+  const params = await rawParams;
+  const { centerId } = params; // Get centerId from the awaited URL parameters
 
   if (!session?.userId) {
     redirect('/login');
@@ -25,7 +27,6 @@ export default async function LecturerCenterLayout({ children, params }) {
   }
 
   // Verify that the logged-in lecturer actually belongs to this centerId
-  // Fetch the user again to get their lecturerCenterId to compare
   const currentUser = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { lecturerCenterId: true }
@@ -33,15 +34,13 @@ export default async function LecturerCenterLayout({ children, params }) {
 
   if (currentUser?.lecturerCenterId !== centerId) {
     console.warn(`Lecturer ${session.userId} attempted to access unauthorized center ${centerId}. Their assigned center is ${currentUser?.lecturerCenterId}.`);
-    // Redirect to their actual center's dashboard or an unauthorized page
     if (currentUser?.lecturerCenterId) {
       redirect(`/lecturer/center/${currentUser.lecturerCenterId}/dashboard`);
     } else {
-      redirect('/lecturer/assignment-pending'); // If they aren't assigned to any center
+      redirect('/lecturer/assignment-pending');
     }
   }
 
-  // Fetch center name for display in the layout
   let centerName = "Your Center";
   try {
     const center = await prisma.center.findUnique({
