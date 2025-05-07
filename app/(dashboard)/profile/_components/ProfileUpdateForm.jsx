@@ -12,13 +12,13 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { updateCurrentUserName, updateCurrentUserPassword } from '@/lib/actions/user.actions';
 import { toast } from "sonner";
-import { KeyRound, Edit, Save } from 'lucide-react';
+import { KeyRound, Edit, Save, User } from 'lucide-react';
+import { Separator } from "@/components/ui/separator";
 
 // Zod Schema for Name Update
 const nameFormSchema = z.object({
@@ -32,7 +32,7 @@ const passwordFormSchema = z.object({
   confirmNewPassword: z.string().min(6, "Please confirm your new password."),
 }).refine((data) => data.newPassword === data.confirmNewPassword, {
   message: "New passwords do not match.",
-  path: ["confirmNewPassword"], // Point error to the confirmation field
+  path: ["confirmNewPassword"],
 });
 
 export default function ProfileUpdateForm({ initialName }) {
@@ -65,11 +65,6 @@ export default function ProfileUpdateForm({ initialName }) {
 
     if (result.success) {
       toast.success(result.message || "Name updated successfully!");
-      // Optionally, you could update a parent state or re-fetch data if the name
-      // is displayed elsewhere on the page dynamically without a full page reload.
-      // For now, revalidation in the server action should handle updates on next navigation/refresh.
-      // You might want to update the input field if the user could submit again without refresh:
-      // nameForm.setValue("newName", result.user.name); // If action returns updated user
     } else {
       toast.error(result.error || "Failed to update name.");
       nameForm.setError("newName", { type: "manual", message: result.error });
@@ -87,106 +82,130 @@ export default function ProfileUpdateForm({ initialName }) {
 
     if (result.success) {
       toast.success(result.message || "Password updated successfully!");
-      passwordForm.reset(); // Clear password fields for security
+      passwordForm.reset();
     } else {
       toast.error(result.error || "Failed to update password.");
-      // Set error on a specific field if applicable, e.g., currentPassword
       if (result.error?.toLowerCase().includes("current password")) {
         passwordForm.setError("currentPassword", { type: "manual", message: result.error });
       } else {
-         passwordForm.setError("newPassword", { type: "manual", message: result.error }); // Or a general error on one field
+         passwordForm.setError("newPassword", { type: "manual", message: result.error });
       }
     }
   };
 
   return (
-    <>
+    <div className="space-y-6 max-w-2xl mx-auto p-4 md:p-6">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold tracking-tight">Profile Settings</h1>
+        <p className="text-muted-foreground">Manage your account information and security</p>
+      </div>
+
+      <Separator className="my-6" />
+
       {/* Update Name Card */}
-      <Card>
+      <Card className="border-transparent bg-gradient-to-br from-background to-muted/20 shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center"><Edit className="mr-2 h-5 w-5 text-primary" /> Update Your Name</CardTitle>
-          <CardDescription>Change your display name as it appears in the application.</CardDescription>
-        </CardHeader>
-        <form onSubmit={nameForm.handleSubmit(handleNameUpdate)}>
-          <CardContent className="space-y-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 rounded-full bg-primary/10">
+              <User className="h-5 w-5 text-primary" />
+            </div>
             <div>
+              <CardTitle>Personal Information</CardTitle>
+              <CardDescription>Update your name as it appears in the application</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={nameForm.handleSubmit(handleNameUpdate)} className="space-y-4">
+            <div className="grid gap-2">
               <Label htmlFor="newName">Full Name</Label>
               <Input
                 id="newName"
                 {...nameForm.register("newName")}
                 disabled={isNameLoading}
-                className={nameForm.formState.errors.newName ? "border-red-500" : ""}
+                className={nameForm.formState.errors.newName ? "border-destructive" : ""}
+                placeholder="Enter your full name"
               />
               {nameForm.formState.errors.newName && (
-                <p className="text-sm text-red-500 mt-1">{nameForm.formState.errors.newName.message}</p>
+                <p className="text-sm text-destructive mt-1">{nameForm.formState.errors.newName.message}</p>
               )}
             </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isNameLoading}>
+            <Button type="submit" disabled={isNameLoading} className="w-full sm:w-auto">
               <Save className="mr-2 h-4 w-4" />
-              {isNameLoading ? "Saving Name..." : "Save Name"}
+              {isNameLoading ? "Saving..." : "Save Changes"}
             </Button>
-          </CardFooter>
-        </form>
+          </form>
+        </CardContent>
       </Card>
 
       {/* Change Password Card */}
-      <Card>
+      <Card className="border-transparent bg-gradient-to-br from-background to-muted/20 shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center"><KeyRound className="mr-2 h-5 w-5 text-primary" /> Change Your Password</CardTitle>
-          <CardDescription>Choose a new, strong password for your account.</CardDescription>
+          <div className="flex items-center space-x-3">
+            <div className="p-2 rounded-full bg-primary/10">
+              <KeyRound className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Password & Security</CardTitle>
+              <CardDescription>Change your password to keep your account secure</CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <form onSubmit={passwordForm.handleSubmit(handlePasswordUpdate)}>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                {...passwordForm.register("currentPassword")}
-                disabled={isPasswordLoading}
-                className={passwordForm.formState.errors.currentPassword ? "border-red-500" : ""}
-              />
-              {passwordForm.formState.errors.currentPassword && (
-                <p className="text-sm text-red-500 mt-1">{passwordForm.formState.errors.currentPassword.message}</p>
-              )}
+        <CardContent>
+          <form onSubmit={passwordForm.handleSubmit(handlePasswordUpdate)} className="space-y-4">
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  {...passwordForm.register("currentPassword")}
+                  disabled={isPasswordLoading}
+                  className={passwordForm.formState.errors.currentPassword ? "border-destructive" : ""}
+                  placeholder="Enter your current password"
+                />
+                {passwordForm.formState.errors.currentPassword && (
+                  <p className="text-sm text-destructive mt-1">{passwordForm.formState.errors.currentPassword.message}</p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  {...passwordForm.register("newPassword")}
+                  disabled={isPasswordLoading}
+                  className={passwordForm.formState.errors.newPassword ? "border-destructive" : ""}
+                  placeholder="Enter your new password"
+                />
+                {passwordForm.formState.errors.newPassword && (
+                  <p className="text-sm text-destructive mt-1">{passwordForm.formState.errors.newPassword.message}</p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
+                <Input
+                  id="confirmNewPassword"
+                  type="password"
+                  {...passwordForm.register("confirmNewPassword")}
+                  disabled={isPasswordLoading}
+                  className={passwordForm.formState.errors.confirmNewPassword ? "border-destructive" : ""}
+                  placeholder="Confirm your new password"
+                />
+                {passwordForm.formState.errors.confirmNewPassword && (
+                  <p className="text-sm text-destructive mt-1">{passwordForm.formState.errors.confirmNewPassword.message}</p>
+                )}
+              </div>
             </div>
-            <div>
-              <Label htmlFor="newPassword">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                {...passwordForm.register("newPassword")}
-                disabled={isPasswordLoading}
-                className={passwordForm.formState.errors.newPassword ? "border-red-500" : ""}
-              />
-              {passwordForm.formState.errors.newPassword && (
-                <p className="text-sm text-red-500 mt-1">{passwordForm.formState.errors.newPassword.message}</p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
-              <Input
-                id="confirmNewPassword"
-                type="password"
-                {...passwordForm.register("confirmNewPassword")}
-                disabled={isPasswordLoading}
-                className={passwordForm.formState.errors.confirmNewPassword ? "border-red-500" : ""}
-              />
-              {passwordForm.formState.errors.confirmNewPassword && (
-                <p className="text-sm text-red-500 mt-1">{passwordForm.formState.errors.confirmNewPassword.message}</p>
-              )}
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isPasswordLoading}>
+            <Button type="submit" disabled={isPasswordLoading} className="w-full sm:w-auto">
               <Save className="mr-2 h-4 w-4" />
-              {isPasswordLoading ? "Updating Password..." : "Update Password"}
+              {isPasswordLoading ? "Updating..." : "Update Password"}
             </Button>
-          </CardFooter>
-        </form>
+          </form>
+        </CardContent>
       </Card>
-    </>
+    </div>
   );
 }

@@ -19,7 +19,7 @@ export default async function DashboardLayout({ children }) {
   }
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-red-100 via-slate-50 to-blue-200 dark:from-red-900/30 dark:via-gray-800 dark:to-blue-900/30 ${inter.className} flex flex-col`}>
+    <div className={`min-h-screen  ${inter.className} flex flex-col`}>
       <header className="bg-white dark:bg-gray-900 shadow-md sticky top-0 z-20"> {/* Increased z-index for header */}
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -36,7 +36,7 @@ export default async function DashboardLayout({ children }) {
                 </div>
                 {/* Updated Portal Name */}
                 <span className="hidden sm:inline">CODeL Claims Portal</span>
-                <span className="sm:hidden text-lg">UEW Claims</span> {/* Shorter name for mobile */}
+                <span className="sm:hidden text-lg">CODeL Claims Portal</span> {/* Shorter name for mobile */}
               </Link>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">

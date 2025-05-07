@@ -1,4 +1,3 @@
-// app/(dashboard)/registry/_components/ManageUsersTab.jsx
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -7,7 +6,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -37,7 +35,10 @@ import {
   updateUserPasswordByRegistry,
 } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
-import { UserPlus, Users, Edit3, KeyRound } from "lucide-react"; // Icons
+import { UserPlus, User, Edit3, KeyRound, Mail, Shield, BookUser, Users, Building2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function ManageUsersTab({ initialUsers = [], centers = [], fetchError }) {
   const [users, setUsers] = useState(initialUsers);
@@ -49,23 +50,21 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   const [formError, setFormError] = useState('');
   const [passwordFormError, setPasswordFormError] = useState('');
 
-
-  // Form state for new user
+  // Form state
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('');
-  const [selectedCenterForNewLecturer, setSelectedCenterForNewLecturer] = useState(''); // Empty string for placeholder
+  const [selectedCenterForNewLecturer, setSelectedCenterForNewLecturer] = useState('');
 
-  // State for editing existing user
+  // Edit state
   const [editingUser, setEditingUser] = useState(null);
   const [editUserRole, setEditUserRole] = useState('');
-  const [editUserCenterId, setEditUserCenterId] = useState(''); // Empty string for placeholder
+  const [editUserCenterId, setEditUserCenterId] = useState('');
   const [editUserDepartmentId, setEditUserDepartmentId] = useState('');
 
-  // State for changing password
+  // Password state
   const [newPasswordForUser, setNewPasswordForUser] = useState('');
-
 
   useEffect(() => {
     setUsers(initialUsers);
@@ -99,7 +98,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     setIsLoading(true);
 
     if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim() || !newUserRole) {
-      setFormError("Name, email, password, and role are required.");
+      setFormError("All fields are required.");
       setIsLoading(false);
       return;
     }
@@ -123,7 +122,6 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
       toast.success(`User "${result.user.name}" created successfully!`);
       setIsCreateUserDialogOpen(false);
       resetCreateForm();
-      // Parent page revalidation will update initialUsers prop, then useEffect updates local state.
     } else {
       setFormError(result.error || "Failed to create user.");
       toast.error(result.error || "Failed to create user.");
@@ -133,7 +131,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   const handleOpenEditDialog = (user) => {
     setEditingUser(user);
     setEditUserRole(user.role);
-    setEditUserCenterId(user.lecturerCenterId || ''); // Use empty string if null/undefined
+    setEditUserCenterId(user.lecturerCenterId || '');
     setEditUserDepartmentId(user.departmentId || '');
     setFormError('');
     setIsEditUserDialogOpen(true);
@@ -153,17 +151,10 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     };
 
     if (!updateData.newRole) {
-        setFormError("Role is required.");
-        setIsLoading(false);
-        return;
+      setFormError("Role is required.");
+      setIsLoading(false);
+      return;
     }
-    // Making center assignment optional on edit for now
-    // if (updateData.newRole === 'LECTURER' && !updateData.newCenterId) {
-    //     setFormError("Center assignment is required for lecturers.");
-    //     setIsLoading(false);
-    //     return;
-    // }
-
 
     const result = await updateUserRoleAndAssignmentsByRegistry(updateData);
     setIsLoading(false);
@@ -171,7 +162,6 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
       toast.success(`User "${editingUser.name}" updated successfully!`);
       setIsEditUserDialogOpen(false);
       resetEditForm();
-      // Parent page revalidation will update data.
     } else {
       setFormError(result.error || "Failed to update user.");
       toast.error(result.error || "Failed to update user.");
@@ -180,7 +170,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
 
   const handleOpenChangePasswordDialog = (user) => {
     if (!editingUser || editingUser.id !== user.id) {
-        setEditingUser(user);
+      setEditingUser(user);
     }
     setPasswordFormError('');
     setNewPasswordForUser('');
@@ -215,87 +205,191 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     }
   };
 
+  const getRoleBadge = (role) => {
+    switch(role) {
+      case 'REGISTRY':
+        return <Badge variant="destructive">Registry</Badge>;
+      case 'COORDINATOR':
+        return <Badge variant="secondary">Coordinator</Badge>;
+      case 'LECTURER':
+        return <Badge>Lecturer</Badge>;
+      default:
+        return <Badge variant="outline">{role}</Badge>;
+    }
+  };
+
+  if (fetchError) {
+    return (
+      <Card className="border-destructive bg-destructive/5">
+        <CardHeader>
+          <CardTitle className="text-destructive flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Error Loading Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-destructive">{fetchError}</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Create User Dialog */}
-      <Dialog open={isCreateUserDialogOpen} onOpenChange={(isOpen) => {
-        setIsCreateUserDialogOpen(isOpen);
-        if (!isOpen) resetCreateForm();
-      }}>
-        <DialogTrigger asChild>
-          <Button>
-            <UserPlus className="mr-2 h-4 w-4" /> Add New User
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New User</DialogTitle>
-            <DialogDescription>Enter details for the new Coordinator or Lecturer.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateUser}>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-1"><Label htmlFor="newUserName">Full Name</Label><Input id="newUserName" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required disabled={isLoading} /></div>
-              <div className="space-y-1"><Label htmlFor="newUserEmail">Email</Label><Input id="newUserEmail" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required disabled={isLoading} /></div>
-              <div className="space-y-1"><Label htmlFor="newUserPassword">Password</Label><Input id="newUserPassword" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} required disabled={isLoading} /></div>
-              <div className="space-y-1">
-                <Label htmlFor="newUserRole">Role</Label>
-                <Select value={newUserRole} onValueChange={setNewUserRole} disabled={isLoading} required>
-                  <SelectTrigger id="newUserRole"><SelectValue placeholder="Select a role" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="COORDINATOR">Coordinator</SelectItem>
-                    <SelectItem value="LECTURER">Lecturer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {newUserRole === 'LECTURER' && (
-                <div className="space-y-1">
-                  <Label htmlFor="selectedCenterForNewLecturer">Assign to Center (Optional)</Label>
-                  {/* Ensure value is controlled and use empty string for placeholder state */}
-                  <Select value={selectedCenterForNewLecturer} onValueChange={setSelectedCenterForNewLecturer} disabled={isLoading}>
-                    <SelectTrigger id="selectedCenterForNewLecturer"><SelectValue placeholder="Select a center (optional)" /></SelectTrigger>
+      {/* Header and Create Button */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <Dialog open={isCreateUserDialogOpen} onOpenChange={setIsCreateUserDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              <span>New User</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5" />
+                Create New User
+              </DialogTitle>
+              <DialogDescription>
+                Add a new user to the system with appropriate permissions
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCreateUser}>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newUserName">Full Name</Label>
+                  <Input
+                    id="newUserName"
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    placeholder="John Doe"
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newUserEmail">Email</Label>
+                  <Input
+                    id="newUserEmail"
+                    type="email"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newUserPassword">Password</Label>
+                  <Input
+                    id="newUserPassword"
+                    type="password"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newUserRole">Role</Label>
+                  <Select
+                    value={newUserRole}
+                    onValueChange={setNewUserRole}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
                     <SelectContent>
-                      {/* REMOVED: <SelectItem value="">None</SelectItem> */}
-                      {centers.length > 0 ? (
-                         centers.map((center) => (<SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>))
-                      ) : (
-                         <div className="px-2 py-1.5 text-sm text-muted-foreground">No centers available.</div>
-                      )}
+                      <SelectItem value="COORDINATOR">Coordinator</SelectItem>
+                      <SelectItem value="LECTURER">Lecturer</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              )}
-              {formError && <p className="text-sm text-red-600 text-center bg-red-100 dark:bg-red-900/30 p-2 rounded-md">{formError}</p>}
-            </div>
-            <DialogFooter>
-              <DialogClose asChild><Button type="button" variant="outline" disabled={isLoading}>Cancel</Button></DialogClose>
-              <Button type="submit" disabled={isLoading}>{isLoading ? "Creating..." : "Create User"}</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+                {newUserRole === 'LECTURER' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="selectedCenterForNewLecturer">Assign to Center</Label>
+                    <Select
+                      value={selectedCenterForNewLecturer}
+                      onValueChange={setSelectedCenterForNewLecturer}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a center (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {centers.length > 0 ? (
+                          centers.map((center) => (
+                            <SelectItem key={center.id} value={center.id}>
+                              {center.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            No centers available
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {formError && (
+                  <div className="p-3 bg-destructive/5 border border-destructive/30 rounded-md">
+                    <p className="text-sm text-destructive">{formError}</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <DialogClose asChild>
+                  <Button type="button" variant="outline" disabled={isLoading}>
+                    Cancel
+                  </Button>
+                </DialogClose>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Creating..." : "Create User"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       {/* Edit User Dialog */}
       {editingUser && (
-        <Dialog open={isEditUserDialogOpen} onOpenChange={(isOpen) => {
-          setIsEditUserDialogOpen(isOpen);
-          if (!isOpen) resetEditForm();
-        }}>
-          <DialogContent className="sm:max-w-md">
+        <Dialog open={isEditUserDialogOpen} onOpenChange={setIsEditUserDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Edit User: {editingUser.name}</DialogTitle>
-              <DialogDescription>Modify user role and assignments. Email cannot be changed here.</DialogDescription>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit3 className="h-5 w-5" />
+                Edit User
+              </DialogTitle>
+              <DialogDescription>
+                Update permissions for {editingUser.name}
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleUpdateUser}>
               <div className="grid gap-4 py-4">
-                <div className="space-y-1">
-                  <Label>Email (Read-only)</Label>
-                  <Input value={editingUser.email} readOnly disabled />
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={editingUser.image} />
+                    <AvatarFallback>
+                      {editingUser.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{editingUser.name}</p>
+                    <p className="text-sm text-muted-foreground">{editingUser.email}</p>
+                  </div>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <Label htmlFor="editUserRole">Role</Label>
-                  <Select value={editUserRole} onValueChange={setEditUserRole} disabled={isLoading} required>
-                    <SelectTrigger id="editUserRole"><SelectValue placeholder="Select new role" /></SelectTrigger>
+                  <Select
+                    value={editUserRole}
+                    onValueChange={setEditUserRole}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="COORDINATOR">Coordinator</SelectItem>
                       <SelectItem value="LECTURER">Lecturer</SelectItem>
@@ -303,124 +397,254 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                   </Select>
                 </div>
                 {editUserRole === 'LECTURER' && (
-                  <>
-                    <div className="space-y-1">
-                      <Label htmlFor="editUserCenterId">Assign to Center (Optional)</Label>
-                      {/* Ensure value is controlled and use empty string for placeholder state */}
-                      <Select value={editUserCenterId} onValueChange={setEditUserCenterId} disabled={isLoading}>
-                        <SelectTrigger id="editUserCenterId"><SelectValue placeholder="Select a center (optional)" /></SelectTrigger>
-                        <SelectContent>
-                          {/* REMOVED: <SelectItem value="">None</SelectItem> */}
-                          {centers.length > 0 ? (
-                             centers.map((center) => (<SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>))
-                          ) : (
-                             <div className="px-2 py-1.5 text-sm text-muted-foreground">No centers available.</div>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Department assignment could be added here if needed */}
-                  </>
+                  <div className="space-y-2">
+                    <Label htmlFor="editUserCenterId">Assign to Center</Label>
+                    <Select
+                      value={editUserCenterId}
+                      onValueChange={setEditUserCenterId}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a center (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {centers.length > 0 ? (
+                          centers.map((center) => (
+                            <SelectItem key={center.id} value={center.id}>
+                              {center.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            No centers available
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
-                {formError && <p className="text-sm text-red-600 text-center bg-red-100 dark:bg-red-900/30 p-2 rounded-md">{formError}</p>}
-                <Button type="button" variant="outline" onClick={() => handleOpenChangePasswordDialog(editingUser)} className="w-full mt-2" disabled={isLoading}>
-                  <KeyRound className="mr-2 h-4 w-4" /> Change Password
+                {formError && (
+                  <div className="p-3 bg-destructive/5 border border-destructive/30 rounded-md">
+                    <p className="text-sm text-destructive">{formError}</p>
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleOpenChangePasswordDialog(editingUser)}
+                  className="gap-2"
+                  disabled={isLoading}
+                >
+                  <KeyRound className="h-4 w-4" />
+                  Change Password
                 </Button>
               </div>
-              <DialogFooter>
-                <DialogClose asChild><Button type="button" variant="outline" disabled={isLoading}>Cancel</Button></DialogClose>
-                <Button type="submit" disabled={isLoading}>{isLoading ? "Updating..." : "Save Changes"}</Button>
-              </DialogFooter>
+              <div className="flex justify-end gap-2">
+                <DialogClose asChild>
+                  <Button type="button" variant="outline" disabled={isLoading}>
+                    Cancel
+                  </Button>
+                </DialogClose>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
             </form>
           </DialogContent>
         </Dialog>
       )}
 
       {/* Change Password Dialog */}
-      {editingUser && isChangePasswordDialogOpen && (
-          <Dialog open={isChangePasswordDialogOpen} onOpenChange={(isOpen) => {
-              setIsChangePasswordDialogOpen(isOpen);
-              if (!isOpen) resetPasswordChangeForm();
-          }}>
-              <DialogContent className="sm:max-w-sm">
-                  <DialogHeader>
-                      <DialogTitle>Change Password for {editingUser.name}</DialogTitle>
-                      <DialogDescription>Enter a new password for the user.</DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleChangePassword}>
-                      <div className="grid gap-4 py-4">
-                          <div className="space-y-1">
-                              <Label htmlFor="newPasswordForUser">New Password</Label>
-                              <Input id="newPasswordForUser" type="password" value={newPasswordForUser} onChange={(e) => setNewPasswordForUser(e.target.value)} required disabled={isLoading} />
-                          </div>
-                          {passwordFormError && <p className="text-sm text-red-600 text-center bg-red-100 dark:bg-red-900/30 p-2 rounded-md">{passwordFormError}</p>}
-                      </div>
-                      <DialogFooter>
-                          <DialogClose asChild><Button type="button" variant="outline" disabled={isLoading}>Cancel</Button></DialogClose>
-                          <Button type="submit" disabled={isLoading}>{isLoading ? "Updating..." : "Set New Password"}</Button>
-                      </DialogFooter>
-                  </form>
-              </DialogContent>
-          </Dialog>
+      {editingUser && (
+        <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <KeyRound className="h-5 w-5" />
+                Change Password
+              </DialogTitle>
+              <DialogDescription>
+                Set a new password for {editingUser.name}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleChangePassword}>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPasswordForUser">New Password</Label>
+                  <Input
+                    id="newPasswordForUser"
+                    type="password"
+                    value={newPasswordForUser}
+                    onChange={(e) => setNewPasswordForUser(e.target.value)}
+                    placeholder="At least 6 characters"
+                    disabled={isLoading}
+                  />
+                </div>
+                {passwordFormError && (
+                  <div className="p-3 bg-destructive/5 border border-destructive/30 rounded-md">
+                    <p className="text-sm text-destructive">{passwordFormError}</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <DialogClose asChild>
+                  <Button type="button" variant="outline" disabled={isLoading}>
+                    Cancel
+                  </Button>
+                </DialogClose>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Updating..." : "Update Password"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       )}
 
-
-      {/* Table of Users */}
-      <Card>
-        <CardHeader>
-            <CardTitle>System Users</CardTitle>
-            <CardDescription>Manage all user accounts in the system.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div className="border rounded-lg">
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Associated Center/Dept.</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-                </TableHeader>
-                <TableBody>
-                {users.length > 0 ? (
-                    users.map((user) => (
-                    <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.name || 'N/A'}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.role}</TableCell>
+      {/* Users List */}
+      {users.length === 0 ? (
+        <Card className="bg-muted/50 border-dashed">
+          <CardContent className="py-12 flex flex-col items-center justify-center text-center">
+            <User className="h-10 w-10 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">No users found</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Start by creating your first user account
+            </p>
+            <Button onClick={() => setIsCreateUserDialogOpen(true)}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Create User
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <Card>
+              <ScrollArea className="h-[calc(100vh-220px)]">
+                <Table className="w-full">
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead className="w-[25%]">User</TableHead>
+                      <TableHead className="w-[20%]">Email</TableHead>
+                      <TableHead className="w-[15%]">Role</TableHead>
+                      <TableHead className="w-[30%]">Assignment</TableHead>
+                      <TableHead className="w-[10%] text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id} className="hover:bg-muted/10">
                         <TableCell>
-                        {user.role === 'COORDINATOR' && user.coordinatedCenter?.name
-                            ? `Coordinates: ${user.coordinatedCenter.name}`
-                            : user.role === 'LECTURER' && user.lecturerCenter?.name
-                            ? `Center: ${user.lecturerCenter.name}${user.department?.name ? ` / Dept: ${user.department.name}` : ''}`
-                            : user.role === 'LECTURER' && !user.lecturerCenter?.name && user.lecturerCenterId
-                                ? `(Center ID: ${user.lecturerCenterId})`
-                                : 'N/A'}
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={user.image} />
+                              <AvatarFallback>
+                                {user.name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{user.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            {user.email}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {getRoleBadge(user.role)}
+                        </TableCell>
+                        <TableCell>
+                          {user.role === 'COORDINATOR' && user.coordinatedCenter?.name ? (
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
+                              <span>Coordinates {user.coordinatedCenter.name}</span>
+                            </div>
+                          ) : user.role === 'LECTURER' && user.lecturerCenter?.name ? (
+                            <div className="flex items-center gap-2">
+                              <BookUser className="h-4 w-4 text-muted-foreground" />
+                              <span>{user.lecturerCenter.name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Not assigned</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => handleOpenEditDialog(user)} disabled={user.role === 'REGISTRY'}>
-                            <Edit3 className="mr-1 h-3 w-3" /> Edit
-                        </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenEditDialog(user)}
+                            disabled={user.role === 'REGISTRY'}
+                            className="gap-1"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            <span>Edit</span>
+                          </Button>
                         </TableCell>
-                    </TableRow>
-                    ))
-                ) : (
-                    <TableRow>
-                    <TableCell colSpan={5} className="text-center h-24">
-                        No users found.
-                    </TableCell>
-                    </TableRow>
-                )}
-                </TableBody>
-            </Table>
-            </div>
-            {users.length === 0 && !fetchError && (
-                <p className="text-center text-muted-foreground mt-4">Click "Add New User" to get started.</p>
-            )}
-        </CardContent>
-      </Card>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </Card>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {users.map((user) => (
+              <Card key={user.id} className="hover:shadow-sm transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.image} />
+                      <AvatarFallback>
+                        {user.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle className="text-base">{user.name}</CardTitle>
+                      <div className="flex items-center gap-2 mt-1">
+                        {getRoleBadge(user.role)}
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <p>{user.email}</p>
+                  </div>
+                  {user.role === 'COORDINATOR' && user.coordinatedCenter?.name && (
+                    <div className="flex items-center gap-3">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <p>Coordinates {user.coordinatedCenter.name}</p>
+                    </div>
+                  )}
+                  {user.role === 'LECTURER' && user.lecturerCenter?.name && (
+                    <div className="flex items-center gap-3">
+                      <BookUser className="h-4 w-4 text-muted-foreground" />
+                      <p>Center: {user.lecturerCenter.name}</p>
+                    </div>
+                  )}
+                  <div className="pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => handleOpenEditDialog(user)}
+                      disabled={user.role === 'REGISTRY'}
+                    >
+                      <Edit3 className="mr-2 h-3.5 w-3.5" />
+                      Edit User
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
