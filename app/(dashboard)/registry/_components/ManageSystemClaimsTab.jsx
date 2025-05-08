@@ -33,26 +33,63 @@ import {
 } from "@/components/ui/select";
 import { processClaimByRegistry, getAllClaimsSystemWide } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Eye, ListFilter, Printer, RotateCcw, Search, User, Building } from "lucide-react"; // Added icons
+import { CheckCircle, XCircle, Eye, ListFilter, Printer, RotateCcw, Search, User, Building, FileText } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// formatClaimDetails remains the same
+// Completed formatClaimDetails function
 const formatClaimDetails = (claim) => {
+  if (!claim) return "<p>No claim details available.</p>";
+
   let details = [];
-  if (!claim) return details;
   details.push(`<strong>Claim ID:</strong> ${claim.id}`);
   details.push(`<strong>Submitted By:</strong> ${claim.submittedBy?.name || 'N/A'} (${claim.submittedBy?.email || 'N/A'})`);
-  details.push(`<strong>Center:</strong> ${claim.centerName || 'N/A'}`);
+  // Ensure claim.centerName is populated by getAllClaimsSystemWide or use claim.center.name
+  details.push(`<strong>Center:</strong> ${claim.centerName || claim.center?.name || 'N/A'}`);
   details.push(`<strong>Type:</strong> ${claim.claimType}`);
   details.push(`<strong>Submitted At:</strong> ${new Date(claim.submittedAt).toLocaleString()}`);
-  details.push(`<strong>Status:</strong> <span class="status-badge">${claim.status}</span>`);
-  if (claim.processedAt) { /* ... processed details ... */ }
-  if (claim.claimType === 'TEACHING') { /* ... teaching details ... */ }
-  else if (claim.claimType === 'TRANSPORTATION') { /* ... transportation details ... */ }
-  else if (claim.claimType === 'THESIS_PROJECT') { /* ... thesis details ... */ }
-  return details;
+  details.push(`<strong>Status:</strong> ${claim.status}`);
+
+  if (claim.processedAt) {
+    details.push(`<strong>Processed At:</strong> ${new Date(claim.processedAt).toLocaleString()}`);
+    details.push(`<strong>Processed By:</strong> ${claim.processedBy?.name || 'N/A'} (${claim.processedBy?.email || 'N/A'})`);
+  } else {
+    details.push(`<strong>Processed At:</strong> Not yet processed`);
+    details.push(`<strong>Processed By:</strong> N/A`);
+  }
+
+  details.push(`<hr style="margin: 0.5rem 0;" /><strong>Claim Specifics:</strong>`);
+
+  if (claim.claimType === 'TEACHING') {
+    details.push(`<strong>Teaching Date:</strong> ${claim.teachingDate ? new Date(claim.teachingDate).toLocaleDateString() : 'N/A'}`);
+    details.push(`<strong>Start Time:</strong> ${claim.teachingStartTime || 'N/A'}`);
+    details.push(`<strong>End Time:</strong> ${claim.teachingEndTime || 'N/A'}`);
+    details.push(`<strong>Hours Claimed:</strong> ${claim.teachingHours !== null && claim.teachingHours !== undefined ? claim.teachingHours : 'N/A'}`);
+  } else if (claim.claimType === 'TRANSPORTATION') {
+    details.push(`<strong>Transport Type:</strong> ${claim.transportType || 'N/A'}`);
+    details.push(`<strong>From:</strong> ${claim.transportDestinationFrom || 'N/A'}`);
+    details.push(`<strong>To:</strong> ${claim.transportDestinationTo || 'N/A'}`);
+    details.push(`<strong>Reg. Number:</strong> ${claim.transportRegNumber || 'N/A'}`);
+    details.push(`<strong>Cubic Capacity (cc):</strong> ${claim.transportCubicCapacity !== null && claim.transportCubicCapacity !== undefined ? claim.transportCubicCapacity : 'N/A'}`);
+    details.push(`<strong>Amount Claimed:</strong> ${claim.transportAmount !== null && claim.transportAmount !== undefined ? `GHS ${Number(claim.transportAmount).toFixed(2)}` : 'N/A'}`);
+  } else if (claim.claimType === 'THESIS_PROJECT') {
+    details.push(`<strong>Thesis/Project Type:</strong> ${claim.thesisType || 'N/A'}`);
+    if (claim.thesisType === 'SUPERVISION') {
+      details.push(`<strong>Supervision Rank:</strong> ${claim.thesisSupervisionRank || 'N/A'}`);
+      if (claim.supervisedStudents && claim.supervisedStudents.length > 0) {
+        let studentsHtml = claim.supervisedStudents.map(s => `<li>${s.studentName || 'N/A'} - ${s.thesisTitle || 'N/A'}</li>`).join('');
+        details.push(`<strong>Supervised Students:</strong><ul style="margin-top: 0.25rem; padding-left: 1.5rem;">${studentsHtml}</ul>`);
+      } else {
+        details.push(`<strong>Supervised Students:</strong> (Not available or none listed)`);
+      }
+    } else if (claim.thesisType === 'EXAMINATION') {
+      details.push(`<strong>Exam Course Code:</strong> ${claim.thesisExamCourseCode || 'N/A'}`);
+      details.push(`<strong>Exam Date:</strong> ${claim.thesisExamDate ? new Date(claim.thesisExamDate).toLocaleDateString() : 'N/A'}`);
+    }
+  }
+
+  // Wrap each detail in a paragraph for better spacing when using Tailwind Prose
+  return details.map(detail => `<p style="margin-bottom: 0.25rem;">${detail}</p>`).join('');
 };
 
 
@@ -79,9 +116,12 @@ export default function ManageSystemClaimsTab({
     if (filterCenterId) filters.centerId = filterCenterId;
     if (debouncedLecturerName) filters.lecturerName = debouncedLecturerName;
 
+    // console.log("Fetching claims with filters:", filters); // Frontend log
     const result = await getAllClaimsSystemWide(filters);
+    // console.log("Result from getAllClaimsSystemWide:", result); // Frontend log
+
     if (result.success) {
-      setClaims(result.claims);
+      setClaims(result.claims || []); // Ensure claims is always an array
     } else {
       toast.error(result.error || "Failed to fetch claims.");
       setClaims([]);
@@ -97,7 +137,7 @@ export default function ManageSystemClaimsTab({
     if (initialClaimsData.error) {
       toast.error(`Initial load failed: ${initialClaimsData.error}`);
     }
-    setClaims(initialClaimsData.claims);
+    setClaims(initialClaimsData.claims || []); // Ensure claims is always an array
   }, [initialClaimsData]);
 
 
@@ -107,32 +147,61 @@ export default function ManageSystemClaimsTab({
   };
 
   const handleProcessClaim = async (claimId, status) => {
-    // ... (same as before) ...
-     if (!registryUserId) { toast.error("Registry user ID not found."); return; }
-     setProcessingStates(prev => ({ ...prev, [claimId]: status.toLowerCase() }));
+     if (!registryUserId) {
+        toast.error("Registry user ID not found. Cannot process claim.");
+        return;
+     }
+     setProcessingStates(prev => ({ ...prev, [claimId]: status.toLowerCase() })); // e.g., 'approving' or 'rejecting'
      const result = await processClaimByRegistry({ claimId, status, registryUserId });
-     if (result.success) { toast.success(`Claim ${status.toLowerCase()} successfully!`); fetchClaims(); setIsDetailDialogOpen(false); setSelectedClaim(null); }
-     else { toast.error(result.error || `Failed to ${status.toLowerCase()} claim.`); }
-     setProcessingStates(prev => ({ ...prev, [claimId]: null }));
+     if (result.success) {
+        toast.success(`Claim ${status.toLowerCase()} successfully!`);
+        fetchClaims(); // Refresh the list
+        setIsDetailDialogOpen(false); // Close dialog on success
+        setSelectedClaim(null);
+     } else {
+        toast.error(result.error || `Failed to ${status.toLowerCase()} claim.`);
+     }
+     setProcessingStates(prev => ({ ...prev, [claimId]: null })); // Clear processing state
   };
 
   const getStatusBadgeVariant = (status) => {
-    // ... (same as before) ...
     switch (status) {
       case 'PENDING': return 'secondary';
-      case 'APPROVED': return 'default';
+      case 'APPROVED': return 'default'; // Or a success-like variant e.g., 'success' if you define it
       case 'REJECTED': return 'destructive';
       default: return 'outline';
     }
   };
 
   const handlePrintClaim = () => {
-     // ... (same as before) ...
       if (selectedClaim) {
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`...`); // Same print HTML structure
-        printWindow.document.close();
-        printWindow.print();
+        const printWindow = window.open('', '_blank', 'height=600,width=800');
+        if (printWindow) {
+            printWindow.document.write('<html><head><title>Claim Details</title>');
+            // Optional: Add basic styling for print
+            printWindow.document.write(`
+                <style>
+                    body { font-family: sans-serif; line-height: 1.5; padding: 20px; }
+                    p { margin-bottom: 5px; }
+                    strong { font-weight: bold; }
+                    hr { margin: 10px 0; border: 0; border-top: 1px solid #ccc; }
+                    ul { margin-top: 5px; padding-left: 20px; }
+                    li { margin-bottom: 3px; }
+                    .prose { max-width: 100%; } /* Ensure prose styles don't limit width too much */
+                </style>
+            `);
+            printWindow.document.write('</head><body>');
+            printWindow.document.write('<h2>Claim Details</h2>');
+            printWindow.document.write('<div class="prose">');
+            printWindow.document.write(formatClaimDetails(selectedClaim)); // Use the same formatter
+            printWindow.document.write('</div>');
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.focus(); // Required for some browsers
+            setTimeout(() => { printWindow.print(); }, 500); // Timeout helps ensure content is loaded
+        } else {
+            toast.error("Could not open print window. Please check your browser's pop-up settings.");
+        }
       }
   };
 
@@ -140,6 +209,7 @@ export default function ManageSystemClaimsTab({
     setFilterStatus("");
     setFilterCenterId("");
     setFilterLecturerName("");
+    // fetchClaims will be triggered by useEffect due to state changes
   };
 
   return (
@@ -157,9 +227,9 @@ export default function ManageSystemClaimsTab({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Filters Section - Responsive Grid */}
+          {/* Filters Section */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-muted/40 dark:bg-muted/20 rounded-lg border dark:border-gray-700">
-            <div className="space-y-1.5"> {/* Adjusted spacing */}
+            <div className="space-y-1.5">
               <Label htmlFor="filterStatus">Status</Label>
               <Select
                 value={filterStatus || "ALL_STATUSES"}
@@ -191,18 +261,17 @@ export default function ManageSystemClaimsTab({
 
             <div className="space-y-1.5">
               <Label htmlFor="filterLecturer">Lecturer Name</Label>
-               <div className="relative">
-                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                 <Input
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
                     type="search"
                     id="filterLecturer"
                     placeholder="Search by lecturer name..."
                     value={filterLecturerName}
                     onChange={(e) => setFilterLecturerName(e.target.value)}
                     className="pl-8"
-                 />
-              </div>
-               {/* Removed 'not implemented' text, server action handles it */}
+                  />
+                </div>
             </div>
 
             <div className="flex items-end">
@@ -212,15 +281,15 @@ export default function ManageSystemClaimsTab({
             </div>
           </div>
 
-          {/* Claims Display - Conditional Rendering for Mobile/Desktop */}
+          {/* Claims Display */}
           <div className="mt-6">
             {isLoadingClaims ? (
               <div className="space-y-4 p-4">
                 {[...Array(5)].map((_, i) => ( <Skeleton key={i} className="h-20 w-full rounded-lg" /> ))}
               </div>
-            ) : claims.length > 0 ? (
+            ) : claims && claims.length > 0 ? ( // Added check for claims being defined
               <>
-                {/* Desktop Table View (Hidden on Mobile) */}
+                {/* Desktop Table View */}
                 <div className="hidden md:block border rounded-lg">
                   <Table>
                     <TableHeader className="bg-muted/50 dark:bg-muted/30">
@@ -237,12 +306,12 @@ export default function ManageSystemClaimsTab({
                     <TableBody>
                       {claims.map((claim) => (
                         <TableRow key={claim.id} className="hover:bg-muted/10 dark:hover:bg-muted/20">
-                          <TableCell className="font-mono text-xs">{claim.id.substring(0, 8)}...</TableCell>
-                          <TableCell>{claim.centerName}</TableCell>
+                          <TableCell className="font-mono text-xs">{claim.id ? claim.id.substring(0, 8) + '...' : 'N/A'}</TableCell>
+                          <TableCell>{claim.centerName || claim.center?.name}</TableCell>
                           <TableCell className="truncate max-w-[150px]">{claim.submittedBy?.name || 'N/A'}</TableCell>
-                          <TableCell><Badge variant="outline" className="capitalize text-xs">{claim.claimType.toLowerCase().replace('_', ' ')}</Badge></TableCell>
+                          <TableCell><Badge variant="outline" className="capitalize text-xs">{claim.claimType?.toLowerCase().replace('_', ' ') || 'N/A'}</Badge></TableCell>
                           <TableCell><Badge variant={getStatusBadgeVariant(claim.status)}>{claim.status}</Badge></TableCell>
-                          <TableCell className="text-xs">{new Date(claim.submittedAt).toLocaleDateString()}</TableCell>
+                          <TableCell className="text-xs">{claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString() : 'N/A'}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="sm" onClick={() => handleOpenDetailDialog(claim)} className="hover:bg-primary/10">
                               <Eye className="mr-1 h-4 w-4" /> Details
@@ -254,7 +323,7 @@ export default function ManageSystemClaimsTab({
                   </Table>
                 </div>
 
-                {/* Mobile Card View (Hidden on Medium+) */}
+                {/* Mobile Card View */}
                 <div className="block md:hidden space-y-4">
                   {claims.map((claim) => (
                     <Card key={claim.id} className="shadow-sm border dark:border-gray-700">
@@ -265,22 +334,22 @@ export default function ManageSystemClaimsTab({
                                     <User className="w-4 h-4 text-muted-foreground"/> {claim.submittedBy?.name || 'N/A'}
                                 </CardTitle>
                                 <CardDescription className="text-xs flex items-center gap-1.5 mt-1">
-                                    <Building className="w-3 h-3 text-muted-foreground"/> {claim.centerName}
+                                    <Building className="w-3 h-3 text-muted-foreground"/> {claim.centerName || claim.center?.name}
                                 </CardDescription>
                             </div>
                              <Badge variant={getStatusBadgeVariant(claim.status)} className="text-xs whitespace-nowrap">{claim.status}</Badge>
                         </div>
                       </CardHeader>
                       <CardContent className="p-4 text-xs space-y-1.5">
-                         <p><strong>ID:</strong> <span className="font-mono">{claim.id.substring(0, 12)}...</span></p>
-                         <p><strong>Type:</strong> <span className="capitalize">{claim.claimType.toLowerCase().replace('_', ' ')}</span></p>
-                         <p><strong>Submitted:</strong> {new Date(claim.submittedAt).toLocaleDateString()}</p>
+                          <p><strong>ID:</strong> <span className="font-mono">{claim.id ? claim.id.substring(0, 12) + '...' : 'N/A'}</span></p>
+                          <p><strong>Type:</strong> <span className="capitalize">{claim.claimType?.toLowerCase().replace('_', ' ') || 'N/A'}</span></p>
+                          <p><strong>Submitted:</strong> {claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString() : 'N/A'}</p>
                       </CardContent>
-                       <CardFooter className="p-4 border-t dark:border-gray-700">
-                           <Button variant="outline" size="sm" onClick={() => handleOpenDetailDialog(claim)} className="w-full">
-                              <Eye className="mr-2 h-4 w-4" /> View Details / Process
+                        <CardFooter className="p-4 border-t dark:border-gray-700">
+                            <Button variant="outline" size="sm" onClick={() => handleOpenDetailDialog(claim)} className="w-full">
+                                <Eye className="mr-2 h-4 w-4" /> View Details / Process
                             </Button>
-                       </CardFooter>
+                        </CardFooter>
                     </Card>
                   ))}
                 </div>
@@ -293,8 +362,8 @@ export default function ManageSystemClaimsTab({
                   No claims match your current filter criteria.
                 </p>
                  <Button onClick={resetFilters} variant="secondary" className="mt-4">
-                    <RotateCcw className="mr-2 h-4 w-4" /> Reset Filters
-                </Button>
+                   <RotateCcw className="mr-2 h-4 w-4" /> Reset Filters
+                 </Button>
               </div>
             )}
           </div>
@@ -304,44 +373,58 @@ export default function ManageSystemClaimsTab({
       {/* Claim Details Dialog */}
       {selectedClaim && (
         <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-          {/* ... Dialog Content remains largely the same, ensure it's responsive ... */}
-          {/* Use sm:max-w-2xl for width, max-h-[90vh] and overflow-y-auto for height */}
           <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                {/* Icon logic */}
-                 <span className="bg-primary/10 p-2 rounded-full">
-                   {/* SVG Icons */}
-                 </span>
+                <span className="bg-primary/10 p-2 rounded-full inline-flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-primary" />
+                </span>
                 Claim Details
               </DialogTitle>
-              <DialogDescription>Review and process this {selectedClaim.claimType.toLowerCase().replace('_', ' ')} claim.</DialogDescription>
+              <DialogDescription>
+                Review and process this {selectedClaim.claimType?.toLowerCase().replace('_', ' ') || 'N/A'} claim.
+              </DialogDescription>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto py-4 px-1">
-              <div className="bg-muted/20 p-4 rounded-lg">
+            <div className="flex-1 overflow-y-auto py-4 px-1 scrollbar-thin scrollbar-thumb-muted-foreground/50 scrollbar-track-transparent">
+              <div className="bg-muted/20 dark:bg-gray-800/30 p-4 rounded-lg">
                 <div
                   className="prose prose-sm dark:prose-invert max-w-none"
                   dangerouslySetInnerHTML={{
-                    __html: `...` // Same HTML structure as before
+                    __html: formatClaimDetails(selectedClaim)
                   }}
                 />
               </div>
             </div>
-            <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 border-t pt-4">
-              <Button variant="outline" onClick={handlePrintClaim} disabled={processingStates[selectedClaim.id]} className="gap-2 w-full sm:w-auto">
+            <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 border-t pt-4 mt-auto"> {/* mt-auto pushes footer down */}
+              <Button variant="outline" onClick={handlePrintClaim} disabled={!!processingStates[selectedClaim.id]} className="gap-2 w-full sm:w-auto">
                 <Printer className="h-4 w-4" /> Print
               </Button>
               <div className="flex gap-2 flex-wrap justify-end w-full sm:w-auto">
                 {selectedClaim.status === 'PENDING' ? (
                   <>
-                    <Button variant="destructive" onClick={() => handleProcessClaim(selectedClaim.id, 'REJECTED')} disabled={processingStates[selectedClaim.id]} className="gap-2 flex-1 sm:flex-grow-0">
-                      <XCircle className="h-4 w-4" /> {processingStates[selectedClaim.id] === 'rejecting' ? "Rejecting..." : "Reject"}
+                    <Button
+                        variant="destructive"
+                        onClick={() => handleProcessClaim(selectedClaim.id, 'REJECTED')}
+                        disabled={!!processingStates[selectedClaim.id]} // Check if any processing ongoing for this claim
+                        className="gap-2 flex-1 sm:flex-grow-0"
+                    >
+                      <XCircle className="h-4 w-4" />
+                      {processingStates[selectedClaim.id] === 'rejecting' ? "Rejecting..." : "Reject"}
                     </Button>
-                    <Button onClick={() => handleProcessClaim(selectedClaim.id, 'APPROVED')} disabled={processingStates[selectedClaim.id]} className="gap-2 bg-green-600 hover:bg-green-700 flex-1 sm:flex-grow-0">
-                      <CheckCircle className="h-4 w-4" /> {processingStates[selectedClaim.id] === 'approving' ? "Approving..." : "Approve"}
+                    <Button
+                        onClick={() => handleProcessClaim(selectedClaim.id, 'APPROVED')}
+                        disabled={!!processingStates[selectedClaim.id]}
+                        className="gap-2 bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-grow-0" // Added text-white for better contrast
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      {processingStates[selectedClaim.id] === 'approving' ? "Approving..." : "Approve"}
                     </Button>
                   </>
-                ) : ( <DialogClose asChild><Button variant="outline" className="w-full sm:w-auto">Close</Button></DialogClose> )}
+                ) : (
+                  <DialogClose asChild>
+                    <Button variant="outline" className="w-full sm:w-auto">Close</Button>
+                  </DialogClose>
+                )}
               </div>
             </DialogFooter>
           </DialogContent>
