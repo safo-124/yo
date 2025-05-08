@@ -56,7 +56,7 @@ export default async function DashboardLayout({ children }) {
         This main DashboardLayout provides the top header and session check.
         The {children} here will render those role-specific layouts.
       */}
-      <div className="flex-1 flex overflow-hidden"> {/* Ensure content area can scroll if needed */}
+      <div className="flex-1 flex overflow-hidden w-[80%]" > {/* Ensure content area can scroll if needed */}
         {children}
       </div>
 

@@ -9,7 +9,6 @@ import { Home, Users, FileText, Building } from 'lucide-react';
 import UserProfileDropdown from '../../UserProfileDropdown';
 import { MobileSidebar } from './_components/MobileSidebar';
 
-
 const inter = Inter({ subsets: ['latin'] });
 
 export default async function CoordinatorLayout({ children, params }) {
@@ -47,7 +46,6 @@ export default async function CoordinatorLayout({ children, params }) {
     redirect('/unauthorized?error=center_mismatch');
   }
 
-  // Navigation items with icon names instead of components
   const navigationItems = [
     { name: 'Overview', href: `/coordinator/${centerId}`, icon: 'Home' },
     { name: 'Departments', href: `/coordinator/${centerId}/departments`, icon: 'Building' },
@@ -83,7 +81,6 @@ export default async function CoordinatorLayout({ children, params }) {
               asChild
             >
               <Link href={item.href}>
-                {/* Render icons directly in server component */}
                 {item.icon === 'Home' && <Home className="mr-3 h-5 w-5" />}
                 {item.icon === 'Building' && <Building className="mr-3 h-5 w-5" />}
                 {item.icon === 'Users' && <Users className="mr-3 h-5 w-5" />}
@@ -99,17 +96,17 @@ export default async function CoordinatorLayout({ children, params }) {
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Content Area - Now takes about 80% width */}
       <div className="flex-1 flex flex-col lg:ml-64">
         {/* Empty header for mobile to maintain spacing */}
         <header className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10 lg:hidden h-16" />
         
-        <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
+        <main className="flex-grow mx-auto p-4 sm:p-6 lg:p-8 w-full max-w-[80vw]">
           {children}
         </main>
         
         <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-          <div className="container mx-auto py-4 px-4 sm:px-6 lg:px-8 text-center text-gray-500 dark:text-gray-400 text-sm">
+          <div className="mx-auto py-4 px-4 sm:px-6 lg:px-8 text-center text-gray-500 dark:text-gray-400 text-sm max-w-[80vw]">
             © {new Date().getFullYear()} Your Application Name. All rights reserved.
           </div>
         </footer>
