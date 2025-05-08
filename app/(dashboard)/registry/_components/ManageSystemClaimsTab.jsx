@@ -37,59 +37,52 @@ import { CheckCircle, XCircle, Eye, ListFilter, Printer, RotateCcw, Search, User
 import { useDebounce } from "@/hooks/useDebounce";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Completed formatClaimDetails function
-const formatClaimDetails = (claim) => {
-  if (!claim) return "<p>No claim details available.</p>";
+// This function is used for the dialog display.
+const formatClaimDetailsForDialog = (claim) => {
+    if (!claim) return "<p>No claim details available.</p>";
+    let details = [];
+    details.push(`<strong>Claim ID:</strong> ${claim.id}`);
+    details.push(`<strong>Submitted By:</strong> ${claim.submittedBy?.name || 'N/A'} (${claim.submittedBy?.email || 'N/A'})`);
+    details.push(`<strong>Center:</strong> ${claim.centerName || claim.center?.name || 'N/A'}`);
+    details.push(`<strong>Type:</strong> ${claim.claimType}`);
+    details.push(`<strong>Submitted At:</strong> ${new Date(claim.submittedAt).toLocaleString()}`);
+    details.push(`<strong>Status:</strong> ${claim.status}`);
 
-  let details = [];
-  details.push(`<strong>Claim ID:</strong> ${claim.id}`);
-  details.push(`<strong>Submitted By:</strong> ${claim.submittedBy?.name || 'N/A'} (${claim.submittedBy?.email || 'N/A'})`);
-  // Ensure claim.centerName is populated by getAllClaimsSystemWide or use claim.center.name
-  details.push(`<strong>Center:</strong> ${claim.centerName || claim.center?.name || 'N/A'}`);
-  details.push(`<strong>Type:</strong> ${claim.claimType}`);
-  details.push(`<strong>Submitted At:</strong> ${new Date(claim.submittedAt).toLocaleString()}`);
-  details.push(`<strong>Status:</strong> ${claim.status}`);
-
-  if (claim.processedAt) {
-    details.push(`<strong>Processed At:</strong> ${new Date(claim.processedAt).toLocaleString()}`);
-    details.push(`<strong>Processed By:</strong> ${claim.processedBy?.name || 'N/A'} (${claim.processedBy?.email || 'N/A'})`);
-  } else {
-    details.push(`<strong>Processed At:</strong> Not yet processed`);
-    details.push(`<strong>Processed By:</strong> N/A`);
-  }
-
-  details.push(`<hr style="margin: 0.5rem 0;" /><strong>Claim Specifics:</strong>`);
-
-  if (claim.claimType === 'TEACHING') {
-    details.push(`<strong>Teaching Date:</strong> ${claim.teachingDate ? new Date(claim.teachingDate).toLocaleDateString() : 'N/A'}`);
-    details.push(`<strong>Start Time:</strong> ${claim.teachingStartTime || 'N/A'}`);
-    details.push(`<strong>End Time:</strong> ${claim.teachingEndTime || 'N/A'}`);
-    details.push(`<strong>Hours Claimed:</strong> ${claim.teachingHours !== null && claim.teachingHours !== undefined ? claim.teachingHours : 'N/A'}`);
-  } else if (claim.claimType === 'TRANSPORTATION') {
-    details.push(`<strong>Transport Type:</strong> ${claim.transportType || 'N/A'}`);
-    details.push(`<strong>From:</strong> ${claim.transportDestinationFrom || 'N/A'}`);
-    details.push(`<strong>To:</strong> ${claim.transportDestinationTo || 'N/A'}`);
-    details.push(`<strong>Reg. Number:</strong> ${claim.transportRegNumber || 'N/A'}`);
-    details.push(`<strong>Cubic Capacity (cc):</strong> ${claim.transportCubicCapacity !== null && claim.transportCubicCapacity !== undefined ? claim.transportCubicCapacity : 'N/A'}`);
-    details.push(`<strong>Amount Claimed:</strong> ${claim.transportAmount !== null && claim.transportAmount !== undefined ? `GHS ${Number(claim.transportAmount).toFixed(2)}` : 'N/A'}`);
-  } else if (claim.claimType === 'THESIS_PROJECT') {
-    details.push(`<strong>Thesis/Project Type:</strong> ${claim.thesisType || 'N/A'}`);
-    if (claim.thesisType === 'SUPERVISION') {
-      details.push(`<strong>Supervision Rank:</strong> ${claim.thesisSupervisionRank || 'N/A'}`);
-      if (claim.supervisedStudents && claim.supervisedStudents.length > 0) {
-        let studentsHtml = claim.supervisedStudents.map(s => `<li>${s.studentName || 'N/A'} - ${s.thesisTitle || 'N/A'}</li>`).join('');
-        details.push(`<strong>Supervised Students:</strong><ul style="margin-top: 0.25rem; padding-left: 1.5rem;">${studentsHtml}</ul>`);
-      } else {
-        details.push(`<strong>Supervised Students:</strong> (Not available or none listed)`);
-      }
-    } else if (claim.thesisType === 'EXAMINATION') {
-      details.push(`<strong>Exam Course Code:</strong> ${claim.thesisExamCourseCode || 'N/A'}`);
-      details.push(`<strong>Exam Date:</strong> ${claim.thesisExamDate ? new Date(claim.thesisExamDate).toLocaleDateString() : 'N/A'}`);
+    if (claim.processedAt) {
+        details.push(`<strong>Processed At:</strong> ${new Date(claim.processedAt).toLocaleString()}`);
+        details.push(`<strong>Processed By:</strong> ${claim.processedBy?.name || 'N/A'} (${claim.processedBy?.email || 'N/A'})`);
+    } else {
+        details.push(`<strong>Processed At:</strong> Not yet processed`);
     }
-  }
-
-  // Wrap each detail in a paragraph for better spacing when using Tailwind Prose
-  return details.map(detail => `<p style="margin-bottom: 0.25rem;">${detail}</p>`).join('');
+    details.push(`<hr style="margin: 0.5rem 0;" /><strong>Claim Specifics:</strong>`);
+    if (claim.claimType === 'TEACHING') {
+        details.push(`<strong>Teaching Date:</strong> ${claim.teachingDate ? new Date(claim.teachingDate).toLocaleDateString() : 'N/A'}`);
+        details.push(`<strong>Start Time:</strong> ${claim.teachingStartTime || 'N/A'}`);
+        details.push(`<strong>End Time:</strong> ${claim.teachingEndTime || 'N/A'}`);
+        details.push(`<strong>Hours Claimed:</strong> ${claim.teachingHours !== null && claim.teachingHours !== undefined ? claim.teachingHours : 'N/A'}`);
+    } else if (claim.claimType === 'TRANSPORTATION') {
+        details.push(`<strong>Transport Type:</strong> ${claim.transportType || 'N/A'}`);
+        details.push(`<strong>From:</strong> ${claim.transportDestinationFrom || 'N/A'}`);
+        details.push(`<strong>To:</strong> ${claim.transportDestinationTo || 'N/A'}`);
+        details.push(`<strong>Reg. Number:</strong> ${claim.transportRegNumber || 'N/A'}`);
+        details.push(`<strong>Cubic Capacity (cc):</strong> ${claim.transportCubicCapacity !== null && claim.transportCubicCapacity !== undefined ? claim.transportCubicCapacity : 'N/A'}`);
+        details.push(`<strong>Amount Claimed:</strong> ${claim.transportAmount !== null && claim.transportAmount !== undefined ? `GHS ${Number(claim.transportAmount).toFixed(2)}` : 'N/A'}`);
+    } else if (claim.claimType === 'THESIS_PROJECT') {
+        details.push(`<strong>Thesis/Project Type:</strong> ${claim.thesisType || 'N/A'}`);
+        if (claim.thesisType === 'SUPERVISION') {
+        details.push(`<strong>Supervision Rank:</strong> ${claim.thesisSupervisionRank || 'N/A'}`);
+        if (claim.supervisedStudents && claim.supervisedStudents.length > 0) {
+            let studentsHtml = claim.supervisedStudents.map(s => `<li>${s.studentName || 'N/A'} - ${s.thesisTitle || 'N/A'}</li>`).join('');
+            details.push(`<strong>Supervised Students:</strong><ul style="margin-top: 0.25rem; padding-left: 1.5rem;">${studentsHtml}</ul>`);
+        } else {
+            details.push(`<strong>Supervised Students:</strong> (Not available or none listed)`);
+        }
+        } else if (claim.thesisType === 'EXAMINATION') {
+        details.push(`<strong>Exam Course Code:</strong> ${claim.thesisExamCourseCode || 'N/A'}`);
+        details.push(`<strong>Exam Date:</strong> ${claim.thesisExamDate ? new Date(claim.thesisExamDate).toLocaleDateString() : 'N/A'}`);
+        }
+    }
+    return details.map(detail => `<p style="margin-bottom: 0.25rem;">${detail}</p>`).join('');
 };
 
 
@@ -98,7 +91,7 @@ export default function ManageSystemClaimsTab({
   allCenters = [],
   registryUserId
 }) {
-  const [claims, setClaims] = useState(initialClaimsData.claims);
+  const [claims, setClaims] = useState(initialClaimsData.claims || []);
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [processingStates, setProcessingStates] = useState({});
@@ -115,13 +108,9 @@ export default function ManageSystemClaimsTab({
     if (filterStatus) filters.status = filterStatus;
     if (filterCenterId) filters.centerId = filterCenterId;
     if (debouncedLecturerName) filters.lecturerName = debouncedLecturerName;
-
-    // console.log("Fetching claims with filters:", filters); // Frontend log
     const result = await getAllClaimsSystemWide(filters);
-    // console.log("Result from getAllClaimsSystemWide:", result); // Frontend log
-
     if (result.success) {
-      setClaims(result.claims || []); // Ensure claims is always an array
+      setClaims(result.claims || []);
     } else {
       toast.error(result.error || "Failed to fetch claims.");
       setClaims([]);
@@ -137,9 +126,8 @@ export default function ManageSystemClaimsTab({
     if (initialClaimsData.error) {
       toast.error(`Initial load failed: ${initialClaimsData.error}`);
     }
-    setClaims(initialClaimsData.claims || []); // Ensure claims is always an array
+    setClaims(initialClaimsData.claims || []);
   }, [initialClaimsData]);
-
 
   const handleOpenDetailDialog = (claim) => {
     setSelectedClaim(claim);
@@ -151,71 +139,204 @@ export default function ManageSystemClaimsTab({
         toast.error("Registry user ID not found. Cannot process claim.");
         return;
      }
-     setProcessingStates(prev => ({ ...prev, [claimId]: status.toLowerCase() })); // e.g., 'approving' or 'rejecting'
+     setProcessingStates(prev => ({ ...prev, [claimId]: status.toLowerCase() }));
      const result = await processClaimByRegistry({ claimId, status, registryUserId });
      if (result.success) {
         toast.success(`Claim ${status.toLowerCase()} successfully!`);
-        fetchClaims(); // Refresh the list
-        setIsDetailDialogOpen(false); // Close dialog on success
+        fetchClaims();
+        setIsDetailDialogOpen(false);
         setSelectedClaim(null);
      } else {
         toast.error(result.error || `Failed to ${status.toLowerCase()} claim.`);
      }
-     setProcessingStates(prev => ({ ...prev, [claimId]: null })); // Clear processing state
+     setProcessingStates(prev => ({ ...prev, [claimId]: null }));
   };
 
   const getStatusBadgeVariant = (status) => {
     switch (status) {
       case 'PENDING': return 'secondary';
-      case 'APPROVED': return 'default'; // Or a success-like variant e.g., 'success' if you define it
+      case 'APPROVED': return 'default';
       case 'REJECTED': return 'destructive';
       default: return 'outline';
     }
   };
 
+  // Updated handlePrintClaim function
   const handlePrintClaim = () => {
-      if (selectedClaim) {
-        const printWindow = window.open('', '_blank', 'height=600,width=800');
+    if (selectedClaim) {
+        const printWindow = window.open('', '_blank', 'height=800,width=800');
         if (printWindow) {
-            printWindow.document.write('<html><head><title>Claim Details</title>');
-            // Optional: Add basic styling for print
-            printWindow.document.write(`
-                <style>
-                    body { font-family: sans-serif; line-height: 1.5; padding: 20px; }
-                    p { margin-bottom: 5px; }
-                    strong { font-weight: bold; }
-                    hr { margin: 10px 0; border: 0; border-top: 1px solid #ccc; }
-                    ul { margin-top: 5px; padding-left: 20px; }
-                    li { margin-bottom: 3px; }
-                    .prose { max-width: 100%; } /* Ensure prose styles don't limit width too much */
-                </style>
-            `);
-            printWindow.document.write('</head><body>');
-            printWindow.document.write('<img src="/public/uew.png">');
-            printWindow.document.write('<h2>Claim Details</h2>');
-            printWindow.document.write('<div class="prose">');
-            printWindow.document.write(formatClaimDetails(selectedClaim)); // Use the same formatter
-            printWindow.document.write('</div>');
-            printWindow.document.write('</body></html>');
+            // Define university colors (you can adjust these hex codes)
+            const universityBlue = "#0D47A1"; // A deep, professional blue
+            const universityRed = "#B71C1C";  // A strong, professional red (can be UEW's official red)
+            const lightGrayBorder = "#CCCCCC";
+            const textColor = "#333333";
+            const headingColor = "#222222";
+
+            let specificsHtml = '';
+            if (selectedClaim.claimType === 'TEACHING') {
+                specificsHtml = `
+                    <p><strong>Teaching Date:</strong> ${selectedClaim.teachingDate ? new Date(selectedClaim.teachingDate).toLocaleDateString() : 'N/A'}</p>
+                    <p><strong>Start Time:</strong> ${selectedClaim.teachingStartTime || 'N/A'}</p>
+                    <p><strong>End Time:</strong> ${selectedClaim.teachingEndTime || 'N/A'}</p>
+                    <p><strong>Hours Claimed:</strong> ${selectedClaim.teachingHours !== null && selectedClaim.teachingHours !== undefined ? selectedClaim.teachingHours : 'N/A'}</p>
+                `;
+            } else if (selectedClaim.claimType === 'TRANSPORTATION') {
+                specificsHtml = `
+                    <p><strong>Transport Type:</strong> ${selectedClaim.transportType || 'N/A'}</p>
+                    <p><strong>From:</strong> ${selectedClaim.transportDestinationFrom || 'N/A'}</p>
+                    <p><strong>To:</strong> ${selectedClaim.transportDestinationTo || 'N/A'}</p>
+                    <p><strong>Reg. Number:</strong> ${selectedClaim.transportRegNumber || 'N/A'}</p>
+                    <p><strong>Cubic Capacity (cc):</strong> ${selectedClaim.transportCubicCapacity !== null && selectedClaim.transportCubicCapacity !== undefined ? selectedClaim.transportCubicCapacity : 'N/A'}</p>
+                    <p><strong>Amount Claimed:</strong> ${selectedClaim.transportAmount !== null && selectedClaim.transportAmount !== undefined ? `GHS ${Number(selectedClaim.transportAmount).toFixed(2)}` : 'N/A'}</p>
+                `;
+            } else if (selectedClaim.claimType === 'THESIS_PROJECT') {
+                specificsHtml = `<p><strong>Thesis/Project Type:</strong> ${selectedClaim.thesisType || 'N/A'}</p>`;
+                if (selectedClaim.thesisType === 'SUPERVISION') {
+                    specificsHtml += `<p><strong>Supervision Rank:</strong> ${selectedClaim.thesisSupervisionRank || 'N/A'}</p>`;
+                    if (selectedClaim.supervisedStudents && selectedClaim.supervisedStudents.length > 0) {
+                        let studentsListHtml = selectedClaim.supervisedStudents.map(s => `<li>${s.studentName || 'N/A'} - ${s.thesisTitle || 'N/A'}</li>`).join('');
+                        specificsHtml += `<p><strong>Supervised Students:</strong><ul>${studentsListHtml}</ul></p>`;
+                    } else {
+                        specificsHtml += `<p><strong>Supervised Students:</strong> (Not available or none listed)</p>`;
+                    }
+                } else if (selectedClaim.thesisType === 'EXAMINATION') {
+                    specificsHtml += `<p><strong>Exam Course Code:</strong> ${selectedClaim.thesisExamCourseCode || 'N/A'}</p>`;
+                    specificsHtml += `<p><strong>Exam Date:</strong> ${selectedClaim.thesisExamDate ? new Date(selectedClaim.thesisExamDate).toLocaleDateString() : 'N/A'}</p>`;
+                }
+            }
+
+            const printHtml = `
+                <html>
+                <head>
+                    <title>Claim Voucher - ${selectedClaim.id}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; color: ${textColor}; background-color: #fff; }
+                        .print-container { width: 100%; max-width: 800px; margin: 20px auto; padding: 25px; background-color: #fff; }
+                        .header { text-align: center; margin-bottom: 25px; padding-bottom: 20px; border-bottom: 3px solid ${universityBlue}; }
+                        .logo { max-width: 160px; max-height: 100px; margin-bottom: 15px; }
+                        .university-name { font-size: 26px; font-weight: 700; color: ${universityBlue}; margin-bottom: 5px; letter-spacing: 0.5px; }
+                        .document-title { font-size: 22px; font-weight: 600; color: ${universityRed}; margin-top: 10px; text-transform: uppercase; }
+                        .section { margin-bottom: 20px; padding: 15px; border: 1px solid ${lightGrayBorder}; border-radius: 8px; background-color: #f9f9f9; }
+                        .section-alt { background-color: #eef2f7; } /* Alternate section background */
+                        .section-title { font-size: 18px; font-weight: 600; color: ${universityBlue}; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid ${universityBlue}33; }
+                        .details-grid { display: grid; grid-template-columns: 150px 1fr; gap: 8px 12px; font-size: 14px; }
+                        .details-grid strong { font-weight: 600; color: ${headingColor}; }
+                        .details-grid span { word-break: break-word; }
+                        .status-badge { padding: 4px 10px; border-radius: 15px; font-weight: 600; font-size: 0.8em; color: white; text-transform: uppercase; letter-spacing: 0.5px; }
+                        .status-PENDING { background-color: #FFA000; /* Amber */ }
+                        .status-APPROVED { background-color: #388E3C; /* Green */ }
+                        .status-REJECTED { background-color: ${universityRed}; }
+                        .claim-specifics-content p { margin: 0 0 8px 0; font-size: 14px; }
+                        .claim-specifics-content ul { margin: 5px 0 8px 20px; padding: 0; }
+                        .claim-specifics-content li { margin-bottom: 4px; }
+                        .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; border-top: 1px solid ${lightGrayBorder}; padding-top: 15px; }
+                        
+                        /* Signature section */
+                        .signature-section { margin-top: 40px; padding-top: 20px; border-top: 1px dashed ${lightGrayBorder}; }
+                        .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; }
+                        .signature-box { text-align: center; }
+                        .signature-line { border-bottom: 1px solid ${textColor}; width: 80%; margin: 40px auto 5px auto; }
+                        .signature-label { font-size: 13px; color: ${headingColor}; }
+
+
+                        @media print {
+                            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin:0; background-color: #fff!important; }
+                            .print-container { width: 100%; margin: 0 auto; padding: 15mm; border: none; box-shadow: none; background-color: #fff!important; }
+                            .section { border: 1px solid ${lightGrayBorder} !important; background-color: #f9f9f9 !important; }
+                            .section-alt { background-color: #eef2f7 !important; }
+                            .status-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                            .header, .university-name, .document-title, .section-title { color: ${universityBlue} !important; }
+                            .document-title { color: ${universityRed} !important; }
+                            .status-PENDING { background-color: #FFA000 !important; }
+                            .status-APPROVED { background-color: #388E3C !important; }
+                            .status-REJECTED { background-color: ${universityRed} !important; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-container">
+                        <div class="header">
+                            <img src="/uew.png" alt="University Logo" class="logo" />
+                            <div class="university-name">UNIVERSITY OF EDUCATION, WINNEBA </div>
+                            <div class="university-name">COLLEGE OF DISTANCE LEARNING EDUCATION </div>
+                            <div class="document-title">Claim Voucher</div>
+                        </div>
+
+                        <div class="section">
+                            <div class="section-title">General Information</div>
+                            <div class="details-grid">
+                                <strong>Claim ID:</strong> <span>${selectedClaim.id}</span>
+                                <strong>Submitted By:</strong> <span>${selectedClaim.submittedBy?.name || 'N/A'} (${selectedClaim.submittedBy?.email || 'N/A'})</span>
+                                <strong>Center:</strong> <span>${selectedClaim.centerName || selectedClaim.center?.name || 'N/A'}</span>
+                                <strong>Claim Type:</strong> <span>${selectedClaim.claimType}</span>
+                                <strong>Submitted At:</strong> <span>${new Date(selectedClaim.submittedAt).toLocaleString()}</span>
+                                <strong>Status:</strong> <span><span class="status-badge status-${selectedClaim.status}">${selectedClaim.status}</span></span>
+                            </div>
+                        </div>
+
+                        ${selectedClaim.processedAt ? `
+                        <div class="section section-alt">
+                            <div class="section-title">Processing Information</div>
+                            <div class="details-grid">
+                                <strong>Processed By:</strong> <span>${selectedClaim.processedBy?.name || 'N/A'} (${selectedClaim.processedBy?.email || 'N/A'})</span>
+                                <strong>Processed At:</strong> <span>${new Date(selectedClaim.processedAt).toLocaleString()}</span>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        <div class="section">
+                            <div class="section-title">Claim Specifics</div>
+                            <div class="claim-specifics-content">
+                                ${specificsHtml}
+                            </div>
+                        </div>
+                        
+                        <div class="signature-section">
+                            <div class="signature-grid">
+                                <div class="signature-box">
+                                    <div class="signature-line"></div>
+                                    <div class="signature-label">Claimant's Signature</div>
+                                </div>
+                                <div class="signature-box">
+                                    <div class="signature-line"></div>
+                                    <div class="signature-label">Authorizing Officer's Signature</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="footer">
+                            Printed on: ${new Date().toLocaleString()} by Registry. Current Date: ${new Date(Date.now()).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}<br/>
+                            University of Education, Winneba &bull; Ghana
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.write(printHtml);
             printWindow.document.close();
-            printWindow.focus(); // Required for some browsers
-            setTimeout(() => { printWindow.print(); }, 500); // Timeout helps ensure content is loaded
+            printWindow.focus();
+            setTimeout(() => { printWindow.print(); }, 500);
         } else {
             toast.error("Could not open print window. Please check your browser's pop-up settings.");
         }
-      }
+    }
   };
 
   const resetFilters = () => {
     setFilterStatus("");
     setFilterCenterId("");
     setFilterLecturerName("");
-    // fetchClaims will be triggered by useEffect due to state changes
   };
 
+  // JSX for the main component structure (Card, Filters, Table/Mobile Cards, Dialog)
+  // This part remains the same as your provided structure, but ensure the dialog uses
+  // formatClaimDetailsForDialog for its content.
   return (
     <div className="space-y-6">
       <Card className="border-transparent shadow-sm">
+        {/* CardHeader and Filters section as before */}
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
@@ -245,7 +366,6 @@ export default function ManageSystemClaimsTab({
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-1.5">
               <Label htmlFor="filterCenter">Center</Label>
               <Select
@@ -259,7 +379,6 @@ export default function ManageSystemClaimsTab({
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-1.5">
               <Label htmlFor="filterLecturer">Lecturer Name</Label>
                 <div className="relative">
@@ -274,7 +393,6 @@ export default function ManageSystemClaimsTab({
                   />
                 </div>
             </div>
-
             <div className="flex items-end">
               <Button onClick={resetFilters} variant="outline" className="w-full">
                 <RotateCcw className="mr-2 h-4 w-4" /> Reset
@@ -288,7 +406,7 @@ export default function ManageSystemClaimsTab({
               <div className="space-y-4 p-4">
                 {[...Array(5)].map((_, i) => ( <Skeleton key={i} className="h-20 w-full rounded-lg" /> ))}
               </div>
-            ) : claims && claims.length > 0 ? ( // Added check for claims being defined
+            ) : claims && claims.length > 0 ? (
               <>
                 {/* Desktop Table View */}
                 <div className="hidden md:block border rounded-lg">
@@ -323,7 +441,6 @@ export default function ManageSystemClaimsTab({
                     </TableBody>
                   </Table>
                 </div>
-
                 {/* Mobile Card View */}
                 <div className="block md:hidden space-y-4">
                   {claims.map((claim) => (
@@ -389,14 +506,14 @@ export default function ManageSystemClaimsTab({
             <div className="flex-1 overflow-y-auto py-4 px-1 scrollbar-thin scrollbar-thumb-muted-foreground/50 scrollbar-track-transparent">
               <div className="bg-muted/20 dark:bg-gray-800/30 p-4 rounded-lg">
                 <div
-                  className="prose prose-sm dark:prose-invert max-w-none"
+                  className="prose prose-sm dark:prose-invert max-w-none" // Tailwind Prose for basic styling
                   dangerouslySetInnerHTML={{
-                    __html: formatClaimDetails(selectedClaim)
+                    __html: formatClaimDetailsForDialog(selectedClaim) // Use the dialog-specific formatter
                   }}
                 />
               </div>
             </div>
-            <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 border-t pt-4 mt-auto"> {/* mt-auto pushes footer down */}
+            <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 border-t pt-4 mt-auto">
               <Button variant="outline" onClick={handlePrintClaim} disabled={!!processingStates[selectedClaim.id]} className="gap-2 w-full sm:w-auto">
                 <Printer className="h-4 w-4" /> Print
               </Button>
@@ -406,7 +523,7 @@ export default function ManageSystemClaimsTab({
                     <Button
                         variant="destructive"
                         onClick={() => handleProcessClaim(selectedClaim.id, 'REJECTED')}
-                        disabled={!!processingStates[selectedClaim.id]} // Check if any processing ongoing for this claim
+                        disabled={!!processingStates[selectedClaim.id]}
                         className="gap-2 flex-1 sm:flex-grow-0"
                     >
                       <XCircle className="h-4 w-4" />
@@ -415,7 +532,7 @@ export default function ManageSystemClaimsTab({
                     <Button
                         onClick={() => handleProcessClaim(selectedClaim.id, 'APPROVED')}
                         disabled={!!processingStates[selectedClaim.id]}
-                        className="gap-2 bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-grow-0" // Added text-white for better contrast
+                        className="gap-2 bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-grow-0"
                     >
                       <CheckCircle className="h-4 w-4" />
                       {processingStates[selectedClaim.id] === 'approving' ? "Approving..." : "Approve"}
