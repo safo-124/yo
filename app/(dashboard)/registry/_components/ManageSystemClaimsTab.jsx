@@ -191,6 +191,7 @@ export default function ManageSystemClaimsTab({
                 </style>
             `);
             printWindow.document.write('</head><body>');
+            printWindow.document.write('<img src="/public/uew.png">');
             printWindow.document.write('<h2>Claim Details</h2>');
             printWindow.document.write('<div class="prose">');
             printWindow.document.write(formatClaimDetails(selectedClaim)); // Use the same formatter
