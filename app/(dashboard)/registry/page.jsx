@@ -14,115 +14,171 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Building, Users, FileText, AlertTriangle } from "lucide-react"; // Icons
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Building, Users, FileText, AlertTriangle, BarChart3, Activity } from "lucide-react";
+
+// Define UEW-inspired colors for the gradient (as provided by user)
+const uewRed = '#AE1C28';
+const uewBlue = '#1A213D'; // Dark Navy
 
 export default async function RegistryOverviewPage() {
   const session = await getSession();
 
   if (!session || session.role !== 'REGISTRY') {
-    // This check is also in the layout, but good for belt-and-suspenders
     redirect(session ? '/unauthorized' : '/login');
   }
 
   // Fetch data for statistics
   const centersDataPromise = getCenters();
   const usersDataPromise = getAllUsers();
-  // Fetch all claims to get a count; could be filtered for pending if preferred for the stat card
-  const claimsDataPromise = getAllClaimsSystemWide({ status: "PENDING" }); // Example: show pending claims count
+  const pendingClaimsDataPromise = getAllClaimsSystemWide({ status: "PENDING" });
+  const approvedClaimsDataPromise = getAllClaimsSystemWide({ status: "APPROVED" });
 
   const [
     centersResult,
     usersResult,
-    claimsResult
-  ] = await Promise.all([
+    pendingClaimsResult,
+    approvedClaimsResult,
+  ] = await Promise.allSettled([
     centersDataPromise,
     usersDataPromise,
-    claimsDataPromise
+    pendingClaimsDataPromise,
+    approvedClaimsDataPromise,
   ]);
+
+  // Helper to process results from Promise.allSettled
+  const processSettledResult = (result, dataKey) => {
+    if (result.status === 'fulfilled' && result.value.success) {
+      return { success: true, data: result.value[dataKey], count: result.value[dataKey]?.length, error: null };
+    }
+    const errorMessage = result.status === 'fulfilled' ? result.value.error : result.reason?.message || "Failed to fetch data";
+    return { success: false, data: null, count: "Error", error: errorMessage };
+  };
+
+  const centersInfo = processSettledResult(centersResult, 'centers');
+  const usersInfo = processSettledResult(usersResult, 'users');
+  const pendingClaimsInfo = processSettledResult(pendingClaimsResult, 'claims');
+  const approvedClaimsInfo = processSettledResult(approvedClaimsResult, 'claims');
 
   const stats = [
     {
       title: "Total Centers",
-      count: centersResult.success ? centersResult.centers.length : "Error",
+      count: centersInfo.count,
       icon: Building,
       href: "/registry/centers",
       description: "Manage all academic centers.",
-      error: centersResult.error
+      error: centersInfo.error,
+      color: "text-sky-300", // Icon color remains for visual distinction
     },
     {
       title: "Total Users",
-      // Exclude Registry user from count if desired, or show all.
-      // For simplicity, showing all users fetched by getAllUsers.
-      count: usersResult.success ? usersResult.users.length : "Error",
+      count: usersInfo.count,
       icon: Users,
       href: "/registry/users",
       description: "Manage all user accounts.",
-      error: usersResult.error
+      error: usersInfo.error,
+      color: "text-orange-300", // Icon color remains
     },
     {
-      title: "Pending System Claims", // Changed to pending for more actionable stat
-      count: claimsResult.success ? claimsResult.claims.length : "Error",
+      title: "Pending Claims",
+      count: pendingClaimsInfo.count,
       icon: FileText,
-      href: "/registry/claims", // This page will allow filtering for all statuses
+      href: "/registry/claims?status=PENDING",
       description: "Review and process claims.",
-      error: claimsResult.error
+      error: pendingClaimsInfo.error,
+      color: "text-amber-300", // Icon color remains
+    },
+    {
+      title: "Approved Claims",
+      count: approvedClaimsInfo.count,
+      icon: BarChart3,
+      href: "/registry/claims?status=APPROVED",
+      description: "View all approved claims.",
+      error: approvedClaimsInfo.error,
+      color: "text-green-300", // Icon color remains
     },
   ];
 
   return (
-    <div className="space-y-6">
+    // Main container with gradient background and default text color set to a deep blue
+    <div
+      className={`min-h-full space-y-8 p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-[${uewRed}] via-red-800 to-[${uewBlue}] text-blue-700 dark:text-blue-600`}
+    >
       <div>
-        <h1 className="text-3xl font-bold">Registry Overview</h1>
-        <p className="text-muted-foreground">
-          Key statistics and quick access to management sections.
+        {/* Title will inherit the deep blue text color */}
+        <h1 className="text-4xl font-bold tracking-tight">Registry Dashboard</h1>
+        {/* Subtitle uses a slightly lighter shade of deep blue for hierarchy */}
+        <p className="text-blue-500 dark:text-blue-400 mt-1 text-lg">
+          Welcome, {session.name || session.email}! Key statistics and quick actions.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.title} className="hover:shadow-lg transition-shadow">
-            <Link href={stat.href} className="block">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                <stat.icon className="h-5 w-5 text-muted-foreground" />
+          <Link href={stat.href} key={stat.title} className="block group">
+            <Card className="bg-white/10 dark:bg-black/20 backdrop-blur-md border border-white/20 hover:bg-white/20 dark:hover:bg-black/30 transition-all duration-300 ease-in-out shadow-xl hover:shadow-2xl rounded-xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-5 px-5">
+                {/* CardTitle will inherit deep blue. Hover uses a lighter deep blue. */}
+                <CardTitle className="text-sm font-medium group-hover:text-blue-500 dark:group-hover:text-blue-400">
+                  {stat.title}
+                </CardTitle>
+                <stat.icon className={`h-6 w-6 ${stat.color || 'text-slate-300'} transition-transform duration-300 group-hover:scale-110`} />
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-5 pb-5">
                 {stat.error ? (
-                  <div className="flex items-center text-red-600">
-                    <AlertTriangle className="mr-2 h-6 w-6" />
-                    <p className="text-2xl font-bold">Error</p>
+                  <div className="flex items-center text-red-300"> {/* Error text remains red */}
+                    <AlertTriangle className="mr-2 h-7 w-7" />
+                    <p className="text-3xl font-bold">Error</p>
                   </div>
                 ) : (
-                  <div className="text-2xl font-bold">{stat.count}</div>
+                  // Count will inherit the deep blue text color
+                  <div className={`text-4xl font-bold`}>{stat.count}</div>
                 )}
-                <p className="text-xs text-muted-foreground pt-1">
+                {/* Description text uses a medium shade of deep blue */}
+                <p className="text-xs text-blue-600 dark:text-blue-500 group-hover:text-blue-400 dark:group-hover:text-blue-300 pt-1 transition-colors">
                   {stat.error ? stat.error : stat.description}
                 </p>
               </CardContent>
-            </Link>
-          </Card>
+            </Card>
+          </Link>
         ))}
       </div>
 
-      {/* You can add more sections here, like recent activities or important alerts */}
-      <Card>
+      {/* System Health & Activity Card */}
+      <Card className="bg-white/5 dark:bg-black/10 backdrop-blur-md border border-white/20 shadow-lg rounded-xl">
         <CardHeader>
-          <CardTitle>System Health & Activity</CardTitle>
-          <CardDescription>Overview of recent system events or notifications.</CardDescription>
+          <div className="flex items-center space-x-3">
+            <Activity className="h-7 w-7 text-sky-300" /> {/* Icon color kept for visual cue */}
+            <div>
+              {/* CardTitle will inherit deep blue */}
+              <CardTitle className="text-xl font-semibold">System Health & Activity</CardTitle>
+              {/* CardDescription uses a medium shade of deep blue */}
+              <CardDescription className="text-blue-600 dark:text-blue-500">
+                Overview of recent system events or notifications.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">
+          {/* Paragraph text will inherit deep blue. */}
+          <p>
             This area can be used for important system-wide announcements, a summary of recent user registrations,
             or critical pending tasks. For now, it's a placeholder for future enhancements.
           </p>
-          {/* Example:
-          <ul className="mt-4 space-y-2 text-sm">
-            <li>New center "Faculty of Arts" created on [Date].</li>
-            <li>5 new claims submitted today.</li>
-            <li>User "coordinator@example.com" password changed.</li>
-          </ul>
-          */}
+          <div className="mt-4 space-y-3 text-sm">
+            {/* List item text will inherit deep blue. */}
+            <div className="flex items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+              <span className="flex h-2 w-2 translate-y-1 rounded-full bg-sky-500 mr-3" />
+              <span>New center "Faculty of Science Education" approved.</span>
+            </div>
+            <div className="flex items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+              <span className="flex h-2 w-2 translate-y-1 rounded-full bg-amber-500 mr-3" />
+              <span>3 new signup requests awaiting approval.</span>
+            </div>
+            <div className="flex items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+              <span className="flex h-2 w-2 translate-y-1 rounded-full bg-green-500 mr-3" />
+              <span>System maintenance scheduled for May 10th, 2025, 02:00 GMT.</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

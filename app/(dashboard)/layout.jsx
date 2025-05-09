@@ -21,7 +21,7 @@ export default async function DashboardLayout({ children }) {
   // const uewGold = '#F9A602'; // Optional accent
 
   return (
-    <div className={`min-h-screen ${inter.className} flex flex-col bg-slate-100 dark:bg-slate-900`}>
+    <div className={`min-h-screen ${inter.className} flex flex-col bg-blue-800 dark:bg-slate-900`}>
       <header className={`bg-white dark:bg-gray-800 shadow-lg sticky top-0 z-30 border-t-4 border-[${uewRed}]`}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">

@@ -15,5 +15,5 @@ export default async function RegistryLayout({ children }) {
     redirect('/unauthorized');
   }
 
-  return <RegistryLayoutClient session={session}>{children}</RegistryLayoutClient>;
+  return <RegistryLayoutClient session={session} className="flex-1 w-full overflow-y-auto">{children}</RegistryLayoutClient>;
 }
