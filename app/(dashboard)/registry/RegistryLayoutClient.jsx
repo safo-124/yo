@@ -8,7 +8,8 @@ import {
   Users,
   FileText,
   UserCheck as UserCheckIcon,
-  Menu
+  Menu,
+  ClipboardList
 } from 'lucide-react';
 import UserProfileDropdown from '../UserProfileDropdown';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -20,6 +21,7 @@ export default function RegistryLayoutClient({ session, children }) {
     { name: 'Manage Users', href: '/registry/users', icon: Users },
     { name: 'System Claims', href: '/registry/claims', icon: FileText },
     { name: 'Signup Requests', href: '/registry/requests', icon: UserCheckIcon },
+    { name: 'Summaries', href: '/registry/summaries', icon: ClipboardList },
   ];
 
   const SidebarContent = () => (
