@@ -17,11 +17,11 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/co
 export default function RegistryLayoutClient({ session, children }) {
   const navigationItems = [
     { name: 'Overview', href: '/registry', icon: LayoutDashboard },
-    { name: 'Manage Centers', href: '/registry/centers', icon: Building },
     { name: 'Manage Users', href: '/registry/users', icon: Users },
+    { name: 'Manage Centers', href: '/registry/centers', icon: Building },
     { name: 'System Claims', href: '/registry/claims', icon: FileText },
-    { name: 'Signup Requests', href: '/registry/requests', icon: UserCheckIcon },
     { name: 'Summaries', href: '/registry/summaries', icon: ClipboardList },
+    { name: 'Signup Requests', href: '/registry/requests', icon: UserCheckIcon },
   ];
 
   const SidebarContent = () => (

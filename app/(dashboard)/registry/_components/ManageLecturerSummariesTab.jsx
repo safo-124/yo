@@ -24,19 +24,42 @@ import { toast } from "sonner";
 import { UserSearch, CalendarSearch, Printer, BarChartHorizontalBig, AlertTriangle, Hourglass, CheckSquare, XSquare, FileOutput } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Define UEW-inspired colors (ensure these are consistent with your theme)
+// Define UEW-inspired colors
 const uewDeepRed = '#8C181F';
+const uewLightRed = 'red-500'; // Using Tailwind's red-500 for the via color in gradient
 const uewDeepBlue = '#0D2C54';
+const uewLightBlue = 'blue-500'; // Using Tailwind's blue-500 for hover state
 const uewAccentGold = '#F9A602';
-const veryDarkIntermediate = 'slate-900';
 
-const textOnDarkPrimary = 'text-slate-100';
-const textOnDarkSecondary = 'text-slate-300';
-const textOnDarkMuted = 'text-slate-400';
+// Text colors for light backgrounds (main page theme)
+const textPrimaryBlue = `text-[${uewDeepBlue}]`;
+const textSecondarySlate = 'text-slate-600 dark:text-slate-400';
+const textAccentRed = `text-[${uewDeepRed}]`;
 
-const cardDialogBg = `bg-slate-900/90 dark:bg-black/85 backdrop-blur-md border-slate-700/70`;
-const inputBg = `bg-slate-800/70 border-slate-600 focus-visible:ring-[${uewAccentGold}] text-slate-100 placeholder:text-slate-400`;
-const selectContentBg = `bg-slate-800 border-slate-700 text-slate-100`;
+// Backgrounds for elements on white background (main page theme)
+const cardBgLight = `bg-white dark:bg-slate-900`;
+const sectionBgLight = `bg-slate-50 dark:bg-slate-800/50`;
+const inputBgLight = `bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus-visible:ring-[${uewDeepBlue}] placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-slate-50`;
+const selectContentBgLight = `bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-50`;
+
+// Gradient classes for buttons and stat cards
+const buttonGradientClasses = `
+  text-white font-semibold rounded-md
+  bg-gradient-to-r from-[${uewDeepRed}] via-${uewLightRed} to-[${uewDeepBlue}] 
+  hover:from-${uewLightRed} hover:via-[${uewDeepRed}] hover:to-${uewLightBlue}
+  dark:from-[${uewDeepRed}] dark:via-red-600 dark:to-[${uewDeepBlue}]
+  dark:hover:from-red-600 dark:hover:via-[${uewDeepRed}] dark:hover:to-blue-600
+  focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-950 focus:ring-violet-500
+  transition-all duration-300 ease-in-out transform hover:scale-105 shadow-md hover:shadow-lg
+`;
+
+const statCardGradientClasses = `
+  text-white font-semibold rounded-lg shadow-lg
+  bg-gradient-to-br from-[${uewDeepRed}] via-${uewLightRed} to-[${uewDeepBlue}] 
+  dark:from-[${uewDeepRed}] dark:via-red-600 dark:to-[${uewDeepBlue}]
+  p-4 
+`;
+
 
 export default function ManageLecturerSummariesTab({ allUsers = [] }) {
   const [lecturers, setLecturers] = useState([]);
@@ -90,11 +113,11 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
 
     const printWindow = window.open('', '_blank', 'height=800,width=800');
     if (printWindow) {
-        const universityBlue = uewDeepBlue;
+        const universityBlue = uewDeepBlue; 
         const universityRed = uewDeepRed;
         const textColor = "#1A202C";
         const headingColor = uewDeepBlue;
-        const lightGrayBorder = "#CBD5E0";
+        const lightGrayBorder = "#CBD5E0"; 
 
         let claimsDetailsHtml = '<div class="section-title">Detailed Claims in Period</div>';
         if (summaryData.claims && summaryData.claims.length > 0) {
@@ -127,7 +150,6 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
             claimsDetailsHtml += '<p>No claims submitted by this lecturer in this period.</p>';
         }
 
-        // Ensure this entire template literal is correctly formatted with matching backticks
         const printHtml = `
             <html>
             <head>
@@ -198,7 +220,7 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
                 </div>
             </body>
             </html>
-        `; // Crucial: Ensure this closing backtick is present and correct
+        `;
         printWindow.document.write(printHtml);
         printWindow.document.close();
         printWindow.focus();
@@ -206,7 +228,7 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
     } else {
         toast.error("Could not open print window. Please check your browser's pop-up settings.");
     }
-  }; // End of handlePrintSummary function
+  };
   
   const months = [
     { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
@@ -218,32 +240,30 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
-  // This is the main return statement for the component.
-  // The error "Return statement is not allowed here" means a syntax error occurred *before* this line.
   return (
-    <div className={`space-y-8 min-h-full bg-gradient-to-br from-[${uewDeepRed}] via-${veryDarkIntermediate} to-[${uewDeepBlue}] p-4 sm:p-6 lg:p-8 ${textOnDarkPrimary}`}>
-      <Card className={`${cardDialogBg} shadow-2xl`}>
-        <CardHeader className="border-b border-slate-700/50 pb-4">
+    <div className={`space-y-8 min-h-full bg-white dark:bg-slate-950 p-4 sm:p-6 lg:p-8`}>
+      <Card className={`${cardBgLight} shadow-xl border-slate-200 dark:border-slate-800`}>
+        <CardHeader className="border-b border-slate-200 dark:border-slate-800 pb-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle className={`text-2xl lg:text-3xl font-bold tracking-tight flex items-center gap-3 ${textOnDarkPrimary}`}>
-                <BarChartHorizontalBig className={`h-7 w-7 text-[${uewAccentGold}]`} />
+              <CardTitle className={`text-2xl lg:text-3xl font-bold tracking-tight flex items-center gap-3 ${textPrimaryBlue}`}>
+                <BarChartHorizontalBig className={`h-7 w-7 text-[${uewDeepBlue}]`} />
                 Lecturer Claim Summaries
               </CardTitle>
-              <CardDescription className={`${textOnDarkSecondary} mt-1`}>Generate monthly claim summaries for individual lecturers.</CardDescription>
+              <CardDescription className={`${textSecondarySlate} mt-1`}>Generate monthly claim summaries for individual lecturers.</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="pt-6 space-y-6">
           {/* Selection Controls */}
-          <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-900/60 dark:bg-black/40 rounded-lg border border-slate-700/50`}>
+          <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 p-4 ${sectionBgLight} rounded-lg border border-slate-200 dark:border-slate-800`}>
             <div className="space-y-1.5 md:col-span-2">
-              <Label htmlFor="selectLecturer" className={`${textOnDarkSecondary}`}>Select Lecturer</Label>
+              <Label htmlFor="selectLecturer" className={`${textPrimaryBlue}`}>Select Lecturer</Label>
               <Select value={selectedLecturerId} onValueChange={setSelectedLecturerId}>
-                <SelectTrigger id="selectLecturer" className={inputBg}><SelectValue placeholder="Choose a lecturer" /></SelectTrigger>
-                <SelectContent className={selectContentBg}>
+                <SelectTrigger id="selectLecturer" className={inputBgLight}><SelectValue placeholder="Choose a lecturer" /></SelectTrigger>
+                <SelectContent className={selectContentBgLight}>
                   {lecturers.length > 0 ? lecturers.map(lecturer => (
-                    <SelectItem key={lecturer.id} value={lecturer.id} className="focus:bg-slate-700 hover:bg-slate-700/70">
+                    <SelectItem key={lecturer.id} value={lecturer.id} className={`focus:bg-slate-100 dark:focus:bg-slate-700 hover:bg-slate-100/70 dark:hover:bg-slate-700/70`}>
                       {lecturer.name} ({lecturer.email})
                     </SelectItem>
                   )) : <SelectItem value="no-lecturers" disabled>No lecturers found</SelectItem>}
@@ -251,29 +271,33 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="selectMonth" className={`${textOnDarkSecondary}`}>Month</Label>
+              <Label htmlFor="selectMonth" className={`${textPrimaryBlue}`}>Month</Label>
               <Select value={String(selectedMonth)} onValueChange={(val) => setSelectedMonth(Number(val))}>
-                <SelectTrigger id="selectMonth" className={inputBg}><SelectValue placeholder="Select month" /></SelectTrigger>
-                <SelectContent className={selectContentBg}>
+                <SelectTrigger id="selectMonth" className={inputBgLight}><SelectValue placeholder="Select month" /></SelectTrigger>
+                <SelectContent className={selectContentBgLight}>
                   {months.map(month => (
-                    <SelectItem key={month.value} value={String(month.value)} className="focus:bg-slate-700 hover:bg-slate-700/70">{month.label}</SelectItem>
+                    <SelectItem key={month.value} value={String(month.value)} className={`focus:bg-slate-100 dark:focus:bg-slate-700 hover:bg-slate-100/70 dark:hover:bg-slate-700/70`}>{month.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="selectYear" className={`${textOnDarkSecondary}`}>Year</Label>
+              <Label htmlFor="selectYear" className={`${textPrimaryBlue}`}>Year</Label>
               <Select value={String(selectedYear)} onValueChange={(val) => setSelectedYear(Number(val))}>
-                 <SelectTrigger id="selectYear" className={inputBg}><SelectValue placeholder="Select year" /></SelectTrigger>
-                <SelectContent className={selectContentBg}>
+                 <SelectTrigger id="selectYear" className={inputBgLight}><SelectValue placeholder="Select year" /></SelectTrigger>
+                <SelectContent className={selectContentBgLight}>
                   {yearOptions.map(year => (
-                    <SelectItem key={year} value={String(year)} className="focus:bg-slate-700 hover:bg-slate-700/70">{year}</SelectItem>
+                    <SelectItem key={year} value={String(year)} className={`focus:bg-slate-100 dark:focus:bg-slate-700 hover:bg-slate-100/70 dark:hover:bg-slate-700/70`}>{year}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="md:col-span-4 flex justify-end items-end pt-2">
-                <Button onClick={handleGenerateSummary} disabled={isLoadingSummary || !selectedLecturerId} className={`gap-2 bg-[${uewAccentGold}] hover:bg-[${uewAccentGold}]/90 text-black font-semibold w-full md:w-auto px-6 py-2.5`}>
+                <Button 
+                  onClick={handleGenerateSummary} 
+                  disabled={isLoadingSummary || !selectedLecturerId} 
+                  className={`gap-2 w-full md:w-auto px-6 py-2.5 ${buttonGradientClasses}`}
+                >
                     <CalendarSearch className="h-5 w-5 mr-2" />
                     {isLoadingSummary ? "Generating..." : "Generate Summary"}
                 </Button>
@@ -282,35 +306,35 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
 
           {/* Summary Display Area */}
           {isLoadingSummary && (
-            <div className="space-y-3 p-6 bg-slate-900/40 rounded-lg">
-              <Skeleton className="h-8 w-1/2 bg-slate-700/50" />
-              <Skeleton className="h-6 w-3/4 bg-slate-700/50" />
+            <div className="space-y-3 p-6 bg-slate-100 dark:bg-slate-800/40 rounded-lg">
+              <Skeleton className="h-8 w-1/2 bg-slate-300 dark:bg-slate-700/50" />
+              <Skeleton className="h-6 w-3/4 bg-slate-300 dark:bg-slate-700/50" />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4">
-                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 rounded-md bg-slate-700/50" />)}
+                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 rounded-md bg-slate-300 dark:bg-slate-700/50" />)}
               </div>
             </div>
           )}
 
           {fetchError && !isLoadingSummary && (
-            <Card className={`border-red-500/70 bg-[${uewDeepRed}]/40 backdrop-blur-sm shadow-md ${textOnDarkPrimary}`}>
+            <Card className={`border-red-400 dark:border-red-600 bg-red-50 dark:bg-[${uewDeepRed}]/20 shadow-md`}>
               <CardHeader>
-                <CardTitle className="text-red-200 flex items-center gap-2">
+                <CardTitle className={`${textAccentRed} dark:text-red-300 flex items-center gap-2`}>
                   <AlertTriangle className="h-5 w-5" /> Error Fetching Summary
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-red-100">{fetchError}</p>
+                <p className={`${textAccentRed} dark:text-red-200`}>{fetchError}</p>
               </CardContent>
             </Card>
           )}
 
           {summaryData && !isLoadingSummary && !fetchError && (
-            <Card className={`${cardDialogBg} shadow-xl`}>
-              <CardHeader className="border-b border-slate-700/50 pb-3">
-                <CardTitle className={`text-xl font-semibold ${textOnDarkPrimary}`}>
+            <Card className={`${cardBgLight} shadow-lg border-slate-200 dark:border-slate-800`}>
+              <CardHeader className="border-b border-slate-200 dark:border-slate-800 pb-3">
+                <CardTitle className={`text-xl font-semibold ${textPrimaryBlue}`}>
                   Summary for {summaryData.lecturerName}
                 </CardTitle>
-                <CardDescription className={`${textOnDarkSecondary}`}>
+                <CardDescription className={`${textSecondarySlate}`}>
                   {summaryData.month}, {summaryData.year}
                 </CardDescription>
               </CardHeader>
@@ -318,26 +342,31 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                   {[
                     { label: "Total Claims", value: summaryData.totalClaims, icon: FileOutput, color: `text-[${uewAccentGold}]` },
-                    { label: "Pending", value: summaryData.pending, icon: Hourglass, color: "text-amber-400" },
-                    { label: "Approved", value: summaryData.approved, icon: CheckSquare, color: "text-green-400" },
-                    { label: "Rejected", value: summaryData.rejected, icon: XSquare, color: `text-[${uewDeepRed}]` },
+                    { label: "Pending", value: summaryData.pending, icon: Hourglass, color: "text-amber-500 dark:text-amber-400" },
+                    { label: "Approved", value: summaryData.approved, icon: CheckSquare, color: "text-green-600 dark:text-green-400" },
+                    { label: "Rejected", value: summaryData.rejected, icon: XSquare, color: textAccentRed },
                   ].map(stat => (
-                    <div key={stat.label} className={`p-4 bg-slate-800/60 rounded-lg shadow`}>
+                    <div key={stat.label} className={`${statCardGradientClasses}`}> {/* Applied gradient to stat cards */}
                       <stat.icon className={`h-7 w-7 mx-auto mb-2 ${stat.color}`} />
-                      <p className={`text-2xl font-bold ${textOnDarkPrimary}`}>{stat.value}</p>
-                      <p className={`text-xs ${textOnDarkMuted}`}>{stat.label}</p>
+                      {/* Text inside stat cards should be white or light for contrast on gradient */}
+                      <p className={`text-2xl font-bold text-white`}>{stat.value}</p>
+                      <p className={`text-xs text-slate-200`}>{stat.label}</p>
                     </div>
                   ))}
                 </div>
                 {(summaryData.totalTeachingHours > 0 || summaryData.totalTransportAmount > 0) && (
-                    <div className={`p-4 bg-slate-800/50 rounded-md space-y-1 ${textOnDarkSecondary} text-sm`}>
+                    <div className={`p-4 ${sectionBgLight} rounded-md space-y-1 ${textSecondarySlate} text-sm border border-slate-200 dark:border-slate-800`}>
                         {summaryData.totalTeachingHours > 0 && <p><strong>Total Teaching Hours Claimed (Approved):</strong> {summaryData.totalTeachingHours.toFixed(1)} hrs</p>}
                         {summaryData.totalTransportAmount > 0 && <p><strong>Total Transport Amount Claimed (Approved):</strong> GHS {summaryData.totalTransportAmount.toFixed(2)}</p>}
                     </div>
                 )}
               </CardContent>
-              <CardFooter className="border-t border-slate-700/50 pt-4 flex justify-end">
-                <Button onClick={handlePrintSummary} variant="outline" className={`gap-2 bg-slate-700/50 hover:bg-slate-600/60 border-slate-600 ${textOnDarkSecondary} hover:${textOnDarkPrimary}`}>
+              <CardFooter className={`border-t border-slate-200 dark:border-slate-800 pt-4 flex justify-end`}>
+                <Button 
+                  onClick={handlePrintSummary} 
+                  variant="default" // Changed from outline to apply gradient fully
+                  className={`gap-2 w-full sm:w-auto px-5 py-2.5 ${buttonGradientClasses}`}
+                >
                   <Printer className="h-4 w-4" /> Print Summary
                 </Button>
               </CardFooter>
