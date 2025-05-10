@@ -26,9 +26,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 // Define UEW-inspired colors
 const uewDeepRed = '#8C181F';
-const uewLightRed = 'red-500'; // Using Tailwind's red-500 for the via color in gradient
+// const uewLightRed = 'red-500'; // No longer needed for buttonGradientClasses
 const uewDeepBlue = '#0D2C54';
-const uewLightBlue = 'blue-500'; // Using Tailwind's blue-500 for hover state
+// const uewLightBlue = 'blue-500'; // No longer needed for buttonGradientClasses
 const uewAccentGold = '#F9A602';
 
 // Text colors for light backgrounds (main page theme)
@@ -42,22 +42,20 @@ const sectionBgLight = `bg-slate-50 dark:bg-slate-800/50`;
 const inputBgLight = `bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus-visible:ring-[${uewDeepBlue}] placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-slate-50`;
 const selectContentBgLight = `bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-50`;
 
-// Gradient classes for buttons and stat cards
-const buttonGradientClasses = `
-  text-white font-semibold rounded-md
-  bg-gradient-to-r from-[${uewDeepRed}] via-${uewLightRed} to-[${uewDeepBlue}] 
-  hover:from-${uewLightRed} hover:via-[${uewDeepRed}] hover:to-${uewLightBlue}
-  dark:from-[${uewDeepRed}] dark:via-red-600 dark:to-[${uewDeepBlue}]
-  dark:hover:from-red-600 dark:hover:via-[${uewDeepRed}] dark:hover:to-blue-600
-  focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-950 focus:ring-violet-500
-  transition-all duration-300 ease-in-out transform hover:scale-105 shadow-md hover:shadow-lg
-`;
-
+// Gradient classes for stat cards (Generate/Print buttons will have new classes)
 const statCardGradientClasses = `
   text-white font-semibold rounded-lg shadow-lg
-  bg-gradient-to-br from-[${uewDeepRed}] via-${uewLightRed} to-[${uewDeepBlue}] 
+  bg-gradient-to-br from-[${uewDeepRed}] via-red-500 to-[${uewDeepBlue}] 
   dark:from-[${uewDeepRed}] dark:via-red-600 dark:to-[${uewDeepBlue}]
   p-4 
+`;
+
+// New classes for Violet buttons
+const violetButtonClasses = `
+  text-white font-semibold rounded-md
+  bg-violet-700 hover:bg-violet-800 dark:bg-violet-700 dark:hover:bg-violet-600
+  focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-950 focus:ring-violet-500
+  transition-all duration-300 ease-in-out transform hover:scale-105 shadow-md hover:shadow-lg
 `;
 
 
@@ -296,7 +294,7 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
                 <Button 
                   onClick={handleGenerateSummary} 
                   disabled={isLoadingSummary || !selectedLecturerId} 
-                  className={`gap-2 w-full md:w-auto px-6 py-2.5 ${buttonGradientClasses}`}
+                  className={`gap-2 w-full md:w-auto px-6 py-2.5 ${violetButtonClasses}`}
                 >
                     <CalendarSearch className="h-5 w-5 mr-2" />
                     {isLoadingSummary ? "Generating..." : "Generate Summary"}
@@ -346,9 +344,8 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
                     { label: "Approved", value: summaryData.approved, icon: CheckSquare, color: "text-green-600 dark:text-green-400" },
                     { label: "Rejected", value: summaryData.rejected, icon: XSquare, color: textAccentRed },
                   ].map(stat => (
-                    <div key={stat.label} className={`${statCardGradientClasses}`}> {/* Applied gradient to stat cards */}
+                    <div key={stat.label} className={`${statCardGradientClasses}`}>
                       <stat.icon className={`h-7 w-7 mx-auto mb-2 ${stat.color}`} />
-                      {/* Text inside stat cards should be white or light for contrast on gradient */}
                       <p className={`text-2xl font-bold text-white`}>{stat.value}</p>
                       <p className={`text-xs text-slate-200`}>{stat.label}</p>
                     </div>
@@ -364,8 +361,8 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
               <CardFooter className={`border-t border-slate-200 dark:border-slate-800 pt-4 flex justify-end`}>
                 <Button 
                   onClick={handlePrintSummary} 
-                  variant="default" // Changed from outline to apply gradient fully
-                  className={`gap-2 w-full sm:w-auto px-5 py-2.5 ${buttonGradientClasses}`}
+                  variant="default"
+                  className={`gap-2 w-full sm:w-auto px-5 py-2.5 ${violetButtonClasses}`}
                 >
                   <Printer className="h-4 w-4" /> Print Summary
                 </Button>
