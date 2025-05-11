@@ -48,7 +48,7 @@ export default async function LecturerCenterLayout({ children, params }) {
   const iconMap = { LayoutDashboard, FilePlus, History };
 
   return (
-    <div className={`min-h-screen flex ${inter.className}`}>
+    <div className={`min-h-screen flex bg-white ${inter.className}`}>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col bg-white text-gray-800 p-4 shadow-lg border-r">
         <div className="mb-6">
@@ -85,6 +85,7 @@ export default async function LecturerCenterLayout({ children, params }) {
         </div>
       </aside>
 
+      {/* Mobile Sidebar */}
       <LecturerMobileSidebar
         session={session}
         centerName={centerName}
@@ -93,15 +94,17 @@ export default async function LecturerCenterLayout({ children, params }) {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col bg-gray-50">
+      <div className="flex-1 flex flex-col bg-white">
         <header className="bg-white shadow-sm sticky top-0 z-10">
           <div className="h-16 flex items-center px-4 sm:px-6 lg:px-8">
             <div className="md:hidden font-medium text-gray-700">{centerName}</div>
           </div>
         </header>
         
-        <main className="flex-grow p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">{children}</div>
+        <main className="flex-grow p-4 sm:p-6 lg:p-8 flex justify-center bg-white">
+          <div className="w-full ">
+            {children}
+          </div>
         </main>
       </div>
     </div>

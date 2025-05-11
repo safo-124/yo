@@ -14,10 +14,10 @@ export default function LecturerMobileSidebar({ session, centerName, centerId, n
 
   return (
     <div className="md:hidden">
-      {/* Toggle Button */}
+      {/* Toggle Button in Bottom-Right Corner */}
       <Button
         variant="ghost"
-        className="fixed top-4 left-4 z-50 bg-blue-600 text-white hover:bg-blue-700 shadow-lg"
+        className="fixed bottom-4 right-4 z-50 bg-violet-600 text-white hover:bg-violet-700 shadow-lg"
         onClick={() => setIsOpen(!isOpen)}
         size="icon"
       >
@@ -35,7 +35,7 @@ export default function LecturerMobileSidebar({ session, centerName, centerId, n
         <div className="p-4 border-b">
           <Link 
             href={`/lecturer/center/${centerId}/dashboard`}
-            className="text-xl font-semibold text-gray-900 block hover:text-blue-600"
+            className="text-xl font-semibold text-gray-900 block hover:text-violet-600"
           >
             Lecturer Panel
           </Link>
@@ -48,13 +48,13 @@ export default function LecturerMobileSidebar({ session, centerName, centerId, n
             return (
               <Button
                 key={item.name}
-                className="w-full justify-start text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg px-4 py-2.5"
+                className="w-full justify-start text-violet-700 hover:bg-violet-100 hover:text-violet-800 rounded-lg px-4 py-2.5"
                 variant="ghost"
                 asChild
                 onClick={() => setIsOpen(false)}
               >
                 <Link href={item.href}>
-                  <Icon className="mr-3 h-5 w-5 text-blue-500" />
+                  <Icon className="mr-3 h-5 w-5 text-violet-600" />
                   {item.name}
                 </Link>
               </Button>
