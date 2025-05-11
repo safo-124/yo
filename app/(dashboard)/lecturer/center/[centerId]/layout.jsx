@@ -1,44 +1,31 @@
-// app/(dashboard)/lecturer/center/[centerId]/layout.jsx
 import { Inter } from 'next/font/google';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/actions/auth.actions';
-import prisma from '@/lib/prisma'; // To fetch center name for display
+import prisma from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
 import { LayoutDashboard, FilePlus, History } from 'lucide-react';
-import UserProfileDropdown from '../../../UserProfileDropdown'; // Adjusted path
+import UserProfileDropdown from '@/app/(dashboard)/UserProfileDropdown';
+import LecturerMobileSidebar from '@/components/LecturerMobileSidebar';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export default async function LecturerCenterLayout({ children, params: rawParams }) { // Renamed params to rawParams
+export default async function LecturerCenterLayout({ children, params }) {
   const session = await getSession();
+  const { centerId } = params;
 
-  // Await params as per the Next.js error message
-  const params = await rawParams;
-  const { centerId } = params; // Get centerId from the awaited URL parameters
+  if (!session?.userId) redirect('/login');
+  if (session.role !== 'LECTURER') redirect('/unauthorized');
 
-  if (!session?.userId) {
-    redirect('/login');
-  }
-
-  if (session.role !== 'LECTURER') {
-    console.warn(`Unauthorized access attempt to lecturer (center) dashboard by role: ${session.role}`);
-    redirect('/unauthorized');
-  }
-
-  // Verify that the logged-in lecturer actually belongs to this centerId
   const currentUser = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { lecturerCenterId: true }
   });
 
   if (currentUser?.lecturerCenterId !== centerId) {
-    console.warn(`Lecturer ${session.userId} attempted to access unauthorized center ${centerId}. Their assigned center is ${currentUser?.lecturerCenterId}.`);
-    if (currentUser?.lecturerCenterId) {
-      redirect(`/lecturer/center/${currentUser.lecturerCenterId}/dashboard`);
-    } else {
-      redirect('/lecturer/assignment-pending');
-    }
+    currentUser?.lecturerCenterId 
+      ? redirect(`/lecturer/center/${currentUser.lecturerCenterId}/dashboard`)
+      : redirect('/lecturer/assignment-pending');
   }
 
   let centerName = "Your Center";
@@ -47,64 +34,75 @@ export default async function LecturerCenterLayout({ children, params: rawParams
       where: { id: centerId },
       select: { name: true }
     });
-    if (center) {
-      centerName = center.name;
-    }
+    if (center) centerName = center.name;
   } catch (error) {
-    console.error("Error fetching center name for lecturer layout:", error);
+    console.error("Error fetching center name:", error);
   }
 
   const navigationItems = [
-    { name: 'Dashboard', href: `/lecturer/center/${centerId}/dashboard`, icon: LayoutDashboard },
-    { name: 'Submit Claim', href: `/lecturer/center/${centerId}/submit-claim`, icon: FilePlus },
-    { name: 'My Claims', href: `/lecturer/center/${centerId}/my-claims`, icon: History },
+    { name: 'Dashboard', href: `/lecturer/center/${centerId}/dashboard`, icon: 'LayoutDashboard' },
+    { name: 'Submit Claim', href: `/lecturer/center/${centerId}/submit-claim`, icon: 'FilePlus' },
+    { name: 'My Claims', href: `/lecturer/center/${centerId}/my-claims`, icon: 'History' },
   ];
 
+  const iconMap = { LayoutDashboard, FilePlus, History };
+
   return (
-    <div className={`min-h-screen bg-gray-100 dark:bg-gray-800 ${inter.className} flex`}>
-      <aside className="w-64 bg-white dark:bg-gray-900 shadow-md p-4 flex flex-col">
+    <div className={`min-h-screen flex ${inter.className}`}>
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-64 flex-col bg-white text-gray-800 p-4 shadow-lg border-r">
         <div className="mb-6">
-          <Link href={`/lecturer/center/${centerId}/dashboard`} className="text-2xl font-semibold text-gray-800 dark:text-white">
+          <Link 
+            href={`/lecturer/center/${centerId}/dashboard`} 
+            className="text-2xl font-semibold text-gray-900 hover:text-blue-600 transition-colors"
+          >
             Lecturer Panel
           </Link>
-          <p className="text-sm text-muted-foreground">{centerName}</p>
+          <p className="text-sm text-gray-600 mt-1">{centerName}</p>
         </div>
-        <nav className="flex-grow space-y-2">
-          {navigationItems.map((item) => (
-            <Button
-              key={item.name}
-              variant="ghost"
-              className="w-full justify-start"
-              asChild
-            >
-              <Link href={item.href}>
-                <item.icon className="mr-3 h-5 w-5" />
-                {item.name}
-              </Link>
-            </Button>
-          ))}
+        
+        <nav className="flex-grow space-y-1">
+          {navigationItems.map((item) => {
+            const Icon = iconMap[item.icon];
+            return (
+              <Button
+                key={item.name}
+                variant="ghost"
+                className="w-full justify-start text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg px-4 py-2.5"
+                asChild
+              >
+                <Link href={item.href}>
+                  <Icon className="mr-3 h-5 w-5 text-blue-500" />
+                  {item.name}
+                </Link>
+              </Button>
+            );
+          })}
         </nav>
-        <div className="mt-auto">
-         {session && <UserProfileDropdown session={session} />}
+
+        <div className="mt-auto border-t pt-4">
+          <UserProfileDropdown session={session} />
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col">
-        <header className="bg-white dark:bg-gray-900 shadow-sm sticky top-0 z-10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div>{/* Breadcrumbs or page title can go here */}</div>
-            </div>
+      <LecturerMobileSidebar
+        session={session}
+        centerName={centerName}
+        centerId={centerId}
+        navigationItems={navigationItems}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col bg-gray-50">
+        <header className="bg-white shadow-sm sticky top-0 z-10">
+          <div className="h-16 flex items-center px-4 sm:px-6 lg:px-8">
+            <div className="md:hidden font-medium text-gray-700">{centerName}</div>
           </div>
         </header>
-        <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
-          {children}
+        
+        <main className="flex-grow p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto">{children}</div>
         </main>
-        <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-          <div className="container mx-auto py-4 px-4 sm:px-6 lg:px-8 text-center text-gray-500 dark:text-gray-400 text-sm">
-            © {new Date().getFullYear()} Your Application Name. All rights reserved.
-          </div>
-        </footer>
       </div>
     </div>
   );
