@@ -19,7 +19,13 @@ export default async function LecturerCenterLayout({ children, params }) {
 
   const currentUser = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { lecturerCenterId: true }
+    // Select necessary fields for UserProfileDropdown if it needs more than session
+    select: { 
+        lecturerCenterId: true,
+        // Add other fields like name, email, image if UserProfileDropdown uses them directly from currentUser
+        // name: true, 
+        // email: true,
+    }
   });
 
   if (currentUser?.lecturerCenterId !== centerId) {
@@ -48,19 +54,21 @@ export default async function LecturerCenterLayout({ children, params }) {
   const iconMap = { LayoutDashboard, FilePlus, History };
 
   return (
-    <div className={`min-h-screen flex bg-white ${inter.className}`}>
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col bg-white text-gray-800 p-4 shadow-lg border-r">
+    // Root: Full height, no scrolling for the layout itself
+    <div className={`min-h-screen max-h-screen flex bg-gray-100 dark:bg-gray-900 ${inter.className} overflow-hidden`}>
+      {/* Desktop Sidebar: Scrolls its own content if needed */}
+      <aside className="hidden md:flex w-64 flex-col bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-200 p-4 shadow-lg border-r dark:border-gray-800 overflow-y-auto">
         <div className="mb-6">
           <Link 
             href={`/lecturer/center/${centerId}/dashboard`} 
-            className="text-2xl font-semibold text-gray-900 hover:text-blue-600 transition-colors"
+            className="text-2xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
           >
             Lecturer Panel
           </Link>
-          <p className="text-sm text-gray-600 mt-1">{centerName}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate" title={centerName}>{centerName}</p>
         </div>
         
+        {/* Navigation should grow and allow scrolling if items overflow the aside's height minus header/footer */}
         <nav className="flex-grow space-y-1">
           {navigationItems.map((item) => {
             const Icon = iconMap[item.icon];
@@ -68,11 +76,11 @@ export default async function LecturerCenterLayout({ children, params }) {
               <Button
                 key={item.name}
                 variant="ghost"
-                className="w-full justify-start text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg px-4 py-2.5"
+                className="w-full justify-start text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg px-4 py-2.5"
                 asChild
               >
                 <Link href={item.href}>
-                  <Icon className="mr-3 h-5 w-5 text-blue-500" />
+                  <Icon className="mr-3 h-5 w-5 text-blue-500 dark:text-blue-400" />
                   {item.name}
                 </Link>
               </Button>
@@ -80,29 +88,42 @@ export default async function LecturerCenterLayout({ children, params }) {
           })}
         </nav>
 
-        <div className="mt-auto border-t pt-4">
-          <UserProfileDropdown session={session} />
+        <div className="mt-auto border-t dark:border-gray-700 pt-4">
+          {/* Pass currentUser if UserProfileDropdown expects richer data, otherwise session is fine */}
+          <UserProfileDropdown user={currentUser} session={session} />
         </div>
       </aside>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile Sidebar (Fixed, handled by its own component as per your provided code) */}
       <LecturerMobileSidebar
         session={session}
         centerName={centerName}
         centerId={centerId}
         navigationItems={navigationItems}
+        // Pass user={currentUser} if your mobile sidebar's UserProfileDropdown also needs it
       />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col bg-white">
-        <header className="bg-white shadow-sm sticky top-0 z-10">
-          <div className="h-16 flex items-center px-4 sm:px-6 lg:px-8">
-            <div className="md:hidden font-medium text-gray-700">{centerName}</div>
+      {/* Main Content Area Wrapper: Takes remaining width, full height, no scrolling */}
+      <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 overflow-hidden">
+        {/* Header: Sticky, fixed height */}
+        <header className="bg-white dark:bg-gray-950 shadow-sm sticky top-0 z-20 border-b dark:border-gray-800 flex-shrink-0">
+          <div className="h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8"> {/* Added justify-between */}
+            {/* Mobile: Center Name (or leave space for mobile menu trigger if added here) */}
+            <div className="md:hidden font-semibold text-gray-700 dark:text-white text-sm truncate">
+              {centerName}
+            </div>
+            {/* Desktop: Placeholder for breadcrumbs or other header content */}
+            <div className="hidden md:block">
+              {/* You could add breadcrumbs or other info here */}
+            </div>
+            {/* User Profile Dropdown can be added here for mobile header if LecturerMobileSidebar doesn't handle it */}
+            {/* <div className="md:hidden"> <UserProfileDropdown user={currentUser} session={session} /> </div> */}
           </div>
         </header>
         
-        <main className="flex-grow p-4 sm:p-6 lg:p-8 flex justify-center bg-white">
-          <div className="w-full ">
+        {/* Main Content: Takes remaining height, scrolls its own content */}
+        <main className="flex-grow p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto bg-slate-50 dark:bg-gray-800/70">
+          <div className="w-full max-w-7xl mx-auto"> {/* Constrains and centers children */}
             {children}
           </div>
         </main>
