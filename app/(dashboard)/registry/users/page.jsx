@@ -1,5 +1,6 @@
 // app/(dashboard)/registry/users/page.jsx
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { getSession } from '@/lib/actions/auth.actions';
 import {
   getAllUsers,
@@ -7,9 +8,8 @@ import {
 } from '@/lib/actions/registry.actions.js';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import { FileWarning, Users as UsersIcon } from "lucide-react";
-import ManageUsersTab from '../_components/ManageUsersTab';
+import ManageUsersTab from '../_components/ManageUsersTab'; // This component is already styled for light theme
 import { Toaster } from "@/components/ui/sonner";
 
 export default async function RegistryManageUsersPage() {
@@ -19,7 +19,6 @@ export default async function RegistryManageUsersPage() {
     redirect(session ? '/unauthorized' : '/login');
   }
 
-  // Fetch data in parallel
   const [usersResult, centersResult] = await Promise.all([
     getAllUsers(),
     getCenters()
@@ -28,54 +27,58 @@ export default async function RegistryManageUsersPage() {
   if (!usersResult.success || !centersResult.success) {
     const errorMsg = usersResult.error || centersResult.error || "Could not load necessary data for managing users.";
     return (
-      <div className="w-full py-8">
-        <Alert variant="destructive">
-          <FileWarning className="h-4 w-4" />
-          <AlertTitle>Error Loading Data</AlertTitle>
-          <AlertDescription>
+      // This page's content assumes it's within a layout that provides max-width and centering.
+      // Adding specific padding for the error state when it's the only thing on the page.
+      <div className="w-full py-6 px-4"> 
+        <Alert 
+          variant="destructive" 
+          className="bg-red-50 border-red-300 dark:bg-red-800/20 dark:border-red-700/50 text-red-700 dark:text-red-300 shadow-md rounded-lg"
+        >
+          <FileWarning className="h-5 w-5 text-red-600 dark:text-red-400" />
+          <AlertTitle className="font-semibold text-lg text-red-800 dark:text-red-200">Error Loading Data</AlertTitle>
+          <AlertDescription className="text-red-700 dark:text-red-300">
             {errorMsg} Please try again later or contact support.
-            <div className="mt-4">
-              <Button asChild variant="outline">
+            <div className="mt-6">
+              <Button 
+                asChild 
+                variant="outline" 
+                className="border-red-600 text-red-700 hover:bg-red-100 focus-visible:ring-red-500 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-700/30"
+              >
                 <Link href="/registry">Back to Registry Overview</Link>
               </Button>
             </div>
           </AlertDescription>
         </Alert>
+        <Toaster richColors position="top-right" theme="light" />
       </div>
     );
   }
 
+  // This page's root div assumes it's rendered within a parent layout's <main> tag
+  // that already handles overall page padding (e.g., px-4, py-6) and max-width (e.g., max-w-7xl mx-auto).
+  // This div just provides vertical spacing for its direct children.
   return (
-    <div className="w-screen min-h-screen flex flex-col">
-    {/* Header with full width */}
-    <header className="w-full border-b p-6 bg-background">
-      <div className="w-full max-w-[99vw] mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="w-full">
-            <h1 className="text-2xl md:text-3xl font-bold flex items-center">
-                <UsersIcon className="mr-3 h-6 w-6 md:h-8 md:w-8 text-primary" />
-                User Management
-                </h1>
-              <p className="text-sm md:text-base text-muted-foreground">
-                Create, Edit and Manage user
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="space-y-4 sm:space-y-6 w-full">
+      {/* Page Title Section */}
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold flex items-center text-blue-800 dark:text-blue-300">
+          <UsersIcon className="mr-2.5 sm:mr-3 h-6 w-6 md:h-7 md:w-7 text-violet-700 dark:text-violet-500" />
+          User Management
+        </h1>
+        <p className="text-sm md:text-base text-slate-600 dark:text-slate-400 mt-1">
+          Create, edit, and manage user accounts and their roles.
+        </p>
+      </div>
 
-      {/* Main Content Section - Table at 80% width */}
-      <main className="w-[80%] flex-1 overflow-hidden">
-        <div className="w-full max-w-[99vw] mx-auto p-2 md:p-6">
-          <ManageUsersTab
-            initialUsers={usersResult.users || []}
-            centers={centersResult.centers || []}
-            fetchError={null}
-          />
-       </div>
-       </main>
-
-      <Toaster richColors position="top-right" />
+      {/* The Main Content of this page IS the ManageUsersTab */}
+      {/* ManageUsersTab is already styled for a light theme */}
+      <ManageUsersTab
+        initialUsers={usersResult.users || []}
+        centers={centersResult.centers || []}
+        fetchError={null} // Errors handled above
+      />
+      
+      <Toaster richColors position="top-right" theme="light" />
     </div>
   );
 }
