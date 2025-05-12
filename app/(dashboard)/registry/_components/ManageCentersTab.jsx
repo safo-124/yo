@@ -1,9 +1,7 @@
 // app/(dashboard)/registry/_components/ManageCentersTab.jsx
 'use client';
 
-import { useState, useEffect } from 'react';
-// Link might not be needed if error display is fully handled by parent
-// import Link from 'next/link';
+import { useState, useEffect, useMemo } from 'react'; // Added useMemo
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,7 +32,7 @@ import {
 } from "@/components/ui/table";
 import { createCenter, deleteCenterByRegistry } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
-import { PlusCircle, Building2, UserRound, Mail, CalendarDays, AlertTriangle, Loader2, Trash2, MoreHorizontal, Edit3 } from "lucide-react"; // Removed FileWarning if not used
+import { PlusCircle, Building2, UserRound, Mail, CalendarDays, AlertTriangle, Loader2, Trash2, MoreHorizontal, Edit3, Search, XCircle } from "lucide-react"; // Added Search, XCircle
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -49,7 +47,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function ManageCentersTab({ initialCenters = [], potentialCoordinators = [], currentUserId }) {
-  const [centers, setCenters] = useState([]);
+  const [allCenters, setAllCenters] = useState([]); // Stores the original, sorted list
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newCenterName, setNewCenterName] = useState('');
   const [selectedCoordinatorId, setSelectedCoordinatorId] = useState('');
@@ -60,25 +58,39 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
   const [centerToDelete, setCenterToDelete] = useState(null);
   const [isLoadingDelete, setIsLoadingDelete] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState(''); // State for search query
+
   useEffect(() => {
-    // Ensure initialCenters is an array before sorting
     const validInitialCenters = Array.isArray(initialCenters) ? initialCenters : [];
     const sortedInitialCenters = [...validInitialCenters].sort((a, b) => a.name.localeCompare(b.name));
-    setCenters(sortedInitialCenters);
+    setAllCenters(sortedInitialCenters);
   }, [initialCenters]);
+
+  // Memoized filtered centers
+  const filteredCenters = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) {
+      return allCenters;
+    }
+    return allCenters.filter(center => {
+      const centerNameMatch = center.name?.toLowerCase().includes(query);
+      const coordinatorNameMatch = center.coordinator?.name?.toLowerCase().includes(query);
+      const coordinatorEmailMatch = center.coordinator?.email?.toLowerCase().includes(query);
+      return centerNameMatch || coordinatorNameMatch || coordinatorEmailMatch;
+    });
+  }, [allCenters, searchQuery]);
 
   const handleCreateCenter = async (event) => {
     event.preventDefault();
-    setFormError('');
-    setIsLoadingCreate(true);
+    setFormError(''); setIsLoadingCreate(true);
     if (!newCenterName.trim() || !selectedCoordinatorId) {
-      setFormError("Center name and coordinator are required.");
-      setIsLoadingCreate(false); return;
+      setFormError("Center name and coordinator are required."); setIsLoadingCreate(false); return;
     }
     const result = await createCenter({ name: newCenterName.trim(), coordinatorId: selectedCoordinatorId });
     if (result.success && result.center) {
       toast.success(`Center "${result.center.name}" created successfully!`);
-      setCenters(prev => [...prev, result.center].sort((a, b) => a.name.localeCompare(b.name)));
+      // Add to allCenters and let useMemo re-filter
+      setAllCenters(prev => [...prev, result.center].sort((a, b) => a.name.localeCompare(b.name)));
       setIsCreateDialogOpen(false); setNewCenterName(''); setSelectedCoordinatorId(''); setFormError('');
     } else {
       const errorMsg = result.error || "Failed to create center.";
@@ -97,7 +109,8 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
     const result = await deleteCenterByRegistry({ centerId: centerToDelete.id, registryUserId: currentUserId });
     if (result.success) {
       toast.success(result.message || `Center "${centerToDelete.name}" deleted.`);
-      setCenters(prev => prev.filter(c => c.id !== centerToDelete.id));
+      // Remove from allCenters and let useMemo re-filter
+      setAllCenters(prev => prev.filter(c => c.id !== centerToDelete.id));
       setIsDeleteDialogOpen(false); setCenterToDelete(null);
     } else {
       toast.error(result.error || "Failed to delete center.");
@@ -107,9 +120,10 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
 
   const focusRingClass = "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-700 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900";
 
+  const clearSearch = () => setSearchQuery('');
+
   return (
-    <div className="flex flex-col h-full"> {/* Tab root is flex-col and takes full height from parent (<main>) */}
-      {/* Section 1: Tab Header and "New Center" Button (fixed height) */}
+    <div className="flex flex-col h-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 pb-4 sm:pb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3 text-blue-800 dark:text-blue-300">
@@ -128,9 +142,7 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-2xl rounded-xl">
             <DialogHeader className="mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
-              <DialogTitle className="flex items-center gap-2.5 text-xl font-semibold text-blue-800 dark:text-blue-300">
-                <Building2 className="h-6 w-6 text-violet-700 dark:text-violet-500" />Create New Academic Center
-              </DialogTitle>
+              <DialogTitle className="flex items-center gap-2.5 text-xl font-semibold text-blue-800 dark:text-blue-300"><Building2 className="h-6 w-6 text-violet-700 dark:text-violet-500" />Create New Academic Center</DialogTitle>
               <DialogDescription className="text-slate-500 dark:text-slate-400 text-sm pt-1">Register a new center and assign an available user as its coordinator.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateCenter} className="space-y-5">
@@ -154,9 +166,37 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
         </Dialog>
       </div>
 
-      {/* Section 2: Content Area (Empty State or Table). flex-1 allows this to take remaining height. */}
+      {/* Search Input - Placed after header, before content area */}
+      <div className="mb-4 sm:mb-6 shrink-0">
+        <Label htmlFor="search-centers" className="sr-only">Search Centers</Label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+          </div>
+          <Input
+            id="search-centers"
+            type="text" // Changed from search to text for better clear button control
+            placeholder="Search by name, coordinator name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`pl-10 pr-10 w-full sm:max-w-md bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus-visible:ring-blue-600 ${focusRingClass}`}
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+              onClick={clearSearch}
+            >
+              <XCircle className="h-4 w-4" />
+              <span className="sr-only">Clear search</span>
+            </Button>
+          )}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-hidden">
-        {centers.length === 0 && !isLoadingCreate && !isLoadingDelete ? (
+        {initialCenters.length === 0 && !isLoadingCreate && !isLoadingDelete ? ( // Check initialCenters for the "no centers AT ALL" message
           <div className="h-full flex flex-col items-center justify-center">
             <Card className="bg-slate-50 dark:bg-slate-800/40 border-2 border-dashed border-slate-300 dark:border-slate-700/80 shadow-none rounded-xl w-full max-w-lg text-center">
               <CardContent className="py-12 sm:py-16 flex flex-col items-center justify-center">
@@ -167,12 +207,22 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
               </CardContent>
             </Card>
           </div>
+        ) : filteredCenters.length === 0 && searchQuery ? ( // Show "no results found" if search is active but yields no results
+          <div className="h-full flex flex-col items-center justify-center text-center">
+            <Search className="h-16 w-16 text-slate-400 dark:text-slate-500 mb-6" />
+            <h3 className="text-xl font-semibold mb-2.5 text-blue-800 dark:text-blue-300">No Centers Found</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-8 max-w-sm">
+              Your search for "{searchQuery}" did not match any academic centers. Try different keywords.
+            </p>
+            <Button variant="outline" onClick={clearSearch} className={`text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 ${focusRingClass}`}>
+              Clear Search
+            </Button>
+          </div>
         ) : (
-          <div className="h-full flex flex-col"> {/* This wrapper ensures Card can use h-full */}
-            {/* Desktop Table View */}
-            <div className="hidden md:block flex-1 overflow-hidden"> {/* flex-1 and overflow-hidden for the direct parent of Card */}
+          <div className="h-full flex flex-col">
+            <div className="hidden md:block flex-1 overflow-hidden">
               <Card className="h-full flex flex-col bg-white dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 shadow-lg rounded-xl">
-                <ScrollArea className="flex-1 min-h-0"> {/* ScrollArea takes remaining space in Card. min-h-0 is crucial. */}
+                <ScrollArea className="flex-1 min-h-0">
                   <Table className="min-w-full">
                     <TableHeader className="bg-slate-50 dark:bg-slate-700/50 sticky top-0 z-10 backdrop-blur-sm">
                       <TableRow className="border-b-slate-200 dark:border-b-slate-700">
@@ -180,25 +230,24 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
                       </TableRow>
                     </TableHeader>
                     <TableBody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                      {centers.map((center) => (
+                      {filteredCenters.map((center) => ( // Use filteredCenters here
                         <TableRow key={center.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors duration-150">
                           <TableCell className="px-3 py-3.5 text-center"><div className="p-2.5 rounded-lg bg-violet-100 dark:bg-violet-800/30 inline-flex"><Building2 className="h-5 w-5 text-violet-700 dark:text-violet-400" /></div></TableCell><TableCell className="font-medium text-slate-800 dark:text-slate-100 px-4 py-3.5 text-sm">{center.name}</TableCell><TableCell className="text-slate-700 dark:text-slate-200 px-4 py-3.5 text-sm">{center.coordinator ? (<div className="flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarImage src={center.coordinator.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs font-medium">{center.coordinator.name ? center.coordinator.name.match(/\b(\w)/g)?.join('').toUpperCase() : 'C'}</AvatarFallback></Avatar><div><p className="font-medium text-sm text-slate-800 dark:text-slate-100">{center.coordinator.name}</p><Badge variant="outline" className="mt-0.5 text-[10px] px-1.5 py-0.5 border-slate-300 text-slate-500 dark:border-slate-600 dark:text-slate-400 font-normal tracking-normal capitalize">{center.coordinator.role.toLowerCase()}</Badge></div></div>) : (<span className="text-slate-400 dark:text-slate-500 italic text-xs">Not Assigned</span>)}</TableCell><TableCell className="text-slate-600 dark:text-slate-300 px-4 py-3.5 text-sm">{center.coordinator?.email || <span className="text-slate-400 dark:text-slate-500 italic text-xs">N/A</span>}</TableCell><TableCell className="px-4 py-3.5 text-center"><div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 text-xs"><span>{new Date(center.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div></TableCell><TableCell className="px-4 py-3.5 text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className={`h-8 w-8 p-0 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-700 ${focusRingClass}`}><span className="sr-only">Open menu</span><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg"><DropdownMenuLabel className="text-xs px-2 py-1.5 text-slate-500 dark:text-slate-400">Actions</DropdownMenuLabel><DropdownMenuSeparator className="bg-slate-100 dark:bg-slate-700/50"/><DropdownMenuItem className={`text-slate-700 dark:text-slate-200 hover:!bg-slate-100 dark:hover:!bg-slate-700/50 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => { toast.info("Edit functionality coming soon!")}}><Edit3 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /> Edit</DropdownMenuItem><DropdownMenuItem className={`text-red-600 dark:text-red-400 hover:!bg-red-50 dark:hover:!bg-red-700/20 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => openDeleteDialog(center)} disabled={isLoadingDelete && centerToDelete?.id === center.id}>{isLoadingDelete && centerToDelete?.id === center.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Trash2 className="h-3.5 w-3.5" />} Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                  {centers.length === 0 && (isLoadingCreate || isLoadingDelete) && (
+                  {(isLoadingCreate || isLoadingDelete) && filteredCenters.length === 0 && allCenters.length > 0 && ( // Show loader if all items were filtered out during delete/create
                       <div className="p-8 text-center text-slate-500 dark:text-slate-400 flex items-center justify-center">
-                          <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading centers...
+                          <Loader2 className="h-6 w-6 animate-spin mr-2" /> Processing...
                       </div>
                   )}
                 </ScrollArea>
               </Card>
             </div>
 
-            {/* Mobile Card View - ensure this also scrolls if needed */}
-            <div className="md:hidden flex-1 space-y-4 overflow-y-auto pb-4"> {/* Added flex-1 and overflow-y-auto */}
-              {centers.map((center) => (
+            <div className="md:hidden flex-1 space-y-4 overflow-y-auto pb-4">
+              {filteredCenters.map((center) => ( // Use filteredCenters here
                 <Card key={center.id} className="bg-white dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 shadow-lg rounded-xl overflow-hidden">
                    <CardHeader className="p-4 flex flex-row justify-between items-start bg-slate-50/50 dark:bg-slate-700/30 border-b dark:border-slate-700/50">
                      <div className="flex items-center gap-3"><div className="p-2.5 rounded-lg bg-violet-100 dark:bg-violet-800/40"><Building2 className="h-5 w-5 text-violet-700 dark:text-violet-400"/></div><CardTitle className="text-md font-semibold text-blue-800 dark:text-blue-300 leading-tight">{center.name}</CardTitle></div>
@@ -216,7 +265,6 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-md bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-2xl rounded-xl">
             <DialogHeader className="pb-3"><DialogTitle className="flex items-center gap-2.5 text-lg font-semibold text-red-700 dark:text-red-400"><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-500" />Confirm Center Deletion</DialogTitle></DialogHeader>
