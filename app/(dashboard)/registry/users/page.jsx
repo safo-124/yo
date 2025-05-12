@@ -76,6 +76,7 @@ export default async function RegistryManageUsersPage() {
         initialUsers={usersResult.users || []}
         centers={centersResult.centers || []}
         fetchError={null} // Errors handled above
+        registryUserId={session.userId} 
       />
       
       <Toaster richColors position="top-right" theme="light" />

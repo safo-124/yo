@@ -9,42 +9,47 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { FileWarning, Building } from "lucide-react";
-import ManageCentersTab from '../_components/ManageCentersTab'; // Path to your styled component
+import ManageCentersTab from '../_components/ManageCentersTab';
 import { Toaster } from "@/components/ui/sonner";
-
-// Using direct Tailwind classes with the new palette for a light theme
-// Palette: Red-800, Blue-800, Violet-800, White
 
 export default async function RegistryManageCentersPage() {
   const session = await getSession();
 
-  if (!session || session.role !== 'REGISTRY') {
+  if (!session || !session.userId || session.role !== 'REGISTRY') {
     redirect(session ? '/unauthorized' : '/login');
   }
 
+  // Fetch data concurrently
   const [centersResult, potentialCoordinatorsResult] = await Promise.all([
     getCenters(),
     getPotentialCoordinators()
   ]);
 
-  if (!centersResult.success || !potentialCoordinatorsResult.success) {
-    const errorMsg = centersResult.error || potentialCoordinatorsResult.error || "Could not load necessary data for managing centers.";
+  // Consolidated error handling
+  let fetchErrorMsg = null;
+  if (!centersResult.success) {
+    fetchErrorMsg = centersResult.error || "Could not load centers data.";
+  } else if (!potentialCoordinatorsResult.success && !fetchErrorMsg) { // Only set if no previous error
+    fetchErrorMsg = potentialCoordinatorsResult.error || "Could not load potential coordinators data.";
+  }
+
+
+  if (fetchErrorMsg) {
     return (
-      // Error display for light theme
       <div className="flex flex-col flex-1 h-full items-center justify-center p-4 bg-white dark:bg-slate-900">
         <div className="w-full max-w-2xl">
-          <Alert 
-            variant="destructive" 
+          <Alert
+            variant="destructive"
             className="bg-red-50 border-red-300 dark:bg-red-800/20 dark:border-red-700/50 text-red-700 dark:text-red-300 shadow-md rounded-lg"
           >
             <FileWarning className="h-5 w-5 text-red-600 dark:text-red-400" />
             <AlertTitle className="font-semibold text-lg text-red-800 dark:text-red-200">Error Loading Data</AlertTitle>
             <AlertDescription className="text-red-700 dark:text-red-300">
-              {errorMsg} Please try again later or contact support.
+              {fetchErrorMsg} Please try again later or contact support.
               <div className="mt-6">
-                <Button 
-                  asChild 
-                  variant="outline" 
+                <Button
+                  asChild
+                  variant="outline"
                   className="border-red-600 text-red-700 hover:bg-red-100 focus-visible:ring-red-500 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-700/30"
                 >
                   <Link href="/registry">Back to Registry Overview</Link>
@@ -53,16 +58,16 @@ export default async function RegistryManageCentersPage() {
             </AlertDescription>
           </Alert>
         </div>
-        <Toaster richColors position="top-right" theme="light" /> {/* Changed theme to light */}
+        <Toaster richColors position="top-right" theme="light" />
       </div>
     );
   }
 
   return (
-    // Page container with white background
+    // This root div sets up the overall page flex structure.
+    // h-full assumes its parent (likely from a layout file) also supports height distribution.
     <div className="flex flex-col flex-1 h-full bg-white dark:bg-slate-900">
-      {/* Header with light background and themed text */}
-      <header className="w-full border-b border-slate-200 dark:border-slate-700 p-4 sm:p-6 bg-white dark:bg-slate-800 shadow-sm">
+      <header className="w-full border-b border-slate-200 dark:border-slate-700 p-4 sm:p-6 bg-white dark:bg-slate-800 shadow-sm shrink-0"> {/* Added shrink-0 to header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold flex items-center text-blue-800 dark:text-blue-300">
@@ -73,21 +78,18 @@ export default async function RegistryManageCentersPage() {
               Create and manage academic centers and their coordinators.
             </p>
           </div>
-          {/* "New Center" button is expected to be within ManageCentersTab */}
         </div>
       </header>
 
-      {/* Main content area - ManageCentersTab will provide its own styling */}
-      {/* flex-1 and overflow-hidden allows ManageCentersTab to fill and scroll if its content is long */}
-      <main className="flex-1 overflow-hidden">
+      {/* Main content area: flex-1 allows it to take available vertical space. overflow-hidden is crucial. */}
+      <main className="flex-1 overflow-hidden p-4 sm:p-6">
         <ManageCentersTab
           initialCenters={centersResult.centers || []}
           potentialCoordinators={potentialCoordinatorsResult.users || []}
-          fetchError={null} 
+          currentUserId={session.userId}
         />
       </main>
-
-      <Toaster richColors position="top-right" theme="light" /> {/* Changed theme to light */}
+      <Toaster richColors position="top-right" theme="light" />
     </div>
   );
 }
