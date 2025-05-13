@@ -166,6 +166,8 @@ model Claim {
   teachingStartTime        String?
   teachingEndTime          String?
   teachingHours            Float?
+  courseTitle              String?         // NEW FIELD
+  courseCode               String?
 
   // Transportation fields
   transportType            TransportType?            // Changed from Claim_transportType
