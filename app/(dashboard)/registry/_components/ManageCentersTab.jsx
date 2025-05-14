@@ -1,7 +1,7 @@
 // app/(dashboard)/registry/_components/ManageCentersTab.jsx
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo } from 'react'; // Added useMemo
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,8 +32,8 @@ import {
 } from "@/components/ui/table";
 import { createCenter, deleteCenterByRegistry } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
-import { PlusCircle, Building2, UserRound, Mail, CalendarDays, AlertTriangle, Loader2, Trash2, MoreHorizontal, Edit3, Search, XCircle } from "lucide-react"; // Added Search, XCircle
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PlusCircle, Building2, UserRound, Mail, CalendarDays, AlertTriangle, Loader2, Trash2, MoreHorizontal, Edit3, Search, XCircle, Users, Briefcase, ShieldCheck, Star } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -46,8 +46,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+// Define DESIGNATIONS locally or import if shared, to display coordinator's designation
+const DESIGNATIONS_DISPLAY_MAP = {
+  ASSISTANT_LECTURER: "Asst. Lecturer",
+  LECTURER: "Lecturer",
+  SENIOR_LECTURER: "Snr. Lecturer",
+  PROFESSOR: "Professor",
+  ADMINISTRATIVE_STAFF: "Admin. Staff",
+  TECHNICAL_STAFF: "Tech. Staff",
+};
+
+const getDesignationDisplay = (designationValue) => {
+  return DESIGNATIONS_DISPLAY_MAP[designationValue] || designationValue || null;
+};
+
+
 export default function ManageCentersTab({ initialCenters = [], potentialCoordinators = [], currentUserId }) {
-  const [allCenters, setAllCenters] = useState([]); // Stores the original, sorted list
+  const [allCenters, setAllCenters] = useState([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newCenterName, setNewCenterName] = useState('');
   const [selectedCoordinatorId, setSelectedCoordinatorId] = useState('');
@@ -58,20 +73,17 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
   const [centerToDelete, setCenterToDelete] = useState(null);
   const [isLoadingDelete, setIsLoadingDelete] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState(''); // State for search query
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const validInitialCenters = Array.isArray(initialCenters) ? initialCenters : [];
-    const sortedInitialCenters = [...validInitialCenters].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedInitialCenters = [...validInitialCenters].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     setAllCenters(sortedInitialCenters);
   }, [initialCenters]);
 
-  // Memoized filtered centers
   const filteredCenters = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
-    if (!query) {
-      return allCenters;
-    }
+    if (!query) return allCenters;
     return allCenters.filter(center => {
       const centerNameMatch = center.name?.toLowerCase().includes(query);
       const coordinatorNameMatch = center.coordinator?.name?.toLowerCase().includes(query);
@@ -89,8 +101,7 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
     const result = await createCenter({ name: newCenterName.trim(), coordinatorId: selectedCoordinatorId });
     if (result.success && result.center) {
       toast.success(`Center "${result.center.name}" created successfully!`);
-      // Add to allCenters and let useMemo re-filter
-      setAllCenters(prev => [...prev, result.center].sort((a, b) => a.name.localeCompare(b.name)));
+      setAllCenters(prev => [...prev, { ...result.center, staffRegistryCount: result.center.staffRegistryCount || 0, lecturerCount: result.center.lecturerCount || 0, departmentCount: result.center.departmentCount || 0 }].sort((a, b) => a.name.localeCompare(b.name)));
       setIsCreateDialogOpen(false); setNewCenterName(''); setSelectedCoordinatorId(''); setFormError('');
     } else {
       const errorMsg = result.error || "Failed to create center.";
@@ -109,7 +120,6 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
     const result = await deleteCenterByRegistry({ centerId: centerToDelete.id, registryUserId: currentUserId });
     if (result.success) {
       toast.success(result.message || `Center "${centerToDelete.name}" deleted.`);
-      // Remove from allCenters and let useMemo re-filter
       setAllCenters(prev => prev.filter(c => c.id !== centerToDelete.id));
       setIsDeleteDialogOpen(false); setCenterToDelete(null);
     } else {
@@ -119,7 +129,6 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
   };
 
   const focusRingClass = "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-700 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900";
-
   const clearSearch = () => setSearchQuery('');
 
   return (
@@ -131,7 +140,7 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
             Academic Centers
           </h1>
           <p className="text-slate-600 dark:text-slate-400 mt-1 text-sm sm:text-base">
-            Manage all academic centers and their coordinators.
+            Manage academic centers, coordinators, and view staff assignments.
           </p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={(open) => { setIsCreateDialogOpen(open); if (!open && !isLoadingCreate) { setNewCenterName(''); setSelectedCoordinatorId(''); setFormError(''); } }}>
@@ -143,19 +152,19 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
           <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-2xl rounded-xl">
             <DialogHeader className="mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
               <DialogTitle className="flex items-center gap-2.5 text-xl font-semibold text-blue-800 dark:text-blue-300"><Building2 className="h-6 w-6 text-violet-700 dark:text-violet-500" />Create New Academic Center</DialogTitle>
-              <DialogDescription className="text-slate-500 dark:text-slate-400 text-sm pt-1">Register a new center and assign an available user as its coordinator.</DialogDescription>
+              <DialogDescription className="text-slate-500 dark:text-slate-400 text-sm pt-1">Register a new center and assign an available coordinator.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateCenter} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="centerName" className="font-medium text-slate-700 dark:text-slate-300">Center Name <span className="text-red-600 dark:text-red-500">*</span></Label>
-                  <Input id="centerName" value={newCenterName} onChange={(e) => setNewCenterName(e.target.value)} placeholder="e.g., Faculty of Engineering" disabled={isLoadingCreate} className={`bg-slate-50 dark:bg-slate-700/60 border-slate-300 dark:border-slate-600/80 focus-visible:ring-blue-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 ${focusRingClass}`} />
+                  <Label htmlFor="centerName-create" className="font-medium text-slate-700 dark:text-slate-300">Center Name <span className="text-red-600 dark:text-red-500">*</span></Label>
+                  <Input id="centerName-create" value={newCenterName} onChange={(e) => setNewCenterName(e.target.value)} placeholder="e.g., Faculty of Engineering" disabled={isLoadingCreate} className={`bg-slate-50 dark:bg-slate-700/60 border-slate-300 dark:border-slate-600/80 focus-visible:ring-blue-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 ${focusRingClass}`} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="coordinator" className="font-medium text-slate-700 dark:text-slate-300">Center Coordinator <span className="text-red-600 dark:text-red-500">*</span></Label>
+                  <Label htmlFor="coordinator-create" className="font-medium text-slate-700 dark:text-slate-300">Center Coordinator <span className="text-red-600 dark:text-red-500">*</span></Label>
                   <Select value={selectedCoordinatorId} onValueChange={setSelectedCoordinatorId} disabled={isLoadingCreate}>
-                    <SelectTrigger className={`w-full bg-slate-50 dark:bg-slate-700/60 border-slate-300 dark:border-slate-600/80 focus:ring-blue-600 text-slate-900 dark:text-slate-50 data-[placeholder]:text-slate-400 dark:data-[placeholder]:text-slate-500 ${focusRingClass}`}><SelectValue placeholder="Select a coordinator" /></SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-lg">
-                      {potentialCoordinators.length > 0 ? ( potentialCoordinators.map((user) => ( <SelectItem key={user.id} value={user.id} className={`focus:bg-violet-100 dark:focus:bg-violet-700/30 hover:bg-slate-50 dark:hover:bg-slate-700/70 cursor-pointer ${focusRingClass}`}> <div className="flex items-center gap-3 py-1.5 px-1"><Avatar className="h-9 w-9"><AvatarImage src={user.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium">{user.name ? user.name.match(/\b(\w)/g)?.join('').toUpperCase() : 'P'}</AvatarFallback></Avatar><div><span className="font-medium text-sm text-slate-800 dark:text-slate-100">{user.name}</span><span className="block text-xs text-slate-500 dark:text-slate-400">{user.email} - <span className="capitalize">{user.role.toLowerCase()}</span></span></div></div></SelectItem> ))) : ( <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">No available users to assign as coordinators.</div> )}
+                    <SelectTrigger id="coordinator-create" className={`w-full bg-slate-50 dark:bg-slate-700/60 border-slate-300 dark:border-slate-600/80 focus:ring-blue-600 text-slate-900 dark:text-slate-50 data-[placeholder]:text-slate-400 dark:data-[placeholder]:text-slate-500 ${focusRingClass}`}><SelectValue placeholder="Select a coordinator" /></SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-lg max-h-60"> {/* Added max-h for long lists */}
+                      {potentialCoordinators.length > 0 ? ( potentialCoordinators.map((user) => ( <SelectItem key={user.id} value={user.id} className={`focus:bg-violet-100 dark:focus:bg-violet-700/30 hover:bg-slate-50 dark:hover:bg-slate-700/70 cursor-pointer ${focusRingClass}`}> <div className="flex items-center gap-3 py-1.5 px-1"><Avatar className="h-9 w-9"><AvatarImage src={user.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium">{user.name ? user.name.match(/\b(\w)/g)?.join('').toUpperCase() : 'U'}</AvatarFallback></Avatar><div><span className="font-medium text-sm text-slate-800 dark:text-slate-100">{user.name}</span><span className="block text-xs text-slate-500 dark:text-slate-400">{user.email} <span className="capitalize font-medium">({user.role?.toLowerCase()})</span> {user.designation && ` - ${getDesignationDisplay(user.designation)}`}</span></div></div></SelectItem> ))) : ( <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">No eligible coordinators found.</div> )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -166,58 +175,20 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
         </Dialog>
       </div>
 
-      {/* Search Input - Placed after header, before content area */}
       <div className="mb-4 sm:mb-6 shrink-0">
         <Label htmlFor="search-centers" className="sr-only">Search Centers</Label>
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-          </div>
-          <Input
-            id="search-centers"
-            type="text" // Changed from search to text for better clear button control
-            placeholder="Search by name, coordinator name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={`pl-10 pr-10 w-full sm:max-w-md bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus-visible:ring-blue-600 ${focusRingClass}`}
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-              onClick={clearSearch}
-            >
-              <XCircle className="h-4 w-4" />
-              <span className="sr-only">Clear search</span>
-            </Button>
-          )}
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-4 w-4 text-slate-400 dark:text-slate-500" /></div>
+          <Input id="search-centers" type="text" placeholder="Search by name, coordinator name or email..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-10 pr-10 w-full sm:max-w-md bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus-visible:ring-blue-600 ${focusRingClass}`} />
+          {searchQuery && (<Button variant="ghost" size="sm" className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300" onClick={clearSearch}><XCircle className="h-4 w-4" /><span className="sr-only">Clear search</span></Button>)}
         </div>
       </div>
 
       <div className="flex-1 overflow-hidden">
-        {initialCenters.length === 0 && !isLoadingCreate && !isLoadingDelete ? ( // Check initialCenters for the "no centers AT ALL" message
-          <div className="h-full flex flex-col items-center justify-center">
-            <Card className="bg-slate-50 dark:bg-slate-800/40 border-2 border-dashed border-slate-300 dark:border-slate-700/80 shadow-none rounded-xl w-full max-w-lg text-center">
-              <CardContent className="py-12 sm:py-16 flex flex-col items-center justify-center">
-                <Building2 className="h-12 w-12 sm:h-16 sm:w-16 text-slate-400 dark:text-slate-500 mb-5 sm:mb-6" />
-                <h3 className="text-lg sm:text-xl font-semibold mb-2 text-blue-800 dark:text-blue-300">No Academic Centers Yet</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 sm:mb-8 max-w-xs">Create the first center to get started with managing academic units.</p>
-                <Button onClick={() => setIsCreateDialogOpen(true)} className={`gap-2 bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-semibold py-2 px-4 sm:py-2.5 sm:px-5 ${focusRingClass}`}><PlusCircle className="mr-1.5 h-4 w-4 sm:h-5 sm:w-5" />Create First Center</Button>
-              </CardContent>
-            </Card>
-          </div>
-        ) : filteredCenters.length === 0 && searchQuery ? ( // Show "no results found" if search is active but yields no results
-          <div className="h-full flex flex-col items-center justify-center text-center">
-            <Search className="h-16 w-16 text-slate-400 dark:text-slate-500 mb-6" />
-            <h3 className="text-xl font-semibold mb-2.5 text-blue-800 dark:text-blue-300">No Centers Found</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-8 max-w-sm">
-              Your search for "{searchQuery}" did not match any academic centers. Try different keywords.
-            </p>
-            <Button variant="outline" onClick={clearSearch} className={`text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 ${focusRingClass}`}>
-              Clear Search
-            </Button>
-          </div>
+        {initialCenters.length === 0 && !isLoadingCreate && !isLoadingDelete ? (
+          <div className="h-full flex flex-col items-center justify-center"> {/* ... Empty state card ... */} </div>
+        ) : filteredCenters.length === 0 && searchQuery ? (
+          <div className="h-full flex flex-col items-center justify-center text-center"> {/* ... No search results ... */} </div>
         ) : (
           <div className="h-full flex flex-col">
             <div className="hidden md:block flex-1 overflow-hidden">
@@ -226,37 +197,66 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
                   <Table className="min-w-full">
                     <TableHeader className="bg-slate-50 dark:bg-slate-700/50 sticky top-0 z-10 backdrop-blur-sm">
                       <TableRow className="border-b-slate-200 dark:border-b-slate-700">
-                        <TableHead className="w-[50px] px-3 py-3.5 text-center"><Building2 className="h-4 w-4 inline-block text-slate-500 dark:text-slate-400"/></TableHead><TableHead className="min-w-[200px] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Center Name</TableHead><TableHead className="min-w-[220px] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Coordinator</TableHead><TableHead className="min-w-[180px] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Contact Email</TableHead><TableHead className="w-[130px] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4 text-center">Created On</TableHead><TableHead className="w-[100px] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4 text-center">Actions</TableHead>
+                        <TableHead className="w-[50px] px-3 py-3.5 text-center"></TableHead><TableHead className="min-w-[200px] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Center Name</TableHead><TableHead className="min-w-[280px] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Coordinator</TableHead><TableHead className="w-[150px] text-center text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Statistics</TableHead><TableHead className="w-[120px] text-center text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Created</TableHead><TableHead className="w-[100px] text-center text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                      {filteredCenters.map((center) => ( // Use filteredCenters here
+                      {filteredCenters.map((center) => (
                         <TableRow key={center.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors duration-150">
-                          <TableCell className="px-3 py-3.5 text-center"><div className="p-2.5 rounded-lg bg-violet-100 dark:bg-violet-800/30 inline-flex"><Building2 className="h-5 w-5 text-violet-700 dark:text-violet-400" /></div></TableCell><TableCell className="font-medium text-slate-800 dark:text-slate-100 px-4 py-3.5 text-sm">{center.name}</TableCell><TableCell className="text-slate-700 dark:text-slate-200 px-4 py-3.5 text-sm">{center.coordinator ? (<div className="flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarImage src={center.coordinator.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs font-medium">{center.coordinator.name ? center.coordinator.name.match(/\b(\w)/g)?.join('').toUpperCase() : 'C'}</AvatarFallback></Avatar><div><p className="font-medium text-sm text-slate-800 dark:text-slate-100">{center.coordinator.name}</p><Badge variant="outline" className="mt-0.5 text-[10px] px-1.5 py-0.5 border-slate-300 text-slate-500 dark:border-slate-600 dark:text-slate-400 font-normal tracking-normal capitalize">{center.coordinator.role.toLowerCase()}</Badge></div></div>) : (<span className="text-slate-400 dark:text-slate-500 italic text-xs">Not Assigned</span>)}</TableCell><TableCell className="text-slate-600 dark:text-slate-300 px-4 py-3.5 text-sm">{center.coordinator?.email || <span className="text-slate-400 dark:text-slate-500 italic text-xs">N/A</span>}</TableCell><TableCell className="px-4 py-3.5 text-center"><div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 text-xs"><span>{new Date(center.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div></TableCell><TableCell className="px-4 py-3.5 text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className={`h-8 w-8 p-0 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-700 ${focusRingClass}`}><span className="sr-only">Open menu</span><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg"><DropdownMenuLabel className="text-xs px-2 py-1.5 text-slate-500 dark:text-slate-400">Actions</DropdownMenuLabel><DropdownMenuSeparator className="bg-slate-100 dark:bg-slate-700/50"/><DropdownMenuItem className={`text-slate-700 dark:text-slate-200 hover:!bg-slate-100 dark:hover:!bg-slate-700/50 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => { toast.info("Edit functionality coming soon!")}}><Edit3 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /> Edit</DropdownMenuItem><DropdownMenuItem className={`text-red-600 dark:text-red-400 hover:!bg-red-50 dark:hover:!bg-red-700/20 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => openDeleteDialog(center)} disabled={isLoadingDelete && centerToDelete?.id === center.id}>{isLoadingDelete && centerToDelete?.id === center.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Trash2 className="h-3.5 w-3.5" />} Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
+                          <TableCell className="px-3 py-3.5 text-center"><div className="p-2.5 rounded-lg bg-violet-100 dark:bg-violet-800/30 inline-flex"><Building2 className="h-5 w-5 text-violet-700 dark:text-violet-400" /></div></TableCell>
+                          <TableCell className="font-medium text-slate-800 dark:text-slate-100 px-4 py-3.5 text-sm">{center.name}</TableCell>
+                          <TableCell className="text-slate-700 dark:text-slate-200 px-4 py-3.5 text-sm">
+                            {center.coordinator ? (
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9"><AvatarImage src={center.coordinator.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs font-medium">{center.coordinator.name ? center.coordinator.name.match(/\b(\w)/g)?.join('').toUpperCase() : 'C'}</AvatarFallback></Avatar>
+                                <div>
+                                  <p className="font-medium text-sm text-slate-800 dark:text-slate-100">{center.coordinator.name}</p>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">{center.coordinator.email}</p>
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 border-blue-400 text-blue-700 bg-blue-50 dark:border-blue-600 dark:text-blue-300 dark:bg-blue-900/30 font-normal tracking-normal capitalize">{center.coordinator.role?.toLowerCase()}</Badge>
+                                    {center.coordinator.designation && <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 border-green-400 text-green-700 bg-green-50 dark:border-green-600 dark:text-green-300 dark:bg-green-900/30 font-normal tracking-normal">{getDesignationDisplay(center.coordinator.designation)}</Badge>}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (<span className="text-slate-400 dark:text-slate-500 italic text-xs">Not Assigned</span>)}
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5 text-xs text-center text-slate-600 dark:text-slate-300">
+                            <div title="Lecturers"><Users className="inline-block h-3.5 w-3.5 mr-1 opacity-70"/> {center.lecturerCount ?? 0}</div>
+                            <div title="Departments"><Building2 className="inline-block h-3.5 w-3.5 mr-1 opacity-70"/> {center.departmentCount ?? 0}</div>
+                            <div title="Staff Registry"><ShieldCheck className="inline-block h-3.5 w-3.5 mr-1 opacity-70"/> {center.staffRegistryCount ?? 0}</div>
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5 text-center"><div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 text-xs"><CalendarDays className="h-4 w-4 mb-0.5" /><span>{new Date(center.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div></TableCell>
+                          <TableCell className="px-4 py-3.5 text-center">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild><Button variant="ghost" className={`h-8 w-8 p-0 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-700 ${focusRingClass}`}><span className="sr-only">Open menu</span><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg">
+                                <DropdownMenuLabel className="text-xs px-2 py-1.5 text-slate-500 dark:text-slate-400">Actions</DropdownMenuLabel><DropdownMenuSeparator className="bg-slate-100 dark:bg-slate-700/50"/>
+                                <DropdownMenuItem className={`text-slate-700 dark:text-slate-200 hover:!bg-slate-100 dark:hover:!bg-slate-700/50 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => { toast.info("Edit Center (Details) coming soon!")}}><Edit3 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /> Edit Details</DropdownMenuItem>
+                                <DropdownMenuItem className={`text-red-600 dark:text-red-400 hover:!bg-red-50 dark:hover:!bg-red-700/20 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => openDeleteDialog(center)} disabled={isLoadingDelete && centerToDelete?.id === center.id}>{isLoadingDelete && centerToDelete?.id === center.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Trash2 className="h-3.5 w-3.5" />} Delete Center</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                  {(isLoadingCreate || isLoadingDelete) && filteredCenters.length === 0 && allCenters.length > 0 && ( // Show loader if all items were filtered out during delete/create
-                      <div className="p-8 text-center text-slate-500 dark:text-slate-400 flex items-center justify-center">
-                          <Loader2 className="h-6 w-6 animate-spin mr-2" /> Processing...
-                      </div>
-                  )}
+                  {(isLoadingCreate || isLoadingDelete) && filteredCenters.length === 0 && allCenters.length > 0 && ( <div className="p-8 text-center text-slate-500 dark:text-slate-400 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin mr-2" /> Processing...</div>)}
                 </ScrollArea>
               </Card>
             </div>
 
             <div className="md:hidden flex-1 space-y-4 overflow-y-auto pb-4">
-              {filteredCenters.map((center) => ( // Use filteredCenters here
+              {filteredCenters.map((center) => (
                 <Card key={center.id} className="bg-white dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 shadow-lg rounded-xl overflow-hidden">
                    <CardHeader className="p-4 flex flex-row justify-between items-start bg-slate-50/50 dark:bg-slate-700/30 border-b dark:border-slate-700/50">
                      <div className="flex items-center gap-3"><div className="p-2.5 rounded-lg bg-violet-100 dark:bg-violet-800/40"><Building2 className="h-5 w-5 text-violet-700 dark:text-violet-400"/></div><CardTitle className="text-md font-semibold text-blue-800 dark:text-blue-300 leading-tight">{center.name}</CardTitle></div>
-                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className={`h-8 w-8 p-0 data-[state=open]:bg-slate-200 dark:data-[state=open]:bg-slate-600 ${focusRingClass}`}><MoreHorizontal className="h-4.5 w-4.5"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg"><DropdownMenuItem className={`text-slate-700 dark:text-slate-200 hover:!bg-slate-100 dark:hover:!bg-slate-700/50 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => {toast.info("Edit functionality coming soon!")}}><Edit3 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /> Edit</DropdownMenuItem><DropdownMenuItem className={`text-red-600 dark:text-red-400 hover:!bg-red-50 dark:hover:!bg-red-700/20 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => openDeleteDialog(center)} disabled={isLoadingDelete && centerToDelete?.id === center.id}>{isLoadingDelete && centerToDelete?.id === center.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Trash2 className="h-3.5 w-3.5" />} Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className={`h-8 w-8 p-0 data-[state=open]:bg-slate-200 dark:data-[state=open]:bg-slate-600 ${focusRingClass}`}><MoreHorizontal className="h-4.5 w-4.5"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-white dark:bg-slate-800 ..."><DropdownMenuItem onSelect={() => {toast.info("Edit Center (Details) coming soon!")}}>Edit Details</DropdownMenuItem><DropdownMenuItem onSelect={() => openDeleteDialog(center)} disabled={isLoadingDelete && centerToDelete?.id === center.id}>Delete Center</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
                    </CardHeader>
                    <CardContent className="p-4 space-y-3 text-xs">
-                    <div className="flex items-start gap-2.5"><UserRound className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Coordinator</p>{center.coordinator ? ( <> <p className="font-medium text-slate-700 dark:text-slate-200">{center.coordinator.name}</p> <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0.5 border-slate-300 text-slate-500 dark:border-slate-600 dark:text-slate-400 font-normal tracking-normal capitalize">{center.coordinator.role.toLowerCase()}</Badge> </> ) : <p className="italic text-slate-400 dark:text-slate-500">Not Assigned</p>}</div></div>
+                    <div className="flex items-start gap-2.5"><UserRound className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Coordinator</p>{center.coordinator ? ( <> <p className="font-medium text-slate-700 dark:text-slate-200">{center.coordinator.name}</p> {center.coordinator.designation && <Badge variant="outline" className="mt-0.5 text-[10px] px-1.5 py-0.5 border-green-400 text-green-700 bg-green-50 dark:border-green-600 dark:text-green-300 dark:bg-green-900/30 font-normal tracking-normal">{getDesignationDisplay(center.coordinator.designation)}</Badge>} </> ) : <p className="italic text-slate-400 dark:text-slate-500">Not Assigned</p>}</div></div>
                     {center.coordinator?.email && (<div className="flex items-start gap-2.5"><Mail className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Email</p><p className="text-slate-700 dark:text-slate-200">{center.coordinator.email}</p></div></div>)}
-                    <div className="flex items-start gap-2.5"><CalendarDays className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Created On</p><p className="text-slate-700 dark:text-slate-200">{new Date(center.createdAt).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}</p></div></div>
+                    <div className="flex items-start gap-2.5"><Users className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Stats</p><p className="text-slate-700 dark:text-slate-200">Lecturers: {center.lecturerCount ?? 0} | Depts: {center.departmentCount ?? 0} | Staff: {center.staffRegistryCount ?? 0}</p></div></div>
+                    <div className="flex items-start gap-2.5"><CalendarDays className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Created</p><p className="text-slate-700 dark:text-slate-200">{new Date(center.createdAt).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}</p></div></div>
                    </CardContent>
                 </Card>
               ))}
@@ -268,7 +268,7 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-md bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-2xl rounded-xl">
             <DialogHeader className="pb-3"><DialogTitle className="flex items-center gap-2.5 text-lg font-semibold text-red-700 dark:text-red-400"><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-500" />Confirm Center Deletion</DialogTitle></DialogHeader>
-            <DialogDescription className="text-slate-600 dark:text-slate-400 pt-1 pb-2 text-sm">Are you sure you want to delete the center <strong className="mx-1 text-slate-800 dark:text-slate-100">{centerToDelete?.name}</strong>?<br/>This action cannot be undone.</DialogDescription>
+            <DialogDescription className="text-slate-600 dark:text-slate-400 pt-1 pb-2 text-sm">Are you sure you want to delete the center <strong className="mx-1 text-slate-800 dark:text-slate-100">{centerToDelete?.name}</strong>?<br/>This action cannot be undone and may affect associated users and claims.</DialogDescription>
             <DialogFooter className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-700 gap-2 sm:gap-3"><Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isLoadingDelete} className={`border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${focusRingClass}`}>Cancel</Button><Button onClick={handleDeleteCenter} disabled={isLoadingDelete} className={`bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold ${focusRingClass}`}>{isLoadingDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}{isLoadingDelete ? "Deleting..." : "Yes, Delete Center"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,4 +1,4 @@
-// datasource and generator remain the same
+// prisma/schema.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -7,6 +7,7 @@ generator client {
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+  // relationMode = "prisma" // Consider if needed for foreign key behaviors
 }
 
 // --- Enums ---
@@ -15,6 +16,15 @@ enum Role {
   REGISTRY
   COORDINATOR
   LECTURER
+  STAFF_REGISTRY // New role
+}
+
+enum Designation { // For user designations
+  ASSISTANT_LECTURER
+  LECTURER
+  SENIOR_LECTURER
+  PROFESSOR
+  // Add others as needed
 }
 
 enum ClaimStatus {
@@ -50,7 +60,6 @@ enum SupervisionRank {
   ED
 }
 
-// --- NEW Enum for Signup Request Status ---
 enum RequestStatus {
   PENDING
   APPROVED
@@ -61,116 +70,135 @@ enum RequestStatus {
 // --- Models ---
 
 model User {
-  id                                   String              @id @default(cuid())
-  email                                String              @unique
-  name                                 String?
-  password                             String
-  role                                 Role // Changed from User_role
-  createdAt                            DateTime            @default(now())
-  updatedAt                            DateTime            @updatedAt
-  lecturerCenterId                     String?
-  departmentId                         String?
+  id                              String            @id @default(cuid())
+  email                           String            @unique
+  name                            String?
+  password                        String
+  role                            Role
+  designation                     Designation?      // User's academic/professional designation
+  createdAt                       DateTime          @default(now())
+  updatedAt                       DateTime          @updatedAt
+  
+  lecturerCenterId                String?           
+  departmentId                    String?           
 
-  // Relation: Center coordinated by this user (if role is COORDINATOR)
-  Center_Center_coordinatorIdToUser    Center?             @relation("CenterCoordinator") // Use explicit relation name
+  Center_Center_coordinatorIdToUser Center?           @relation("CenterCoordinator")
+  Center_User_lecturerCenterIdToCenter Center?        @relation("CenterLecturers", fields: [lecturerCenterId], references: [id], onDelete: SetNull)
+  Department                      Department?       @relation("DepartmentLecturers", fields: [departmentId], references: [id], onDelete: SetNull)
+  
+  Claim_Claim_submittedByIdToUser   Claim[]           @relation("LecturerClaims")
+  Claim_Claim_processedByIdToUser   Claim[]           @relation("ProcessorClaims")
+  
+  SupervisedStudent               SupervisedStudent[] @relation("SupervisorStudents")
+  
+  approvedSignupRequest           SignupRequest?    @relation("ApprovedUserRequest", fields: [approvedSignupRequestId], references: [id], onDelete: SetNull)
+  approvedSignupRequestId         String?           @unique 
+  
+  processedSignupRequests         SignupRequest[]   @relation("RegistryProcessor")
 
-  // Relation: Center this user belongs to (if role is LECTURER)
-  Center_User_lecturerCenterIdToCenter Center?             @relation("CenterLecturers", fields: [lecturerCenterId], references: [id], onDelete: SetNull) // Use explicit relation name
-
-  // Relation: Department this user belongs to (if role is LECTURER)
-  Department                           Department?         @relation("DepartmentLecturers", fields: [departmentId], references: [id], onDelete: SetNull) // Use explicit relation name
-
-  // Relation: Claims submitted by this user (if role is LECTURER)
-  Claim_Claim_submittedByIdToUser      Claim[]             @relation("LecturerClaims") // Use explicit relation name
-
-  // Relation: Claims processed by this user (if role is COORDINATOR or REGISTRY)
-  Claim_Claim_processedByIdToUser      Claim[]             @relation("ProcessorClaims") // Use explicit relation name
-
-  // Relation: Students supervised by this user (if role is LECTURER)
-  SupervisedStudent                    SupervisedStudent[] @relation("SupervisorStudents") // Use explicit relation name
-
-  // Relation: Signup request this user was created from (optional tracking)
-  approvedSignupRequest                SignupRequest?      @relation("ApprovedUserRequest", fields: [approvedSignupRequestId], references: [id], onDelete: SetNull)
-  approvedSignupRequestId              String?             @unique // Ensure one user per approved request
-
-  // Relation: Signup requests processed by this user (if role is REGISTRY)
-  processedSignupRequests              SignupRequest[]     @relation("RegistryProcessor")
+  staffRegistryCenterAssignments  StaffRegistryCenterAssignment[] @relation("UserToStaffAssignments") // Relation to explicit join table
 
   @@index([lecturerCenterId])
   @@index([departmentId])
   @@index([approvedSignupRequestId])
 }
 
-// --- NEW Model for Signup Requests ---
 model SignupRequest {
-  id                  String        @id @default(cuid())
-  name                String
-  email               String        @unique // Ensure requested email is unique among pending requests
-  hashedPassword      String        // Store the hashed password from the request
-  requestedRole       Role          // COORDINATOR or LECTURER
-  requestedCenterId   String?       // Optional: Center requested by lecturer applicant
-  status              RequestStatus @default(PENDING)
-  submittedAt         DateTime      @default(now())
-  processedAt         DateTime?
-  processedByRegistryId String?       // ID of the Registry user who processed it
-  registryProcessor   User?         @relation("RegistryProcessor", fields: [processedByRegistryId], references: [id], onDelete: SetNull)
+  id                    String        @id @default(cuid())
+  name                  String
+  email                 String        @unique
+  hashedPassword        String
+  requestedRole         Role          
+  requestedCenterId     String?       
+  // requestedDesignation Designation? // Add if designation is part of signup
+  status                RequestStatus @default(PENDING)
+  submittedAt           DateTime      @default(now())
+  processedAt           DateTime?
+  // notes              String?       // Add this field if you want to store processing notes
+  processedByRegistryId String?       
+  registryProcessor     User?         @relation("RegistryProcessor", fields: [processedByRegistryId], references: [id], onDelete: SetNull)
+  approvedUser          User?         @relation("ApprovedUserRequest")
 
-  // Relation: The User created when this request is approved (one-to-one)
-  approvedUser        User?         @relation("ApprovedUserRequest")
-
-  // Index for efficient querying of pending requests
   @@index([status])
   @@index([processedByRegistryId])
-  @@index([requestedCenterId]) // If filtering requests by center is needed
+  @@index([requestedCenterId])
 }
 
-
 model Center {
-  id            String       @id @default(cuid())
-  name          String       @unique
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  coordinatorId String       @unique
-  coordinator   User         @relation("CenterCoordinator", fields: [coordinatorId], references: [id]) // Explicit relation name
-  lecturers     User[]       @relation("CenterLecturers") // Explicit relation name
-  departments   Department[] @relation("CenterDepartments") // Explicit relation name
-  claims        Claim[]      @relation("CenterClaims") // Explicit relation name
+  id                         String       @id @default(cuid())
+  name                       String       @unique
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
+  
+  coordinatorId              String       @unique 
+  coordinator                User         @relation("CenterCoordinator", fields: [coordinatorId], references: [id])
+  
+  lecturers                  User[]       @relation("CenterLecturers") 
+  departments                Department[] @relation("CenterDepartments")
+  claims                     Claim[]      @relation("CenterClaims")
+
+  staffRegistryAssignments   StaffRegistryCenterAssignment[]   @relation("CenterToStaffAssignments") // Relation to explicit join table
+}
+
+// EXPLICIT JOIN TABLE for StaffRegistry User and Center Assignments
+model StaffRegistryCenterAssignment {
+  id          String   @id @default(cuid()) // Explicit primary key for the join table
+  userId      String
+  centerId    String
+  assignedAt  DateTime @default(now())
+  // assignedByUserId String? // Optional: Link to User (REGISTRY) who made the assignment
+
+  user        User     @relation("UserToStaffAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  center      Center   @relation("CenterToStaffAssignments", fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, centerId]) // Ensure a user isn't assigned to the same center multiple times
+  @@index([userId])
+  @@index([centerId])
 }
 
 model Department {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  centerId  String
-  center    Center   @relation("CenterDepartments", fields: [centerId], references: [id], onDelete: Cascade) // Explicit relation name
-  lecturers User[]   @relation("DepartmentLecturers") // Explicit relation name
+  id          String   @id @default(cuid())
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  centerId    String
+  center      Center   @relation("CenterDepartments", fields: [centerId], references: [id], onDelete: Cascade)
+  lecturers   User[]   @relation("DepartmentLecturers")
 
   @@unique([name, centerId])
   @@index([centerId])
 }
 
 model Claim {
-  id                       String                    @id @default(cuid())
-  claimType                ClaimType                 // Changed from Claim_claimType
-  status                   ClaimStatus               @default(PENDING) // Changed from Claim_status
-  submittedAt              DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
+  id                       String            @id @default(cuid())
+  claimType                ClaimType
+  status                   ClaimStatus       @default(PENDING)
+  submittedAt              DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
   processedAt              DateTime?
-  submittedById            String
-  centerId                 String
-  processedById            String?
+  submittedById            String            
+  centerId                 String            
+  processedById            String?           
 
   // Teaching fields
   teachingDate             DateTime?
-  teachingStartTime        String?
-  teachingEndTime          String?
-  teachingHours            Float?
-  courseTitle              String?         // NEW FIELD
-  courseCode               String?
+  teachingStartTime        String?           
+  teachingEndTime          String?           
+  teachingHours            Float?            
+  courseTitle              String?           
+  courseCode               String?           
 
-  // Transportation fields
-  transportType            TransportType?            // Changed from Claim_transportType
+  // Transportation details specific to a Teaching Claim
+  transportToTeachingInDate      DateTime?
+  transportToTeachingFrom        String?
+  transportToTeachingTo          String?
+  transportToTeachingOutDate     DateTime?
+  transportToTeachingReturnFrom  String?
+  transportToTeachingReturnTo    String?
+  transportToTeachingDistanceKM  Float?    
+
+  // General Transportation fields
+  transportType            TransportType?
   transportDestinationTo   String?
   transportDestinationFrom String?
   transportRegNumber       String?
@@ -178,16 +206,16 @@ model Claim {
   transportAmount          Float?
 
   // Thesis/Project fields
-  thesisType               ThesisType?               // Changed from Claim_thesisType
-  thesisSupervisionRank    SupervisionRank?          // Changed from Claim_thesisSupervisionRank
+  thesisType               ThesisType?
+  thesisSupervisionRank    SupervisionRank?
   thesisExamCourseCode     String?
   thesisExamDate           DateTime?
 
   // Relations
-  submittedBy              User                      @relation("LecturerClaims", fields: [submittedById], references: [id], onDelete: Cascade) // Explicit relation name
-  center                   Center                    @relation("CenterClaims", fields: [centerId], references: [id], onDelete: Cascade) // Explicit relation name
-  processedBy              User?                     @relation("ProcessorClaims", fields: [processedById], references: [id], onDelete: SetNull) // Explicit relation name
-  supervisedStudents       SupervisedStudent[]       @relation("ClaimStudents") // Explicit relation name
+  submittedBy              User              @relation("LecturerClaims", fields: [submittedById], references: [id], onDelete: Cascade)
+  center                   Center            @relation("CenterClaims", fields: [centerId], references: [id], onDelete: Cascade)
+  processedBy              User?             @relation("ProcessorClaims", fields: [processedById], references: [id], onDelete: SetNull)
+  supervisedStudents       SupervisedStudent[] @relation("ClaimStudents")
 
   @@index([submittedById])
   @@index([centerId])
@@ -200,13 +228,12 @@ model SupervisedStudent {
   id           String @id @default(cuid())
   studentName  String
   thesisTitle  String
-  claimId      String
-  supervisorId String
-  claim        Claim  @relation("ClaimStudents", fields: [claimId], references: [id], onDelete: Cascade) // Explicit relation name
-  supervisor   User   @relation("SupervisorStudents", fields: [supervisorId], references: [id], onDelete: Cascade) // Explicit relation name
+  claimId      String   
+  supervisorId String   
+  
+  claim        Claim  @relation("ClaimStudents", fields: [claimId], references: [id], onDelete: Cascade)
+  supervisor   User   @relation("SupervisorStudents", fields: [supervisorId], references: [id], onDelete: Cascade)
 
   @@index([claimId])
   @@index([supervisorId])
 }
-
-// --- End of Models ---

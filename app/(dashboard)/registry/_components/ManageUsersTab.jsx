@@ -1,10 +1,10 @@
 // app/(dashboard)/registry/_components/ManageUsersTab.jsx
 "use client";
 
-import { useState, useEffect, useMemo } from 'react'; // Added useMemo
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
 } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -17,7 +17,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"; // Removed CardDescription if not used directly
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   createUserByRegistry,
   updateUserRoleAndAssignmentsByRegistry,
@@ -25,16 +25,37 @@ import {
   deleteUserByRegistry,
 } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
-import { UserPlus, User, Edit3, KeyRound, Mail, Shield, BookUser, Users as UsersIcon, Building2, AlertTriangle, Loader2, Trash2, Search, XCircle } from "lucide-react"; // Added Search, XCircle
+import { UserPlus, User, Edit3, KeyRound, Mail, Shield, BookUser, Users as UsersIcon, Building2, AlertTriangle, Loader2, Trash2, Search, XCircle, Briefcase, University, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 const focusRingClass = "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-700 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900";
 
+const ROLES = [
+  { value: "LECTURER", label: "Lecturer" },
+  { value: "COORDINATOR", label: "Coordinator" },
+  { value: "STAFF_REGISTRY", label: "Staff Registry" },
+  { value: "REGISTRY", label: "Registry (Admin)" },
+];
+
+const DESIGNATIONS = [
+  // Values should exactly match your Prisma Enum
+  { value: "ASSISTANT_LECTURER", label: "Assistant Lecturer" },
+  { value: "LECTURER", label: "Lecturer" },
+  { value: "SENIOR_LECTURER", label: "Senior Lecturer" },
+  { value: "PROFESSOR", label: "Professor" },
+  { value: "ADMINISTRATIVE_STAFF", label: "Administrative Staff" }, // Example
+  { value: "TECHNICAL_STAFF", label: "Technical Staff" },     // Example
+];
+
 export default function ManageUsersTab({ initialUsers = [], centers = [], fetchError, registryUserId }) {
-  const [allUsers, setAllUsers] = useState([]); // Stores the original, sorted list
-  const [searchQuery, setSearchQuery] = useState(''); // State for search query
+  const [allUsers, setAllUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
@@ -49,44 +70,49 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('');
+  const [newUserDesignation, setNewUserDesignation] = useState('');
   const [selectedCenterForNewLecturer, setSelectedCenterForNewLecturer] = useState('');
+  const [newStaffRegistryAssignedCenterIds, setNewStaffRegistryAssignedCenterIds] = useState([]);
 
   const [actionUser, setActionUser] = useState(null);
   const [editUserRole, setEditUserRole] = useState('');
+  const [editUserDesignation, setEditUserDesignation] = useState('');
   const [editUserCenterId, setEditUserCenterId] = useState('');
+  const [editStaffRegistryAssignedCenterIds, setEditStaffRegistryAssignedCenterIds] = useState([]);
   const [newPasswordForUser, setNewPasswordForUser] = useState('');
 
   useEffect(() => {
     const validInitialUsers = Array.isArray(initialUsers) ? initialUsers : [];
-    setAllUsers(validInitialUsers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+    setAllUsers(validInitialUsers.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
   }, [initialUsers]);
 
-  // Memoized filtered users
   const filteredUsers = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
-    if (!query) {
-      return allUsers;
-    }
+    if (!query) return allUsers;
     return allUsers.filter(user => {
       const nameMatch = user.name?.toLowerCase().includes(query);
       const emailMatch = user.email?.toLowerCase().includes(query);
       const roleMatch = user.role?.toLowerCase().includes(query);
+      const designationLabel = DESIGNATIONS.find(d => d.value === user.designation)?.label;
+      const designationMatch = designationLabel?.toLowerCase().includes(query);
       const lecturerCenterMatch = user.lecturerCenterName?.toLowerCase().includes(query);
       const coordinatedCenterMatch = user.coordinatedCenterName?.toLowerCase().includes(query);
       const departmentMatch = user.departmentName?.toLowerCase().includes(query);
-
-      return nameMatch || emailMatch || roleMatch || lecturerCenterMatch || coordinatedCenterMatch || departmentMatch;
+      const staffAssignedCentersMatch = user.staffRegistryAssignedCenterNames?.some(name => name?.toLowerCase().includes(query));
+      return nameMatch || emailMatch || roleMatch || designationMatch || lecturerCenterMatch || coordinatedCenterMatch || departmentMatch || staffAssignedCentersMatch;
     });
   }, [allUsers, searchQuery]);
 
-
   const resetCreateForm = () => {
     setNewUserName(''); setNewUserEmail(''); setNewUserPassword('');
-    setNewUserRole(''); setSelectedCenterForNewLecturer(''); setFormError('');
+    setNewUserRole(''); setNewUserDesignation('');
+    setSelectedCenterForNewLecturer(''); setNewStaffRegistryAssignedCenterIds([]);
+    setFormError('');
   };
   const resetEditForm = () => {
-    setActionUser(null); setEditUserRole('');
-    setEditUserCenterId(''); setFormError('');
+    setActionUser(null); setEditUserRole(''); setEditUserDesignation('');
+    setEditUserCenterId(''); setEditStaffRegistryAssignedCenterIds([]);
+    setFormError('');
   };
   const resetPasswordChangeForm = () => {
     setNewPasswordForUser(''); setPasswordFormError('');
@@ -96,7 +122,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     event.preventDefault();
     setFormError('');
     if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim() || !newUserRole) {
-      setFormError("All fields with * are required."); return;
+      setFormError("Name, email, password, and role are required."); return;
     }
     if (newUserRole === 'LECTURER' && !selectedCenterForNewLecturer) {
       setFormError("Lecturers must be assigned to a center."); return;
@@ -107,15 +133,18 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     setIsLoading(true);
     const userData = {
       name: newUserName.trim(), email: newUserEmail.trim().toLowerCase(), password: newUserPassword.trim(), role: newUserRole,
+      designation: newUserDesignation || null, 
       lecturerCenterId: newUserRole === 'LECTURER' ? selectedCenterForNewLecturer || null : null,
+      // newStaffRegistryCenterIds are NOT passed here. Server action updateUserRoleAndAssignmentsByRegistry handles them.
+      // If createUserByRegistry is updated to handle them, pass newStaffRegistryAssignedCenterIds.
     };
     const result = await createUserByRegistry(userData);
     setIsLoading(false);
     if (result.success && result.user) {
       toast.success(`User "${result.user.name}" created successfully!`);
-      const centerName = newUserRole === 'LECTURER' && selectedCenterForNewLecturer ? centers.find(c => c.id === selectedCenterForNewLecturer)?.name : null;
-      const newUserForState = { ...result.user, lecturerCenterName: centerName, coordinatedCenterName: null };
-      setAllUsers(prev => [newUserForState, ...prev].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)));
+      setAllUsers(prev => [result.user, ...prev].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      // If STAFF_REGISTRY was created & centers were selected, an admin would typically edit to assign them.
+      // Or, update createUserByRegistry action to handle this.
       setIsCreateUserDialogOpen(false); resetCreateForm();
     } else {
       setFormError(result.error || "Failed to create user."); toast.error(result.error || "Failed to create user.");
@@ -123,9 +152,13 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   };
 
   const handleOpenEditDialog = (user) => {
-    setActionUser(user); setEditUserRole(user.role);
-    setEditUserCenterId(user.lecturerCenterId || ''); // lecturerCenterId should be directly on user object
-    setFormError(''); setIsEditUserDialogOpen(true);
+    setActionUser(user); 
+    setEditUserRole(user.role);
+    setEditUserDesignation(user.designation || '');
+    setEditUserCenterId(user.lecturerCenterId || ''); 
+    setEditStaffRegistryAssignedCenterIds(user.staffRegistryAssignedCentersData?.map(c => c.id) || []);
+    setFormError(''); 
+    setIsEditUserDialogOpen(true);
   };
 
   const handleUpdateUser = async (event) => {
@@ -137,32 +170,26 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     }
     setIsLoading(true);
     const updateData = {
-      userId: actionUser.id, newRole: editUserRole,
+      userId: actionUser.id, 
+      newRole: editUserRole,
+      newDesignation: editUserDesignation || null,
       newCenterId: editUserRole === 'LECTURER' ? editUserCenterId || null : null,
-      // newDepartmentId can be added here if needed
+      newStaffRegistryCenterIds: editUserRole === 'STAFF_REGISTRY' ? editStaffRegistryAssignedCenterIds : undefined,
     };
     const result = await updateUserRoleAndAssignmentsByRegistry(updateData);
     setIsLoading(false);
     if (result.success && result.user) {
       toast.success(`User "${actionUser.name}" updated successfully!`);
-      setAllUsers(prevUsers => prevUsers.map(u =>
-        u.id === result.user.id
-        // The result.user from the backend action should already have flattened names if designed so
-        ? { ...u, ...result.user }
-        : u
-      ).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)));
+      setAllUsers(prevUsers => prevUsers.map(u => u.id === result.user.id ? { ...u, ...result.user } : u)
+        .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       setIsEditUserDialogOpen(false); resetEditForm();
     } else {
       setFormError(result.error || "Failed to update user."); toast.error(result.error || "Failed to update user.");
     }
   };
-
-  const handleOpenChangePasswordDialog = (user) => {
-    setActionUser(user); setPasswordFormError(''); setNewPasswordForUser('');
-    setIsChangePasswordDialogOpen(true);
-  };
-
-  const handleChangePassword = async (event) => {
+  
+  const handleOpenChangePasswordDialog = (user) => { setActionUser(user); setPasswordFormError(''); setNewPasswordForUser(''); setIsChangePasswordDialogOpen(true); };
+  const handleChangePassword = async (event) => { 
     event.preventDefault();
     if (!actionUser || !newPasswordForUser.trim()) { setPasswordFormError("New password is required."); return;}
     if (newPasswordForUser.trim().length < 6) { setPasswordFormError("Password must be at least 6 characters."); return; }
@@ -171,18 +198,14 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     setIsLoading(false);
     if (result.success) {
       toast.success(`Password for user "${actionUser.name}" updated successfully!`);
-      setIsChangePasswordDialogOpen(false); resetPasswordChangeForm(); // setActionUser(null) is optional here, depends on flow
+      setIsChangePasswordDialogOpen(false); resetPasswordChangeForm(); 
     } else {
       setPasswordFormError(result.error || "Failed to update password."); toast.error(result.error || "Failed to update password.");
     }
   };
-
   const handleOpenDeleteConfirmation = (user) => { setActionUser(user); setIsDeleteConfirmDialogOpen(true); };
-
-  const handleConfirmDeleteUser = async () => {
-    if (!actionUser || !registryUserId) {
-      toast.error("User or Registry permission missing."); setIsDeleteConfirmDialogOpen(false); return;
-    }
+  const handleConfirmDeleteUser = async () => { 
+    if (!actionUser || !registryUserId) { toast.error("User or Registry permission missing."); setIsDeleteConfirmDialogOpen(false); return; }
     setIsLoading(true);
     const result = await deleteUserByRegistry({ userIdToDelete: actionUser.id, registryUserId });
     setIsLoading(false);
@@ -195,21 +218,23 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     }
   };
 
-  const getRoleBadge = (role) => {
+  const getRoleBadge = (role) => { /* ... same as previous ... */ 
     const baseClass = "text-xs px-2 py-0.5 rounded-full font-medium capitalize border whitespace-nowrap";
     switch(role) {
       case 'REGISTRY': return <Badge variant="outline" className={`${baseClass} bg-red-100 text-red-800 border-red-300 dark:bg-red-800/30 dark:text-red-200 dark:border-red-700`}>Registry</Badge>;
+      case 'STAFF_REGISTRY': return <Badge variant="outline" className={`${baseClass} bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-800/30 dark:text-yellow-200 dark:border-yellow-700`}>Staff Registry</Badge>;
       case 'COORDINATOR': return <Badge variant="outline" className={`${baseClass} bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-800/30 dark:text-blue-200 dark:border-blue-700`}>Coordinator</Badge>;
       case 'LECTURER': return <Badge variant="outline" className={`${baseClass} bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-800/30 dark:text-violet-200 dark:border-violet-700`}>Lecturer</Badge>;
-      default: return <Badge variant="outline" className={`${baseClass} border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-400`}>{role || 'Unknown'}</Badge>;
+      default: return <Badge variant="outline" className={`${baseClass} border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-400`}>{role?.toLowerCase() || 'Unknown'}</Badge>;
     }
+  };
+  
+  const getDesignationDisplay = (designationValue) => {
+    const found = DESIGNATIONS.find(d => d.value === designationValue);
+    return found ? found.label : designationValue || 'N/A';
   };
 
   const clearSearch = () => setSearchQuery('');
-
-  if (fetchError) {
-    return ( <div className="flex flex-col flex-1 h-full items-center justify-center p-4 bg-white dark:bg-slate-900"> <Card className="w-full max-w-md bg-red-50 dark:bg-red-800/20 border-red-300 dark:border-red-700/50 shadow-lg rounded-lg"> <CardHeader className="flex flex-row items-center space-x-3 p-4 sm:p-5"><Shield className="h-6 w-6 text-red-700 dark:text-red-400 flex-shrink-0" /><CardTitle className="text-red-800 dark:text-red-200 text-lg font-semibold">Error Loading User Data</CardTitle></CardHeader> <CardContent className="p-4 sm:p-5"><p className="text-red-700 dark:text-red-300 text-sm">{fetchError}</p></CardContent> </Card> </div> );
-  }
 
   const dialogInputClass = `h-9 sm:h-10 text-sm bg-white dark:bg-slate-700/80 border-slate-300 dark:border-slate-600 focus-visible:ring-blue-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 ${focusRingClass}`;
   const dialogSelectTriggerClass = `${dialogInputClass} data-[placeholder]:text-slate-400 dark:data-[placeholder]:text-slate-500`;
@@ -217,83 +242,107 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   const dialogLabelClass = "text-xs font-medium text-slate-700 dark:text-slate-300";
   const dialogErrorClass = `p-2.5 bg-red-50 dark:bg-red-800/30 border border-red-300 dark:border-red-700/50 rounded-md text-xs sm:text-sm text-red-700 dark:text-red-300 flex items-center gap-1.5 ${focusRingClass}`;
 
+  const CenterMultiSelect = ({ selectedIds = [], onChange, disabled }) => {
+    const [openPopover, setOpenPopover] = useState(false);
+    const toggleCenter = (centerId) => {
+        const newSelection = selectedIds.includes(centerId)
+            ? selectedIds.filter(id => id !== centerId)
+            : [...selectedIds, centerId];
+        onChange(newSelection);
+    };
+    return (
+      <Popover open={openPopover} onOpenChange={setOpenPopover}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" role="combobox" aria-expanded={openPopover}
+            className={`w-full justify-between ${dialogSelectTriggerClass} ${selectedIds.length === 0 ? "text-slate-400 dark:text-slate-500" : ""}`}
+            disabled={disabled}>
+            <span className="truncate max-w-[calc(100%-2rem)]">{selectedIds.length > 0 ? (selectedIds.length === 1 ? centers.find(c=>c.id === selectedIds[0])?.name : `${selectedIds.length} centers selected`) : "Select center(s)..."}</span>
+            <University className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className={`w-[--radix-popover-trigger-width] p-0 ${dialogSelectContentClass} max-h-60`}>
+          <ScrollArea className="max-h-56"><Command>
+            <CommandInput placeholder="Search centers..." className="h-9 text-xs" />
+            <CommandList><CommandEmpty>No centers found.</CommandEmpty><CommandGroup>
+            {(centers || []).map((center) => (
+                <CommandItem key={center.id} value={center.name} onSelect={() => { toggleCenter(center.id); }} className="text-sm flex items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 py-2">
+                    <Checkbox checked={selectedIds.includes(center.id)} className="mr-2 h-4 w-4" id={`ms-center-select-${center.id}`}/>
+                    <Label htmlFor={`ms-center-select-${center.id}`} className="cursor-pointer flex-1 font-normal">{center.name}</Label>
+                </CommandItem>
+            ))}
+            </CommandGroup></CommandList>
+          </Command></ScrollArea>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  if (fetchError) { /* ... error display ... */ }
+
   return (
-    <div className="flex flex-col h-full"> {/* Ensure tab itself can use flex height if parent provides it */}
+    <div className="flex flex-col h-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 shrink-0 pb-4 sm:pb-6">
         <div>
           <h2 className="text-xl sm:text-2xl font-semibold text-blue-800 dark:text-blue-300 flex items-center">
             <UsersIcon className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-violet-700 dark:text-violet-500 flex-shrink-0" />User Management
           </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">Create, view, and manage user accounts and roles.</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">Create, view, and manage user accounts, roles, and designations.</p>
         </div>
         <Dialog open={isCreateUserDialogOpen} onOpenChange={(open) => { if (!open && !isLoading) { resetCreateForm(); } setIsCreateUserDialogOpen(open); }}>
           <DialogTrigger asChild>
             <Button className={`gap-1.5 sm:gap-2 bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-9 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm shadow-md hover:shadow-lg ${focusRingClass}`}><UserPlus className="h-4 w-4" /><span>New User</span></Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[520px] bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-xl rounded-lg">
-            <DialogHeader className="pb-3 pt-1 border-b border-slate-200 dark:border-slate-700"><DialogTitle className="flex items-center gap-2 text-lg sm:text-xl text-blue-800 dark:text-blue-300"><UserPlus className="h-5 w-5 text-violet-700 dark:text-violet-500" /> Create New User</DialogTitle><DialogDescription className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">Add a new user to the system with appropriate permissions.</DialogDescription></DialogHeader>
-            <form onSubmit={handleCreateUser}><ScrollArea className="max-h-[calc(80vh-160px)] sm:max-h-[65vh] pr-3 -mr-3"><div className="grid gap-4 py-4"> {/* Form fields */} <div className="space-y-1.5"><Label htmlFor="newUserName" className={dialogLabelClass}>Full Name <span className="text-red-700">*</span></Label><Input id="newUserName" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} placeholder="John Doe" disabled={isLoading} className={dialogInputClass} /></div> <div className="space-y-1.5"><Label htmlFor="newUserEmail" className={dialogLabelClass}>Email <span className="text-red-700">*</span></Label><Input id="newUserEmail" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} placeholder="user@example.com" disabled={isLoading} className={dialogInputClass} /></div> <div className="space-y-1.5"><Label htmlFor="newUserPassword" className={dialogLabelClass}>Password <span className="text-red-700">*</span></Label><Input id="newUserPassword" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} placeholder="At least 6 characters" disabled={isLoading} className={dialogInputClass} /></div> <div className="space-y-1.5"><Label htmlFor="newUserRole" className={dialogLabelClass}>Role <span className="text-red-700">*</span></Label><Select value={newUserRole} onValueChange={setNewUserRole} disabled={isLoading}><SelectTrigger className={dialogSelectTriggerClass}><SelectValue placeholder="Select a role" /></SelectTrigger><SelectContent className={dialogSelectContentClass}><SelectItem value="COORDINATOR" className="focus:bg-slate-100 dark:focus:bg-slate-700">Coordinator</SelectItem><SelectItem value="LECTURER" className="focus:bg-slate-100 dark:focus:bg-slate-700">Lecturer</SelectItem></SelectContent></Select></div> {newUserRole === 'LECTURER' && (<div className="space-y-1.5"><Label htmlFor="selectedCenterForNewLecturer" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label><Select value={selectedCenterForNewLecturer} onValueChange={setSelectedCenterForNewLecturer} disabled={isLoading}><SelectTrigger className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{centers.length > 0 ? (centers.map((center) => (<SelectItem key={center.id} value={center.id} className="focus:bg-slate-100 dark:focus:bg-slate-700">{center.name}</SelectItem>))) : ( <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No centers available</div> )}</SelectContent></Select></div>)} {formError && (<div className={dialogErrorClass}><AlertTriangle className="h-4 w-4 flex-shrink-0"/> {formError}</div>)}</div></ScrollArea><div className="flex justify-end gap-2.5 mt-5 pt-4 border-t border-slate-200 dark:border-slate-700"><DialogClose asChild><Button type="button" variant="outline" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${focusRingClass}`}>Cancel</Button></DialogClose><Button type="submit" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium ${focusRingClass}`}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}{isLoading ? "Creating..." : "Create User"}</Button></div></form>
+          <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-xl rounded-lg">
+            <DialogHeader className="pb-3 pt-1 border-b border-slate-200 dark:border-slate-700"><DialogTitle className="flex items-center gap-2 text-lg sm:text-xl text-blue-800 dark:text-blue-300"><UserPlus className="h-5 w-5 text-violet-700 dark:text-violet-500" /> Create New User</DialogTitle><DialogDescription className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">Add a new user to the system.</DialogDescription></DialogHeader>
+            <form onSubmit={handleCreateUser}><ScrollArea className="max-h-[calc(80vh-180px)] sm:max-h-[70vh] pr-3 -mr-3"><div className="grid gap-4 py-4">
+              <div className="space-y-1.5"><Label htmlFor="newUserName-create" className={dialogLabelClass}>Full Name <span className="text-red-700">*</span></Label><Input id="newUserName-create" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} placeholder="John Doe" disabled={isLoading} className={dialogInputClass} /></div>
+              <div className="space-y-1.5"><Label htmlFor="newUserEmail-create" className={dialogLabelClass}>Email <span className="text-red-700">*</span></Label><Input id="newUserEmail-create" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} placeholder="user@example.com" disabled={isLoading} className={dialogInputClass} /></div>
+              <div className="space-y-1.5"><Label htmlFor="newUserPassword-create" className={dialogLabelClass}>Password <span className="text-red-700">*</span></Label><Input id="newUserPassword-create" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} placeholder="At least 6 characters" disabled={isLoading} className={dialogInputClass} /></div>
+              <div className="space-y-1.5"><Label htmlFor="newUserRole-create" className={dialogLabelClass}>Role <span className="text-red-700">*</span></Label><Select value={newUserRole} onValueChange={setNewUserRole} disabled={isLoading}><SelectTrigger id="newUserRole-create" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a role" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{ROLES.map(role => <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-1.5"><Label htmlFor="newUserDesignation-create" className={dialogLabelClass}>Designation</Label><Select value={newUserDesignation} onValueChange={setNewUserDesignation} disabled={isLoading}><SelectTrigger id="newUserDesignation-create" className={dialogSelectTriggerClass}><SelectValue placeholder="Select designation (optional)" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{DESIGNATIONS.map(des => <SelectItem key={des.value} value={des.value}>{des.label}</SelectItem>)}</SelectContent></Select></div>
+              {newUserRole === 'LECTURER' && (<div className="space-y-1.5"><Label htmlFor="selectedCenterForNewLecturer-create" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label><Select value={selectedCenterForNewLecturer} onValueChange={setSelectedCenterForNewLecturer} disabled={isLoading}><SelectTrigger id="selectedCenterForNewLecturer-create" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{centers.length > 0 ? (centers.map((center) => (<SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>))) : ( <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No centers available</div> )}</SelectContent></Select></div>)}
+              {newUserRole === 'STAFF_REGISTRY' && (<div className="space-y-1.5"><Label htmlFor="newStaffRegistryAssignedCenterIds-create" className={dialogLabelClass}>Assign Centers (Staff Registry)</Label><CenterMultiSelect selectedIds={newStaffRegistryAssignedCenterIds} onChange={setNewStaffRegistryAssignedCenterIds} disabled={isLoading} /></div>)}
+              {formError && (<div className={dialogErrorClass}><AlertTriangle className="h-4 w-4 flex-shrink-0"/> {formError}</div>)}
+            </div></ScrollArea><DialogFooter className="flex justify-end gap-2.5 mt-5 pt-4 border-t border-slate-200 dark:border-slate-700"><DialogClose asChild><Button type="button" variant="outline" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm ${focusRingClass}`}>Cancel</Button></DialogClose><Button type="submit" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium ${focusRingClass}`}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}{isLoading ? "Creating..." : "Create User"}</Button></DialogFooter></form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Search Input */}
       <div className="mb-4 sm:mb-6 shrink-0">
         <Label htmlFor="search-users" className="sr-only">Search Users</Label>
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-          </div>
-          <Input
-            id="search-users"
-            type="text"
-            placeholder="Search by name, email, role, center..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={`pl-10 pr-10 w-full sm:max-w-md bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus-visible:ring-blue-600 ${focusRingClass}`}
-          />
-          {searchQuery && (
-            <Button variant="ghost" size="sm" className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300" onClick={clearSearch}>
-              <XCircle className="h-4 w-4" /><span className="sr-only">Clear search</span>
-            </Button>
-          )}
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-4 w-4 text-slate-400 dark:text-slate-500" /></div>
+          <Input id="search-users" type="text" placeholder="Search by name, email, role, designation, center..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-10 pr-10 w-full sm:max-w-md bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus-visible:ring-blue-600 ${focusRingClass}`} />
+          {searchQuery && (<Button variant="ghost" size="sm" className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300" onClick={clearSearch}><XCircle className="h-4 w-4" /><span className="sr-only">Clear search</span></Button>)}
         </div>
       </div>
 
-      {/* Content Area: Users List or Empty States */}
       <div className="flex-1 overflow-hidden">
-        {initialUsers.length === 0 && !isLoading ? (
-          <Card className="bg-slate-50 dark:bg-slate-800/40 border-2 border-dashed border-slate-300 dark:border-slate-700 shadow-none rounded-lg h-full">
-            <CardContent className="h-full py-12 sm:py-16 flex flex-col items-center justify-center text-center">
-              <UsersIcon className="h-12 w-12 sm:h-16 sm:w-16 text-slate-400 dark:text-slate-500 mb-5 sm:mb-6" />
-              <h3 className="text-lg sm:text-xl font-semibold mb-2 text-blue-800 dark:text-blue-300">No users in the system</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 sm:mb-8 max-w-xs">Create the first user account using the "New User" button.</p>
-            </CardContent>
-          </Card>
-        ) : filteredUsers.length === 0 && searchQuery ? (
-          <Card className="bg-slate-50 dark:bg-slate-800/40 border-slate-300 dark:border-slate-700 shadow-none rounded-lg h-full">
-            <CardContent className="h-full py-12 sm:py-16 flex flex-col items-center justify-center text-center">
-              <Search className="h-12 w-12 sm:h-16 sm:w-16 text-slate-400 dark:text-slate-500 mb-5 sm:mb-6" />
-              <h3 className="text-lg sm:text-xl font-semibold mb-2 text-blue-800 dark:text-blue-300">No Users Found</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 sm:mb-8 max-w-xs">Your search for "{searchQuery}" did not match any users. Try different keywords or clear the search.</p>
-              <Button variant="outline" onClick={clearSearch} className={`text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 ${focusRingClass}`}>Clear Search</Button>
-            </CardContent>
-          </Card>
+        {allUsers.length === 0 && !isLoading ? ( <Card className="bg-slate-50 dark:bg-slate-800/40 border-2 border-dashed border-slate-300 dark:border-slate-700 shadow-none rounded-lg h-full"><CardContent className="h-full py-12 sm:py-16 flex flex-col items-center justify-center text-center"><UsersIcon className="h-12 w-12 sm:h-16 sm:w-16 text-slate-400 dark:text-slate-500 mb-5 sm:mb-6" /><h3 className="text-lg sm:text-xl font-semibold mb-2 text-blue-800 dark:text-blue-300">No users in the system</h3><p className="text-sm text-slate-600 dark:text-slate-400 mb-6 sm:mb-8 max-w-xs">Create the first user account.</p></CardContent></Card>
+        ) : filteredUsers.length === 0 && searchQuery ? ( <Card className="bg-slate-50 dark:bg-slate-800/40 border-slate-300 dark:border-slate-700 shadow-none rounded-lg h-full"><CardContent className="h-full py-12 sm:py-16 flex flex-col items-center justify-center text-center"><Search className="h-12 w-12 sm:h-16 sm:w-16 text-slate-400 dark:text-slate-500 mb-5 sm:mb-6" /><h3 className="text-lg sm:text-xl font-semibold mb-2 text-blue-800 dark:text-blue-300">No Users Found</h3><p className="text-sm text-slate-600 dark:text-slate-400 mb-6 sm:mb-8 max-w-xs">Your search for "{searchQuery}" did not match any users.</p><Button variant="outline" onClick={clearSearch} className={`text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 ${focusRingClass}`}>Clear Search</Button></CardContent></Card>
         ) : (
-          <div className="h-full flex flex-col"> {/* This wrapper enables flex-1 on Card for table */}
-            <div className="hidden md:block flex-1 overflow-hidden"> {/* Desktop table wrapper */}
+          <div className="h-full flex flex-col">
+            <div className="hidden md:block flex-1 overflow-hidden">
               <Card className="h-full flex flex-col bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 shadow-lg rounded-lg">
-                <ScrollArea className="flex-1 min-h-0"> {/* ScrollArea takes remaining space */}
-                  <Table className="w-full min-w-[900px]">
-                    <TableHeader className="bg-slate-100/90 dark:bg-slate-700/70 sticky top-0 z-10 backdrop-blur-sm">
-                      <TableRow className="border-b-slate-200 dark:border-b-slate-600">
-                        <TableHead className="w-[25%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">User</TableHead><TableHead className="w-[25%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Email</TableHead><TableHead className="w-[15%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Role</TableHead><TableHead className="w-[25%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Assignment</TableHead><TableHead className="w-[10%] text-right text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                <ScrollArea className="flex-1 min-h-0">
+                  <Table className="w-full min-w-[1000px]">
+                    <TableHeader className="bg-slate-100/90 dark:bg-slate-700/70 sticky top-0 z-10 backdrop-blur-sm"><TableRow className="border-b-slate-200 dark:border-b-slate-600">
+                        <TableHead className="w-[20%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">User</TableHead><TableHead className="w-[20%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Email</TableHead><TableHead className="w-[10%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Role</TableHead><TableHead className="w-[15%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Designation</TableHead><TableHead className="w-[25%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Assignment(s)</TableHead><TableHead className="w-[10%] text-right text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Actions</TableHead>
+                    </TableRow></TableHeader>
                     <TableBody className="divide-y divide-slate-100 dark:divide-slate-700/80">
                       {filteredUsers.map((user) => (
                         <TableRow key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors">
-                          <TableCell className="px-4 py-3 whitespace-nowrap"><div className="flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarImage src={user.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 text-sm">{user.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback></Avatar><span className="font-medium text-sm text-slate-900 dark:text-slate-100">{user.name}</span></div></TableCell><TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap"><div className="flex items-center gap-2"> <Mail className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /> {user.email}</div></TableCell><TableCell className="px-4 py-3 whitespace-nowrap">{getRoleBadge(user.role)}</TableCell><TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">{user.role === 'COORDINATOR' && user.coordinatedCenterName ? (<div className="flex items-center gap-2"><Building2 className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><span>{user.coordinatedCenterName}</span></div>) : user.role === 'LECTURER' && user.lecturerCenterName ? (<div className="flex items-center gap-2"><BookUser className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><span>{user.lecturerCenterName}</span></div>) : user.departmentName ? (<div className="flex items-center gap-2"><UsersIcon className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><span>{user.departmentName}</span></div>) : (<span className="text-slate-400 dark:text-slate-500 italic">Not assigned</span>)}</TableCell><TableCell className="text-right px-4 py-3 whitespace-nowrap space-x-1.5"><Button variant="outline" size="sm" onClick={() => handleOpenEditDialog(user)} disabled={user.role === 'REGISTRY' || isLoading} className={`h-8 px-2.5 gap-1 text-xs border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700 ${focusRingClass}`}><Edit3 className="h-3.5 w-3.5" /><span>Edit</span></Button><Button variant="outline" size="sm" onClick={() => handleOpenDeleteConfirmation(user)} disabled={user.role === 'REGISTRY' || isLoading} className={`h-8 px-2.5 gap-1 text-xs border-red-500 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-800/30 focus-visible:ring-red-500 ${focusRingClass}`}><Trash2 className="h-3.5 w-3.5" /><span>Delete</span></Button></TableCell>
+                          <TableCell className="px-4 py-3 whitespace-nowrap"><div className="flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarImage src={user.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 text-sm">{user.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback></Avatar><span className="font-medium text-sm text-slate-900 dark:text-slate-100">{user.name}</span></div></TableCell><TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap"><div className="flex items-center gap-2"> <Mail className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /> {user.email}</div></TableCell><TableCell className="px-4 py-3 whitespace-nowrap">{getRoleBadge(user.role)}</TableCell><TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">{getDesignationDisplay(user.designation)}</TableCell><TableCell className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                            {user.role === 'COORDINATOR' && user.coordinatedCenterName && <div className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500"/><span>Coords: {user.coordinatedCenterName}</span></div>}
+                            {user.role === 'LECTURER' && user.lecturerCenterName && <div className="flex items-center gap-1.5"><BookUser className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500"/><span>Center: {user.lecturerCenterName}</span></div>}
+                            {user.role === 'LECTURER' && user.departmentName && <div className="flex items-center gap-1.5 mt-0.5"><UsersIcon className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500"/><span>Dept: {user.departmentName}</span></div>}
+                            {user.role === 'STAFF_REGISTRY' && user.staffRegistryAssignedCenterNames?.length > 0 ? 
+                                (<div className="flex items-center gap-1.5"><University className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500"/><span>Centers: {(user.staffRegistryAssignedCenterNames.join(', ') || 'None').substring(0,30)}{user.staffRegistryAssignedCenterNames.join(', ').length > 30 ? '...' : ''}</span></div>)
+                                : user.role === 'STAFF_REGISTRY' ? (<div className="flex items-center gap-1.5"><University className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500"/><span className="italic text-slate-400 dark:text-slate-500">No centers</span></div>)
+                                : null 
+                            }
+                            {user.role !== 'LECTURER' && user.role !== 'COORDINATOR' && user.role !== 'STAFF_REGISTRY' && !user.coordinatedCenterName && !user.lecturerCenterName && (!user.staffRegistryAssignedCenterNames || user.staffRegistryAssignedCenterNames.length === 0) && <span className="text-slate-400 dark:text-slate-500 italic">N/A</span>}
+                          </TableCell><TableCell className="text-right px-4 py-3 whitespace-nowrap space-x-1.5"><Button variant="outline" size="sm" onClick={() => handleOpenEditDialog(user)} disabled={user.role === 'REGISTRY' || isLoading} className={`h-8 px-2.5 gap-1 text-xs ${focusRingClass}`}><Edit3 className="h-3.5 w-3.5" /><span>Edit</span></Button><Button variant="outline" size="sm" onClick={() => handleOpenDeleteConfirmation(user)} disabled={(user.role === 'REGISTRY' && user.id === registryUserId) || isLoading} className={`h-8 px-2.5 gap-1 text-xs border-red-500 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-800/30 focus-visible:ring-red-500 ${focusRingClass}`}><Trash2 className="h-3.5 w-3.5" /><span>Delete</span></Button></TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -301,12 +350,19 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                 </ScrollArea>
               </Card>
             </div>
-
-            <div className="md:hidden flex-1 space-y-3 overflow-y-auto pb-4"> {/* Mobile card list scrolls */}
-              {filteredUsers.map((user) => (
+            <div className="md:hidden flex-1 space-y-3 overflow-y-auto pb-4">
+              {filteredUsers.map((user) => ( 
                 <Card key={user.id} className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-lg rounded-lg">
-                  <CardHeader className="pb-3 pt-4 px-3 sm:px-4"><div className="flex items-start justify-between"><div className="flex items-center gap-3"><Avatar className="h-10 w-10"><AvatarImage src={user.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200">{user.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback></Avatar><div><CardTitle className="text-base font-semibold text-blue-800 dark:text-blue-300">{user.name}</CardTitle><div className="mt-1">{getRoleBadge(user.role)}</div></div></div><div className="flex flex-col space-y-1.5 items-end -mt-1 -mr-1"><Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(user)} disabled={user.role === 'REGISTRY' || isLoading} className={`h-7 w-7 text-slate-500 hover:text-blue-700 dark:text-slate-400 dark:hover:text-blue-400 ${focusRingClass}`}><Edit3 className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => handleOpenDeleteConfirmation(user)} disabled={user.role === 'REGISTRY' || isLoading} className={`h-7 w-7 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 ${focusRingClass}`}><Trash2 className="h-4 w-4" /></Button></div></div></CardHeader>
-                  <CardContent className="space-y-2 pt-0 pb-3 px-3 sm:px-4 text-xs"><div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Mail className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><p>{user.email}</p></div>{user.role === 'COORDINATOR' && user.coordinatedCenterName && (<div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Building2 className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><p>Coordinates: {user.coordinatedCenterName}</p></div>)}{user.role === 'LECTURER' && user.lecturerCenterName && (<div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><BookUser className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><p>Center: {user.lecturerCenterName}</p></div>)}{user.departmentName && (<div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><UsersIcon className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /> Dept: {user.departmentName}</div>)}</CardContent>
+                  <CardHeader className="pb-3 pt-4 px-3 sm:px-4"><div className="flex items-start justify-between"><div className="flex items-center gap-3"><Avatar className="h-10 w-10"><AvatarImage src={user.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200">{user.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback></Avatar><div><CardTitle className="text-base font-semibold text-blue-800 dark:text-blue-300">{user.name}</CardTitle><div className="mt-1">{getRoleBadge(user.role)}</div></div></div><div className="flex flex-col space-y-1.5 items-end -mt-1 -mr-1"><Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(user)} disabled={user.role === 'REGISTRY' || isLoading} className={`h-7 w-7 text-slate-500 hover:text-blue-700 dark:text-slate-400 dark:hover:text-blue-400 ${focusRingClass}`}><Edit3 className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => handleOpenDeleteConfirmation(user)} disabled={(user.role === 'REGISTRY' && user.id === registryUserId) || isLoading} className={`h-7 w-7 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 ${focusRingClass}`}><Trash2 className="h-4 w-4" /></Button></div></div></CardHeader>
+                  <CardContent className="space-y-2 pt-0 pb-3 px-3 sm:px-4 text-xs">
+                    <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Mail className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><p>{user.email}</p></div>
+                    {user.designation && <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Briefcase className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><p>Designation: {getDesignationDisplay(user.designation)}</p></div>}
+                    {user.role === 'COORDINATOR' && user.coordinatedCenterName && (<div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Building2 className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><p>Coordinates: {user.coordinatedCenterName}</p></div>)}
+                    {user.role === 'LECTURER' && user.lecturerCenterName && (<div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><BookUser className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><p>Center: {user.lecturerCenterName}</p></div>)}
+                    {user.role === 'LECTURER' && user.departmentName && (<div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><UsersIcon className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /> Dept: {user.departmentName}</div>)}
+                    {user.role === 'STAFF_REGISTRY' && user.staffRegistryAssignedCenterNames?.length > 0 ? (<div className="flex items-start gap-2 text-slate-600 dark:text-slate-300"><University className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0 mt-0.5" /><p>Assigned Centers: {user.staffRegistryAssignedCenterNames.join(', ')}</p></div>) 
+                    : user.role === 'STAFF_REGISTRY' ? (<div className="flex items-start gap-2 text-slate-500 dark:text-slate-400"><University className="h-4 w-4 flex-shrink-0 mt-0.5" /><p>No centers assigned</p></div>) : null}
+                  </CardContent>
                 </Card>
               ))}
             </div>
@@ -314,14 +370,24 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
         )}
       </div>
 
-      {/* Edit User Dialog (actionUser checks ensure it only renders when needed) */}
-      {actionUser && ( <Dialog open={isEditUserDialogOpen} onOpenChange={(open) => { if (!open && !isLoading) resetEditForm(); setIsEditUserDialogOpen(open); }}> <DialogContent className="sm:max-w-[520px] bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-xl rounded-lg"> <DialogHeader className="pb-3 pt-1 border-b border-slate-200 dark:border-slate-700"><DialogTitle className="flex items-center gap-2 text-lg sm:text-xl text-blue-800 dark:text-blue-300"><Edit3 className="h-5 w-5 text-violet-700 dark:text-violet-500" /> Edit User: <span className="font-normal text-slate-700 dark:text-slate-300">{actionUser.name}</span></DialogTitle><DialogDescription className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">Update role and assignments.</DialogDescription></DialogHeader> <form onSubmit={handleUpdateUser}><ScrollArea className="max-h-[calc(80vh-200px)] sm:max-h-[70vh] pr-3 -mr-3"><div className="grid gap-4 py-4"><div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md border border-slate-200 dark:border-slate-700"><Avatar className="h-10 w-10"><AvatarImage src={actionUser.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 text-base">{actionUser.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback></Avatar><div><p className="font-medium text-sm text-slate-800 dark:text-slate-100">{actionUser.name}</p><p className="text-xs text-slate-500 dark:text-slate-400">{actionUser.email}</p></div></div><div className="space-y-1.5"><Label htmlFor="editUserRole" className={dialogLabelClass}>Role <span className="text-red-700">*</span></Label><Select value={editUserRole} onValueChange={setEditUserRole} disabled={isLoading}><SelectTrigger className={dialogSelectTriggerClass}><SelectValue placeholder="Select a role" /></SelectTrigger><SelectContent className={dialogSelectContentClass}><SelectItem value="COORDINATOR" className="focus:bg-slate-100 dark:focus:bg-slate-700">Coordinator</SelectItem><SelectItem value="LECTURER" className="focus:bg-slate-100 dark:focus:bg-slate-700">Lecturer</SelectItem></SelectContent></Select></div>{editUserRole === 'LECTURER' && (<div className="space-y-1.5"><Label htmlFor="editUserCenterId" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label><Select value={editUserCenterId} onValueChange={setEditUserCenterId} disabled={isLoading}><SelectTrigger className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{centers.length > 0 ? (centers.map((center) => (<SelectItem key={center.id} value={center.id} className="focus:bg-slate-100 dark:focus:bg-slate-700">{center.name}</SelectItem>))) : ( <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No centers available</div> )}</SelectContent></Select></div>)}{formError && (<div className={dialogErrorClass}><AlertTriangle className="h-4 w-4 flex-shrink-0"/> {formError}</div>)}<Button type="button" variant="outline" onClick={() => handleOpenChangePasswordDialog(actionUser)} className={`gap-2 border-blue-600 text-blue-700 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-300 dark:hover:bg-blue-700/30 ${focusRingClass} h-9 sm:h-10 text-xs sm:text-sm`} disabled={isLoading}><KeyRound className="h-4 w-4" />Change Password</Button></div></ScrollArea><div className="flex justify-end gap-2.5 mt-5 pt-4 border-t border-slate-200 dark:border-slate-700"><DialogClose asChild><Button type="button" variant="outline" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${focusRingClass}`}>Cancel</Button></DialogClose><Button type="submit" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium ${focusRingClass}`}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}{isLoading ? "Saving..." : "Save Changes"}</Button></div></form> </DialogContent> </Dialog> )}
+      {actionUser && ( <Dialog open={isEditUserDialogOpen} onOpenChange={(open) => { if (!open && !isLoading) resetEditForm(); setIsEditUserDialogOpen(open); }}> 
+        <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-xl rounded-lg"> 
+          <DialogHeader className="pb-3 pt-1 border-b border-slate-200 dark:border-slate-700"><DialogTitle className="flex items-center gap-2 text-lg sm:text-xl text-blue-800 dark:text-blue-300"><Edit3 className="h-5 w-5 text-violet-700 dark:text-violet-500" /> Edit User: <span className="font-normal text-slate-700 dark:text-slate-300">{actionUser.name}</span></DialogTitle><DialogDescription className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">Update user details, role, and assignments.</DialogDescription></DialogHeader> 
+          <form onSubmit={handleUpdateUser}><ScrollArea className="max-h-[calc(80vh-200px)] sm:max-h-[70vh] pr-3 -mr-3"><div className="grid gap-4 py-4">
+            <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md border border-slate-200 dark:border-slate-700"><Avatar className="h-10 w-10"><AvatarImage src={actionUser.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 text-base">{actionUser.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback></Avatar><div><p className="font-medium text-sm text-slate-800 dark:text-slate-100">{actionUser.name}</p><p className="text-xs text-slate-500 dark:text-slate-400">{actionUser.email}</p></div></div>
+            <div className="space-y-1.5"><Label htmlFor="editUserRole-edit" className={dialogLabelClass}>Role <span className="text-red-700">*</span></Label><Select value={editUserRole} onValueChange={setEditUserRole} disabled={isLoading || actionUser.role === 'REGISTRY'}><SelectTrigger id="editUserRole-edit" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a role" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{ROLES.filter(r => r.value !== 'REGISTRY' || actionUser.role === 'REGISTRY').map(role => <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-1.5"><Label htmlFor="editUserDesignation-edit" className={dialogLabelClass}>Designation</Label><Select value={editUserDesignation} onValueChange={setEditUserDesignation} disabled={isLoading}><SelectTrigger id="editUserDesignation-edit" className={dialogSelectTriggerClass}><SelectValue placeholder="Select designation (optional)" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{DESIGNATIONS.map(des => <SelectItem key={des.value} value={des.value}>{des.label}</SelectItem>)}</SelectContent></Select></div>
+            {editUserRole === 'LECTURER' && (<div className="space-y-1.5"><Label htmlFor="editUserCenterId-edit" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label><Select value={editUserCenterId} onValueChange={setEditUserCenterId} disabled={isLoading}><SelectTrigger id="editUserCenterId-edit" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{centers.length > 0 ? (centers.map((center) => (<SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>))) : ( <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No centers available</div> )}</SelectContent></Select></div>)}
+            {editUserRole === 'STAFF_REGISTRY' && (<div className="space-y-1.5"><Label htmlFor="editStaffRegistryAssignedCenterIds-edit" className={dialogLabelClass}>Assigned Centers (Staff Registry)</Label><CenterMultiSelect selectedIds={editStaffRegistryAssignedCenterIds} onChange={setEditStaffRegistryAssignedCenterIds} disabled={isLoading} /></div>)}
+            {formError && (<div className={dialogErrorClass}><AlertTriangle className="h-4 w-4 flex-shrink-0"/> {formError}</div>)}
+            <Button type="button" variant="outline" onClick={() => handleOpenChangePasswordDialog(actionUser)} className={`gap-2 border-blue-600 text-blue-700 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-300 dark:hover:bg-blue-700/30 ${focusRingClass} h-9 sm:h-10 text-xs sm:text-sm`} disabled={isLoading}><KeyRound className="h-4 w-4" />Change Password</Button>
+          </div></ScrollArea><DialogFooter className="flex justify-end gap-2.5 mt-5 pt-4 border-t border-slate-200 dark:border-slate-700"><DialogClose asChild><Button type="button" variant="outline" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm ${focusRingClass}`}>Cancel</Button></DialogClose><Button type="submit" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium ${focusRingClass}`}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}{isLoading ? "Saving..." : "Save Changes"}</Button></DialogFooter></form> 
+        </DialogContent> 
+      </Dialog> )}
 
-      {/* Change Password Dialog */}
-      {actionUser && ( <Dialog open={isChangePasswordDialogOpen} onOpenChange={(open) => { if (!open && !isLoading) { resetPasswordChangeForm(); } setIsChangePasswordDialogOpen(open); }}> <DialogContent className="sm:max-w-[450px] bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-xl rounded-lg"> <DialogHeader className="pb-3 pt-1 border-b border-slate-200 dark:border-slate-700"><DialogTitle className="flex items-center gap-2 text-lg sm:text-xl text-blue-800 dark:text-blue-300"><KeyRound className="h-5 w-5 text-violet-700 dark:text-violet-500" /> Change Password for <span className="font-normal text-slate-700 dark:text-slate-300">{actionUser.name}</span></DialogTitle><DialogDescription className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">Set a new password.</DialogDescription></DialogHeader> <form onSubmit={handleChangePassword}><div className="grid gap-4 py-4 px-1"><div className="space-y-1.5"><Label htmlFor="newPasswordForUser" className={dialogLabelClass}>New Password <span className="text-red-700">*</span></Label><Input id="newPasswordForUser" type="password" value={newPasswordForUser} onChange={(e) => setNewPasswordForUser(e.target.value)} placeholder="At least 6 characters" disabled={isLoading} className={dialogInputClass} /></div>{passwordFormError && (<div className={dialogErrorClass}><AlertTriangle className="h-4 w-4 flex-shrink-0"/> {passwordFormError}</div>)}</div><div className="flex justify-end gap-2.5 mt-5 pt-4 border-t border-slate-200 dark:border-slate-700"><DialogClose asChild><Button type="button" variant="outline" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${focusRingClass}`}>Cancel</Button></DialogClose><Button type="submit" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-medium ${focusRingClass}`}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}{isLoading ? "Updating..." : "Update Password"}</Button></div></form> </DialogContent> </Dialog> )}
-
-      {/* Delete Confirmation Dialog */}
-      {actionUser && ( <AlertDialog open={isDeleteConfirmDialogOpen} onOpenChange={(open) => {setIsDeleteConfirmDialogOpen(open); if(!open) setActionUser(null);}}> <AlertDialogContent className="bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700"><AlertDialogHeader><AlertDialogTitle className="flex items-center gap-2 text-red-800 dark:text-red-300 text-lg sm:text-xl"><AlertTriangle className="h-5 w-5 text-red-700 dark:text-red-500"/>Confirm User Deletion</AlertDialogTitle><AlertDialogDescription className="text-slate-600 dark:text-slate-400 text-sm py-2">Are you sure you want to delete the user <span className="font-semibold text-slate-700 dark:text-slate-200">{actionUser.name}</span> ({actionUser.email})? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="mt-2 gap-2 sm:gap-2.5"><AlertDialogCancel className={`h-9 text-xs sm:h-10 sm:text-sm border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700 ${focusRingClass}`} disabled={isLoading} onClick={() => setActionUser(null)}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleConfirmDeleteUser} disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm bg-red-700 text-white hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 focus-visible:ring-red-500 ${focusRingClass}`}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}{isLoading ? 'Deleting...' : 'Confirm Delete'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent> </AlertDialog> )}
+      {actionUser && ( <Dialog open={isChangePasswordDialogOpen} onOpenChange={(open) => { if (!open && !isLoading) { resetPasswordChangeForm(); } setIsChangePasswordDialogOpen(open); }}> <DialogContent className="sm:max-w-[450px] bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-xl rounded-lg"> <DialogHeader className="pb-3 pt-1 border-b border-slate-200 dark:border-slate-700"><DialogTitle className="flex items-center gap-2 text-lg sm:text-xl text-blue-800 dark:text-blue-300"><KeyRound className="h-5 w-5 text-violet-700 dark:text-violet-500" /> Change Password for <span className="font-normal text-slate-700 dark:text-slate-300">{actionUser.name}</span></DialogTitle><DialogDescription className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">Set a new password.</DialogDescription></DialogHeader> <form onSubmit={handleChangePassword}><div className="grid gap-4 py-4 px-1"><div className="space-y-1.5"><Label htmlFor="newPasswordForUser-change" className={dialogLabelClass}>New Password <span className="text-red-700">*</span></Label><Input id="newPasswordForUser-change" type="password" value={newPasswordForUser} onChange={(e) => setNewPasswordForUser(e.target.value)} placeholder="At least 6 characters" disabled={isLoading} className={dialogInputClass} /></div>{passwordFormError && (<div className={dialogErrorClass}><AlertTriangle className="h-4 w-4 flex-shrink-0"/> {passwordFormError}</div>)}</div><DialogFooter className="flex justify-end gap-2.5 mt-5 pt-4 border-t border-slate-200 dark:border-slate-700"><DialogClose asChild><Button type="button" variant="outline" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm ${focusRingClass}`}>Cancel</Button></DialogClose><Button type="submit" disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-medium ${focusRingClass}`}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}{isLoading ? "Updating..." : "Update Password"}</Button></DialogFooter></form> </DialogContent> </Dialog> )}
+      
+      {actionUser && ( <AlertDialog open={isDeleteConfirmDialogOpen} onOpenChange={(open) => {setIsDeleteConfirmDialogOpen(open); if(!open) setActionUser(null);}}> <AlertDialogContent className="bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700"><AlertDialogHeader><AlertDialogTitle className="flex items-center gap-2 text-red-800 dark:text-red-300 text-lg sm:text-xl"><AlertTriangle className="h-5 w-5 text-red-700 dark:text-red-500"/>Confirm User Deletion</AlertDialogTitle><AlertDialogDescription className="text-slate-600 dark:text-slate-400 text-sm py-2">Are you sure you want to delete the user <span className="font-semibold text-slate-700 dark:text-slate-200">{actionUser.name}</span> ({actionUser.email})? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="mt-2 gap-2 sm:gap-2.5"><AlertDialogCancel className={`h-9 text-xs sm:h-10 sm:text-sm ${focusRingClass}`} disabled={isLoading} onClick={() => setActionUser(null)}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleConfirmDeleteUser} disabled={isLoading} className={`h-9 text-xs sm:h-10 sm:text-sm bg-red-700 text-white hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 focus-visible:ring-red-500 ${focusRingClass}`}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}{isLoading ? 'Deleting...' : 'Confirm Delete'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent> </AlertDialog> )}
     </div>
   );
 }
