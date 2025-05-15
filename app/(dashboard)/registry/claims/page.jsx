@@ -4,12 +4,12 @@ import Link from 'next/link';
 import { getSession } from '@/lib/actions/auth.actions';
 import {
   getAllClaimsSystemWide,
-  getCenters // Needed for the center filter dropdown
+  getCenters 
 } from '@/lib/actions/registry.actions.js';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
-import { FileWarning, FileText as FileTextIcon } from "lucide-react"; // Renamed FileText to FileTextIcon for clarity
-import ManageSystemClaimsTab from '../_components/ManageSystemClaimsTab'; // Path to the existing component
+import { FileWarning, ListChecks as PageIcon } from "lucide-react"; 
+import ManageSystemClaimsTab from '../_components/ManageSystemClaimsTab';
 import { Toaster } from "@/components/ui/sonner";
 
 export default async function RegistryManageSystemClaimsPage() {
@@ -19,7 +19,7 @@ export default async function RegistryManageSystemClaimsPage() {
     redirect(session ? '/unauthorized' : '/login');
   }
 
-  const claimsDataPromise = getAllClaimsSystemWide();
+  const claimsDataPromise = getAllClaimsSystemWide(); 
   const centersDataPromise = getCenters();
 
   const [
@@ -35,68 +35,64 @@ export default async function RegistryManageSystemClaimsPage() {
     error: claimsResult.error || null
   };
 
-  // Critical error: If both claims and centers (essential for filtering) fail to load,
-  // display a page-level error before attempting to render the tab.
-  if (initialClaimsData.error && !centersResult.success) {
-    const errorMsg = initialClaimsData.error || centersResult.error || "Could not load critical data for managing claims.";
+  if (!claimsResult.success) {
+    const errorMsg = initialClaimsData.error || "Could not load critical claims data for the page.";
     return (
-      <div className="w-full py-6 px-4"> 
+      <div className="flex flex-col flex-1 items-center justify-center p-6 sm:p-8 min-h-[calc(100vh-8rem)] bg-slate-50 dark:bg-slate-900"> 
         <Alert 
           variant="destructive" 
-          className="bg-red-50 border-red-300 dark:bg-red-800/20 dark:border-red-700/50 text-red-700 dark:text-red-300 shadow-md rounded-lg"
+          className="w-full max-w-lg bg-red-100 dark:bg-red-900/40 border-red-400 dark:border-red-600 text-red-700 dark:text-red-200 shadow-xl rounded-xl p-6"
         >
-          <FileWarning className="h-5 w-5 text-red-600 dark:text-red-400" />
-          <AlertTitle className="font-semibold text-lg text-red-800 dark:text-red-200">Critical Error Loading Data</AlertTitle>
-          <AlertDescription className="text-red-700 dark:text-red-300">
-            {errorMsg} The page cannot be displayed. Please try again later or contact support.
+          <FileWarning className="h-6 w-6 text-red-600 dark:text-red-400" />
+          <AlertTitle className="font-semibold text-xl text-red-800 dark:text-red-100 mt-2">Critical Error Loading Data</AlertTitle>
+          <AlertDescription className="mt-2.5 text-red-700/90 dark:text-red-200/90">
+            {errorMsg} The page cannot be displayed. Please try refreshing, or contact support if the issue persists.
             <div className="mt-6">
               <Button 
                 asChild 
                 variant="outline" 
-                className="border-red-600 text-red-700 hover:bg-red-100 focus-visible:ring-red-500 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-700/30"
+                className="border-red-500 text-red-600 hover:bg-red-100/80 focus-visible:ring-red-500 dark:border-red-500 dark:text-red-200 dark:hover:bg-red-700/50"
               >
                 <Link href="/registry">Back to Registry Overview</Link>
               </Button>
             </div>
           </AlertDescription>
         </Alert>
-        <Toaster richColors position="top-right" theme="light" />
+        <Toaster richColors position="top-center" theme={session?.theme || "light"} />
       </div>
     );
   }
   
   if (!centersResult.success) {
-    // Log this, but the page can still load with a potentially degraded filter experience.
-    // The ManageSystemClaimsTab will receive an empty allCenters array and should handle it.
     console.error("Registry/Claims Page: Failed to load centers for filtering:", centersResult.error);
-    toast.warning("Could not load center filters. Center list may be incomplete.", { duration: 5000 });
+    // A toast can be shown client-side in ManageSystemClaimsTab if allCenters prop is empty
   }
 
-
-  // This page's root div assumes it's rendered within a parent layout's <main> tag
-  // that handles overall page padding and max-width.
   return (
-    <div className="space-y-4 sm:space-y-6 w-full">
-      {/* Page Title Section */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold flex items-center text-blue-800 dark:text-blue-300">
-          <FileTextIcon className="mr-2.5 sm:mr-3 h-6 w-6 md:h-7 md:w-7 text-violet-700 dark:text-violet-500 flex-shrink-0" />
-          System-Wide Claims Management
-        </h1>
-        <p className="text-sm md:text-base text-slate-600 dark:text-slate-400 mt-1">
-          View, filter, and process claims from all centers in the system.
-        </p>
-      </div>
+    <div className="flex flex-col flex-1 h-full p-4 py-6 sm:p-6 lg:p-8 space-y-6 bg-slate-50 dark:bg-slate-900">
+      <header className="pb-5 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-3 md:gap-4">
+          <span className="p-3 bg-violet-100 dark:bg-violet-800/30 rounded-xl">
+            <PageIcon className="h-6 w-6 md:h-7 md:w-7 text-violet-700 dark:text-violet-400" />
+          </span>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
+              System-Wide Claims
+            </h1>
+            <p className="text-sm md:text-base text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
+              Oversee, filter, and process all submitted claims across every academic center.
+            </p>
+          </div>
+        </div>
+      </header>
 
-      {/* The Main Content of this page IS the ManageSystemClaimsTab */}
-      {/* ManageSystemClaimsTab is already styled for a light theme */}
       <ManageSystemClaimsTab
-        initialClaimsData={initialClaimsData} // Contains { claims, error }
-        allCenters={centersResult.success ? centersResult.centers : []} // Pass empty array if centers fetch failed
+        initialClaimsData={initialClaimsData}
+        allCenters={centersResult.success ? centersResult.centers : []}
         registryUserId={session.userId}
       />
       
-      <Toaster richColors position="top-right" theme="light" />
+      <Toaster richColors position="top-center" theme={session?.theme || "light"} />
     </div>
   );
 }
