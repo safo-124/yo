@@ -137,7 +137,7 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3 text-blue-800 dark:text-blue-300">
             <Building2 className="h-7 w-7 sm:h-8 sm:w-8 text-violet-700 dark:text-violet-500" />
-            Academic Centers
+            Study Centers
           </h1>
           <p className="text-slate-600 dark:text-slate-400 mt-1 text-sm sm:text-base">
             Manage academic centers, coordinators, and view staff assignments.

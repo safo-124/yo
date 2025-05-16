@@ -72,10 +72,10 @@ export default async function RegistryManageCentersPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold flex items-center text-blue-800 dark:text-blue-300">
               <Building className="mr-3 h-7 w-7 md:h-8 md:w-8 text-violet-700 dark:text-violet-500" />
-              Manage Academic Centers
+              Manage Study Centers
             </h1>
             <p className="text-sm md:text-base text-slate-600 dark:text-slate-400 mt-1">
-              Create and manage academic centers and their coordinators.
+              Create and manage Study centers and their coordinators.
             </p>
           </div>
         </div>
