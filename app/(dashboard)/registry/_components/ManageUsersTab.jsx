@@ -49,8 +49,7 @@ const DESIGNATIONS = [
   { value: "LECTURER", label: "Lecturer" },
   { value: "SENIOR_LECTURER", label: "Senior Lecturer" },
   { value: "PROFESSOR", label: "Professor" },
-  { value: "ADMINISTRATIVE_STAFF", label: "Administrative Staff" }, // Example
-  { value: "TECHNICAL_STAFF", label: "Technical Staff" },     // Example
+      // Example
 ];
 
 export default function ManageUsersTab({ initialUsers = [], centers = [], fetchError, registryUserId }) {
