@@ -30,10 +30,10 @@ export default async function DashboardLayout({ children }) {
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="text-[#1A213D] dark:text-slate-100 text-lg sm:text-xl font-bold">
-                  CODeL Claims
+                   University of Education, Winneba
                 </span>
                 <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
-                  University of Education, Winneba
+                  CODeL Claims System
                 </span>
               </div>
             </Link>
