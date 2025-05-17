@@ -12,10 +12,10 @@ async function getSessionFromRequest(request) {
     return JSON.parse(sessionCookie.value); 
   } catch (error) {
     console.error('Middleware: Failed to parse session cookie:', error);
-    // Consider deleting the corrupted cookie if this happens often
+    // Optionally, you could delete the corrupted cookie here if it becomes a recurring issue
     // const response = NextResponse.next();
     // response.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-    // And then decide to return null or redirect
+    // return null; // And then return null, or redirect to login
     return null;
   }
 }
@@ -29,52 +29,63 @@ export async function middleware(request) {
 
   // 1. Handle Logged-In Users
   if (session?.userId) {
-    // Ensure dashboardPath is set in your auth.actions.js upon login for each role
-    // e.g., /registry, /coordinator/center/[id], /lecturer/center/[id], /staff-registry
     const userDashboardPath = session.dashboardPath || '/profile'; // Fallback
 
+    // If on an auth page (login/signup) but already logged in, redirect to their dashboard
     if (isAuthPage) {
       return NextResponse.redirect(new URL(userDashboardPath, request.url));
     }
 
+    // If on the homepage but their dashboard is elsewhere, redirect them
     if (isHomepage && userDashboardPath !== '/') {
       return NextResponse.redirect(new URL(userDashboardPath, request.url));
     }
 
-    // Role-based access control
+    // Role-based access control for specific dashboard areas
     if (pathname.startsWith('/registry') && session.role !== 'REGISTRY') {
-      console.warn(`Middleware: Unauthorized access attempt to ${pathname} by role ${session.role}`);
+      console.warn(`Middleware: Unauthorized access attempt to ${pathname} by role ${session.role}. Expected REGISTRY.`);
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
 
-    // STAFF_REGISTRY path protection
-    if (pathname.startsWith('/staff-registry') && session.role !== 'STAFF_REGISTRY') {
-        // Only STAFF_REGISTRY users can access /staff-registry paths.
-        // REGISTRY users would use their own /registry views.
-        console.warn(`Middleware: Unauthorized access attempt to ${pathname} by role ${session.role}. Expected STAFF_REGISTRY.`);
-        return NextResponse.redirect(new URL('/unauthorized', request.url));
+    // STAFF_REGISTRY path protection: Allow STAFF_REGISTRY and REGISTRY roles
+    if (pathname.startsWith('/staff-registry') && 
+        session.role !== 'STAFF_REGISTRY' && 
+        session.role !== 'REGISTRY'  // UPDATED: REGISTRY can also access staff-registry paths
+    ) {
+      console.warn(`Middleware: Unauthorized access attempt to ${pathname} by role ${session.role}. Expected STAFF_REGISTRY or REGISTRY.`);
+      return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
 
     // Coordinator path protection
     if (pathname.startsWith('/coordinator')) {
       if (session.role !== 'COORDINATOR' && session.role !== 'REGISTRY') {
-        console.warn(`Middleware: Unauthorized role access attempt to ${pathname} by role ${session.role}`);
+        console.warn(`Middleware: Unauthorized role access attempt to ${pathname} by role ${session.role}. Expected COORDINATOR or REGISTRY.`);
         return NextResponse.redirect(new URL('/unauthorized', request.url));
       }
+      // If the user is a Coordinator (not REGISTRY), verify they are accessing their own center's resources
       if (session.role === 'COORDINATOR') {
         const pathParts = pathname.split('/'); 
-        if (pathParts.length > 2 && pathParts[1] === 'coordinator') { // Path like /coordinator/[centerId]/...
+        // Expected path: /coordinator/[centerId]/...
+        // pathParts: ['', 'coordinator', 'ACTUAL_CENTER_ID', ...]
+        if (pathParts.length > 2 && pathParts[1] === 'coordinator') {
           const centerIdFromUrl = pathParts[2];
           let coordinatorActualCenterId = null;
+          
           if (session.dashboardPath && session.dashboardPath.startsWith('/coordinator/')) {
             const sessionPathParts = session.dashboardPath.split('/');
-            if (sessionPathParts.length > 2) {
+            // dashboardPath is /coordinator/[centerId]/dashboard
+            if (sessionPathParts.length > 2) { // Ensure enough parts (e.g. ['', 'coordinator', 'centerId', 'dashboard'])
               coordinatorActualCenterId = sessionPathParts[2];
             }
           }
-          // If dashboardPath doesn't conform, or if centerId is different and not 'center' literal for generic coordinator path
-          if (centerIdFromUrl && centerIdFromUrl !== "center" && coordinatorActualCenterId && centerIdFromUrl !== coordinatorActualCenterId) {
-            console.warn(`Middleware: Coordinator ${session.userId} attempting to access unauthorized center ${centerIdFromUrl}. Their center is ${coordinatorActualCenterId}.`);
+          
+          // Redirect if trying to access a different center's specific page,
+          // unless it's a generic coordinator page like 'assignment-pending'.
+          if (centerIdFromUrl && 
+              centerIdFromUrl !== "assignment-pending" && // Allow access to generic pages
+              coordinatorActualCenterId && 
+              centerIdFromUrl !== coordinatorActualCenterId) {
+            console.warn(`Middleware: Coordinator ${session.userId} attempting to access unauthorized center ${centerIdFromUrl}. Assigned to ${coordinatorActualCenterId}. Redirecting to own dashboard.`);
             return NextResponse.redirect(new URL(session.dashboardPath, request.url));
           }
         }
@@ -84,27 +95,34 @@ export async function middleware(request) {
     // Lecturer path protection
     if (pathname.startsWith('/lecturer')) {
       if (session.role !== 'LECTURER' && session.role !== 'REGISTRY') {
-        console.warn(`Middleware: Unauthorized role access attempt to ${pathname} by role ${session.role}`);
+        console.warn(`Middleware: Unauthorized role access attempt to ${pathname} by role ${session.role}. Expected LECTURER or REGISTRY.`);
         return NextResponse.redirect(new URL('/unauthorized', request.url));
       }
+      // If the user is a Lecturer (not REGISTRY), verify they are accessing their own center's resources
       if (session.role === 'LECTURER') {
         if (pathname.startsWith('/lecturer/center/')) {
           const pathParts = pathname.split('/');
-          if (pathParts.length > 3) { // ['', 'lecturer', 'center', 'centerId', ...]
-              const centerIdFromUrl = pathParts[3];
-              let lecturerActualCenterId = null;
-              if (session.dashboardPath && session.dashboardPath.startsWith('/lecturer/center/')) {
-                  const sessionPathParts = session.dashboardPath.split('/');
-                  if (sessionPathParts.length > 3) {
-                      lecturerActualCenterId = sessionPathParts[3];
-                  }
-              }
-              if (centerIdFromUrl && lecturerActualCenterId && centerIdFromUrl !== lecturerActualCenterId) {
-                  console.warn(`Middleware: Lecturer ${session.userId} attempting to access unauthorized center ${centerIdFromUrl}. Their center is ${lecturerActualCenterId}.`);
-                  return NextResponse.redirect(new URL(session.dashboardPath, request.url));
-              }
+          // Expected path: /lecturer/center/[centerId]/...
+          // pathParts: ['', 'lecturer', 'center', 'ACTUAL_CENTER_ID', ...]
+          if (pathParts.length > 3) { 
+            const centerIdFromUrl = pathParts[3];
+            let lecturerActualCenterId = null;
+
+            if (session.dashboardPath && session.dashboardPath.startsWith('/lecturer/center/')) {
+                const sessionPathParts = session.dashboardPath.split('/');
+                if (sessionPathParts.length > 3) {
+                    lecturerActualCenterId = sessionPathParts[3];
+                }
+            }
+            if (centerIdFromUrl && 
+                lecturerActualCenterId && 
+                centerIdFromUrl !== lecturerActualCenterId) {
+                console.warn(`Middleware: Lecturer ${session.userId} attempting to access unauthorized center ${centerIdFromUrl}. Assigned to ${lecturerActualCenterId}. Redirecting to own dashboard.`);
+                return NextResponse.redirect(new URL(session.dashboardPath, request.url));
+            }
           }
         } else if (pathname === '/lecturer/assignment-pending' && session.dashboardPath !== '/lecturer/assignment-pending') {
+            // If a lecturer has an assigned center, don't let them access assignment-pending
             return NextResponse.redirect(new URL(session.dashboardPath, request.url));
         }
       }
@@ -115,13 +133,15 @@ export async function middleware(request) {
       '/registry',
       '/coordinator',
       '/lecturer',
-      '/staff-registry', // Added staff-registry to protected paths
+      '/staff-registry',
       '/profile'
+      // Add any other paths that require authentication
     ];
 
     if (protectedPaths.some(path => pathname.startsWith(path))) {
       const loginUrl = new URL('/login', request.url);
-      // loginUrl.searchParams.set('callbackUrl', pathname + request.nextUrl.search); // Add callback for better UX
+      // Optionally add a callbackUrl to redirect back after login
+      // loginUrl.searchParams.set('callbackUrl', pathname + request.nextUrl.search);
       return NextResponse.redirect(loginUrl);
     }
   }
@@ -140,6 +160,7 @@ export const config = {
      * - favicon.ico (favicon file)
      * - assets/ (if you have a public assets folder, e.g., public/assets)
      * - uew.png (your logo file if in public root)
+     * - Any other public files or paths
      */
     '/((?!api|_next/static|_next/image|favicon.ico|assets|uew.png).*)',
   ],
