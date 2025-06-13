@@ -13,7 +13,7 @@ export default async function DashboardLayout({ children }) {
   if (!session?.userId) redirect('/login');
 
   return (
-    <div className={`min-h-screen flex flex-col bg-blue-800 dark:bg-slate-900 ${inter.className}`}>
+    <div className={`min-h-screen flex flex-col bg-white dark:bg-slate-900 ${inter.className}`}>
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-lg sticky top-0 z-30 border-t-4 border-[#AE1C28]">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -30,7 +30,7 @@ export default async function DashboardLayout({ children }) {
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="text-[#1A213D] dark:text-slate-100 text-lg sm:text-xl font-bold">
-                   University of Education, Winneba
+                    University of Education, Winneba
                 </span>
                 <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
                   CODeL Claims System

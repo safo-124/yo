@@ -25,7 +25,7 @@ import {
   deleteUserByRegistry,
 } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
-import { UserPlus, User, Edit3, KeyRound, Mail, Shield, BookUser, Users as UsersIcon, Building2, AlertTriangle, Loader2, Trash2, Search, XCircle, Briefcase, University, Check } from "lucide-react";
+import { UserPlus, User, Edit3, KeyRound, Mail, Shield, BookUser, Users as UsersIcon, Building2, AlertTriangle, Loader2, Trash2, Search, XCircle, Briefcase, University, Check, Phone, Banknote } from "lucide-react"; // Added Phone and Banknote icons
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -52,6 +52,9 @@ const DESIGNATIONS = [
   { value: "LECTURER", label: "Lecturer" },
   { value: "SENIOR_LECTURER", label: "Senior Lecturer" },
   { value: "PROFESSOR", label: "Professor" },
+  // NEW: Added Administrative and Technical staff designations
+  { value: "ADMINISTRATIVE_STAFF", label: "Administrative Staff" },
+  { value: "TECHNICAL_STAFF", label: "Technical Staff" },
 ];
 
 export default function ManageUsersTab({ initialUsers = [], centers = [], fetchError, registryUserId }) {
@@ -71,10 +74,18 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
+  const [newConfirmPassword, setNewConfirmPassword] = useState(''); // NEW: Confirm password state
   const [newUserRole, setNewUserRole] = useState('');
   const [newUserDesignation, setNewUserDesignation] = useState('');
   const [selectedCenterForNewLecturer, setSelectedCenterForNewLecturer] = useState('');
   const [newStaffRegistryAssignedCenterIds, setNewStaffRegistryAssignedCenterIds] = useState([]);
+
+  // State for new user's bank & phone details
+  const [newBankName, setNewBankName] = useState('');
+  const [newBankBranch, setNewBankBranch] = useState('');
+  const [newAccountName, setNewAccountName] = useState('');
+  const [newAccountNumber, setNewAccountNumber] = useState('');
+  const [newPhoneNumber, setNewPhoneNumber] = useState('');
 
   const [actionUser, setActionUser] = useState(null);
   const [editUserRole, setEditUserRole] = useState('');
@@ -82,6 +93,14 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   const [editUserCenterId, setEditUserCenterId] = useState('');
   const [editStaffRegistryAssignedCenterIds, setEditStaffRegistryAssignedCenterIds] = useState([]);
   const [newPasswordForUser, setNewPasswordForUser] = useState('');
+
+  // State for editing user's bank & phone details
+  const [editBankName, setEditBankName] = useState('');
+  const [editBankBranch, setEditBankBranch] = useState('');
+  const [editAccountName, setEditAccountName] = useState('');
+  const [editAccountNumber, setEditAccountNumber] = useState('');
+  const [editPhoneNumber, setEditPhoneNumber] = useState('');
+
 
   useEffect(() => {
     const validInitialUsers = Array.isArray(initialUsers) ? initialUsers : [];
@@ -112,16 +131,22 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   }, [searchFilteredUsers, activeRoleTab]);
 
   const resetCreateForm = () => {
-    setNewUserName(''); setNewUserEmail(''); setNewUserPassword('');
+    setNewUserName(''); setNewUserEmail(''); setNewUserPassword(''); setNewConfirmPassword(''); // NEW: Reset confirm password
     setNewUserRole(''); setNewUserDesignation('');
     setSelectedCenterForNewLecturer(''); setNewStaffRegistryAssignedCenterIds([]);
     setFormError('');
+    // NEW: Reset bank & phone states
+    setNewBankName(''); setNewBankBranch(''); setNewAccountName(''); setNewAccountNumber(''); setNewPhoneNumber('');
   };
+
   const resetEditForm = () => {
     setActionUser(null); setEditUserRole(''); setEditUserDesignation('');
     setEditUserCenterId(''); setEditStaffRegistryAssignedCenterIds([]);
     setFormError('');
+    // NEW: Reset bank & phone states
+    setEditBankName(''); setEditBankBranch(''); setEditAccountName(''); setEditAccountNumber(''); setEditPhoneNumber('');
   };
+
   const resetPasswordChangeForm = () => {
     setNewPasswordForUser(''); setPasswordFormError('');
   };
@@ -132,27 +157,45 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim() || !newUserRole) {
       setFormError("Name, email, password, and role are required."); return;
     }
-    if (newUserRole === 'LECTURER' && !selectedCenterForNewLecturer) {
-      setFormError("Lecturers must be assigned to a center."); return;
-    }
     if (newUserPassword.trim().length < 6) {
       setFormError("Password must be at least 6 characters."); return;
     }
+    // NEW: Client-side validation for matching passwords
+    if (newUserPassword !== newConfirmPassword) {
+        setFormError("Passwords do not match.");
+        return;
+    }
+    
+    if (newUserRole === 'LECTURER' && !selectedCenterForNewLecturer) {
+      setFormError("Lecturers must be assigned to a center."); return;
+    }
+
+    // NEW: Client-side validation for Lecturer-specific fields
+    if (newUserRole === 'LECTURER') {
+      if (!newBankName.trim() || !newBankBranch.trim() || !newAccountName.trim() || !newAccountNumber.trim() || !newPhoneNumber.trim()) {
+        setFormError("For lecturer role, bank details (name, branch, account name, account number) and phone number are required."); return;
+      }
+    }
+
     setIsLoading(true);
     const userData = {
       name: newUserName.trim(), email: newUserEmail.trim().toLowerCase(), password: newUserPassword.trim(), role: newUserRole,
       designation: newUserDesignation || null,
       lecturerCenterId: newUserRole === 'LECTURER' ? selectedCenterForNewLecturer || null : null,
+      // NEW: Pass bank and phone details if role is LECTURER
+      bankName: newUserRole === 'LECTURER' ? newBankName.trim() || null : null,
+      bankBranch: newUserRole === 'LECTURER' ? newBankBranch.trim() || null : null,
+      accountName: newUserRole === 'LECTURER' ? newAccountName.trim() || null : null,
+      accountNumber: newUserRole === 'LECTURER' ? newAccountNumber.trim() || null : null,
+      phoneNumber: newUserRole === 'LECTURER' ? newPhoneNumber.trim() || null : null,
     };
+    
     const result = await createUserByRegistry(userData);
     setIsLoading(false);
     if (result.success && result.user) {
       toast.success(`User "${result.user.name}" created successfully!`);
       setAllUsers(prev => [result.user, ...prev].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       setIsCreateUserDialogOpen(false); resetCreateForm();
-      // If user was created in the current active tab, no need to change tab
-      // If user was created in a different tab, switch to that tab automatically or keep current.
-      // For now, keep current tab.
     } else {
       setFormError(result.error || "Failed to create user."); toast.error(result.error || "Failed to create user.");
     }
@@ -164,6 +207,12 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     setEditUserDesignation(user.designation || '');
     setEditUserCenterId(user.lecturerCenterId || '');
     setEditStaffRegistryAssignedCenterIds(user.staffRegistryAssignedCentersData?.map(c => c.id) || []);
+    // NEW: Populate bank & phone states for editing
+    setEditBankName(user.bankName || '');
+    setEditBankBranch(user.bankBranch || '');
+    setEditAccountName(user.accountName || '');
+    setEditAccountNumber(user.accountNumber || '');
+    setEditPhoneNumber(user.phoneNumber || '');
     setFormError('');
     setIsEditUserDialogOpen(true);
   };
@@ -175,6 +224,14 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
     if (editUserRole === 'LECTURER' && !editUserCenterId) {
       setFormError("Lecturers must be assigned to a center."); return;
     }
+
+    // NEW: Client-side validation for Lecturer-specific fields during update
+    if (editUserRole === 'LECTURER') {
+      if (!editBankName.trim() || !editBankBranch.trim() || !editAccountName.trim() || !editAccountNumber.trim() || !editPhoneNumber.trim()) {
+        setFormError("For lecturer role, bank details (name, branch, account name, account number) and phone number are required."); return;
+      }
+    }
+
     setIsLoading(true);
     const updateData = {
       userId: actionUser.id,
@@ -182,7 +239,14 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
       newDesignation: editUserDesignation || null,
       newCenterId: editUserRole === 'LECTURER' ? editUserCenterId || null : null,
       newStaffRegistryCenterIds: editUserRole === 'STAFF_REGISTRY' ? editStaffRegistryAssignedCenterIds : undefined,
+      // NEW: Pass bank and phone details for update
+      newBankName: editUserRole === 'LECTURER' ? editBankName.trim() || null : null,
+      newBankBranch: editUserRole === 'LECTURER' ? editBankBranch.trim() || null : null,
+      newAccountName: editUserRole === 'LECTURER' ? editAccountName.trim() || null : null,
+      newAccountNumber: editUserRole === 'LECTURER' ? editAccountNumber.trim() || null : null,
+      newPhoneNumber: editUserRole === 'LECTURER' ? editPhoneNumber.trim() || null : null,
     };
+    
     const result = await updateUserRoleAndAssignmentsByRegistry(updateData);
     setIsLoading(false);
     if (result.success && result.user) {
@@ -329,18 +393,55 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                 <DialogDescription className="text-slate-500 dark:text-slate-400 text-sm">Fill in the details below to create a new user account.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateUser}>
-                <ScrollArea className="max-h-[calc(80vh-200px)] sm:max-h-[70vh] pr-4 -mr-4">
-                  <div className="grid gap-5 py-4">
-                    <div className="space-y-1.5"><Label htmlFor="newUserName-create" className={dialogLabelClass}>Full Name <span className="text-red-700">*</span></Label><Input id="newUserName-create" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} placeholder="John Doe" disabled={isLoading} className={dialogInputClass} /></div>
-                    <div className="space-y-1.5"><Label htmlFor="newUserEmail-create" className={dialogLabelClass}>Email <span className="text-red-700">*</span></Label><Input id="newUserEmail-create" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} placeholder="user@example.com" disabled={isLoading} className={dialogInputClass} /></div>
-                    <div className="space-y-1.5"><Label htmlFor="newUserPassword-create" className={dialogLabelClass}>Password <span className="text-red-700">*</span></Label><Input id="newUserPassword-create" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} placeholder="At least 6 characters" disabled={isLoading} className={dialogInputClass} /></div>
-                    <div className="space-y-1.5"><Label htmlFor="newUserRole-create" className={dialogLabelClass}>Role <span className="text-red-700">*</span></Label><Select value={newUserRole} onValueChange={setNewUserRole} disabled={isLoading}><SelectTrigger id="newUserRole-create" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a role" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{ROLES.map(role => <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="space-y-1.5"><Label htmlFor="newUserDesignation-create" className={dialogLabelClass}>Designation</Label><Select value={newUserDesignation} onValueChange={setNewUserDesignation} disabled={isLoading}><SelectTrigger id="newUserDesignation-create" className={dialogSelectTriggerClass}><SelectValue placeholder="Select designation (optional)" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{DESIGNATIONS.map(des => <SelectItem key={des.value} value={des.value}>{des.label}</SelectItem>)}</SelectContent></Select></div>
-                    {newUserRole === 'LECTURER' && (<div className="space-y-1.5"><Label htmlFor="selectedCenterForNewLecturer-create" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label><Select value={selectedCenterForNewLecturer} onValueChange={setSelectedCenterForNewLecturer} disabled={isLoading}><SelectTrigger id="selectedCenterForNewLecturer-create" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{centers.length > 0 ? (centers.map((center) => (<SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>))) : (<div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No centers available</div>)}</SelectContent></Select></div>)}
-                    {newUserRole === 'STAFF_REGISTRY' && (<div className="space-y-1.5"><Label htmlFor="newStaffRegistryAssignedCenterIds-create" className={dialogLabelClass}>Assign Centers (Staff Registry)</Label><CenterMultiSelect selectedIds={newStaffRegistryAssignedCenterIds} onChange={setNewStaffRegistryAssignedCenterIds} disabled={isLoading} /></div>)}
-                    {formError && (<div className={dialogErrorClass}><AlertTriangle className="h-4 w-4 flex-shrink-0"/> {formError}</div>)}
+                {/* Applied overflow-y-auto directly to CardContent for reliable scrolling */}
+                <CardContent className="grid gap-5 py-4 p-6 sm:p-8 bg-slate-50/50 dark:bg-slate-700/30 overflow-y-auto max-h-[calc(80vh-200px)] sm:max-h-[70vh]">
+                  <div className="space-y-1.5"><Label htmlFor="newUserName-create" className={dialogLabelClass}>Full Name <span className="text-red-700">*</span></Label><Input id="newUserName-create" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} placeholder="John Doe" disabled={isLoading} className={dialogInputClass} /></div>
+                  <div className="space-y-1.5"><Label htmlFor="newUserEmail-create" className={dialogLabelClass}>Email <span className="text-red-700">*</span></Label><Input id="newUserEmail-create" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} placeholder="user@example.com" disabled={isLoading} className={dialogInputClass} /></div>
+                  <div className="space-y-1.5"><Label htmlFor="newUserPassword-create" className={dialogLabelClass}>Password <span className="text-red-700">*</span></Label><Input id="newUserPassword-create" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} placeholder="At least 6 characters" disabled={isLoading} className={dialogInputClass} /></div>
+                  {/* NEW: Confirm Password field */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="newConfirmPassword-create" className={dialogLabelClass}>Confirm Password <span className="text-red-700">*</span></Label>
+                    <Input
+                      id="newConfirmPassword-create"
+                      type="password"
+                      value={newConfirmPassword}
+                      onChange={(e) => setNewConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      disabled={isLoading}
+                      className={dialogInputClass}
+                    />
                   </div>
-                </ScrollArea>
+                  <div className="space-y-1.5"><Label htmlFor="newUserRole-create" className={dialogLabelClass}>Role <span className="text-red-700">*</span></Label><Select value={newUserRole} onValueChange={setNewUserRole} disabled={isLoading}><SelectTrigger id="newUserRole-create" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a role" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{ROLES.map(role => <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="space-y-1.5"><Label htmlFor="newUserDesignation-create" className={dialogLabelClass}>Designation</Label><Select value={newUserDesignation} onValueChange={setNewUserDesignation} disabled={isLoading}><SelectTrigger id="newUserDesignation-create" className={dialogSelectTriggerClass}><SelectValue placeholder="Select designation (optional)" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{DESIGNATIONS.map(des => <SelectItem key={des.value} value={des.value}>{des.label}</SelectItem>)}</SelectContent></Select></div>
+                  {newUserRole === 'LECTURER' && (
+                    <>
+                      <div className="space-y-1.5"><Label htmlFor="selectedCenterForNewLecturer-create" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label><Select value={selectedCenterForNewLecturer} onValueChange={setSelectedCenterForNewLecturer} disabled={isLoading}><SelectTrigger id="selectedCenterForNewLecturer-create" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{centers.length > 0 ? (centers.map((center) => (<SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>))) : (<div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No centers available</div>)}</SelectContent></Select></div>
+                      {/* Bank Details and Phone Number for Lecturer */}
+                      <div className="space-y-1.5">
+                        <Label htmlFor="newBankName-create" className={dialogLabelClass}>Bank Name <span className="text-red-700">*</span></Label>
+                        <Input id="newBankName-create" value={newBankName} onChange={(e) => setNewBankName(e.target.value)} placeholder="e.g., GCB Bank" disabled={isLoading} className={dialogInputClass} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="newBankBranch-create" className={dialogLabelClass}>Bank Branch <span className="text-red-700">*</span></Label>
+                        <Input id="newBankBranch-create" value={newBankBranch} onChange={(e) => setNewBankBranch(e.target.value)} placeholder="e.g., Winneba Branch" disabled={isLoading} className={dialogInputClass} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="newAccountName-create" className={dialogLabelClass}>Account Name <span className="text-red-700">*</span></Label>
+                        <Input id="newAccountName-create" value={newAccountName} onChange={(e) => setNewAccountName(e.target.value)} placeholder="Name on account" disabled={isLoading} className={dialogInputClass} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="newAccountNumber-create" className={dialogLabelClass}>Account Number <span className="text-red-700">*</span></Label>
+                        <Input id="newAccountNumber-create" value={newAccountNumber} onChange={(e) => setNewAccountNumber(e.target.value)} placeholder="e.g., 1234567890" disabled={isLoading} className={dialogInputClass} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="newPhoneNumber-create" className={dialogLabelClass}>Phone Number <span className="text-red-700">*</span></Label>
+                        <Input id="newPhoneNumber-create" type="tel" value={newPhoneNumber} onChange={(e) => setNewPhoneNumber(e.target.value)} placeholder="e.g., +233241234567" disabled={isLoading} className={dialogInputClass} />
+                      </div>
+                    </>
+                  )}
+                  {newUserRole === 'STAFF_REGISTRY' && (<div className="space-y-1.5"><Label htmlFor="newStaffRegistryAssignedCenterIds-create" className={dialogLabelClass}>Assign Centers (Staff Registry)</Label><CenterMultiSelect selectedIds={newStaffRegistryAssignedCenterIds} onChange={setNewStaffRegistryAssignedCenterIds} disabled={isLoading} /></div>)}
+                  {formError && (<div className={dialogErrorClass}><AlertTriangle className="h-4 w-4 flex-shrink-0"/> {formError}</div>)}
+                </CardContent>
                 <DialogFooter className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
                   <DialogClose asChild><Button type="button" variant="outline" disabled={isLoading} className={`h-10 px-5 text-sm rounded-lg ${focusRingClass}`}>Cancel</Button></DialogClose>
                   <Button type="submit" disabled={isLoading} className={`h-10 px-5 text-sm rounded-lg bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium shadow ${focusRingClass}`}>
@@ -398,7 +499,6 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                           <>
                             <UsersIcon className="h-10 w-10 mb-3" />
                             <p className="font-semibold">No {role.label.toLowerCase()}s exist.</p>
-                            {/* You might add a "Create New User" button here if appropriate for starting a role with no users */}
                           </>
                         )}
                       </div>
@@ -438,6 +538,8 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                               {user.role === 'LECTURER' && user.departmentName && (<div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><UsersIcon className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /> Dept: {user.departmentName}</div>)}
                               {user.role === 'STAFF_REGISTRY' && user.staffRegistryAssignedCenterNames?.length > 0 ? (<div className="flex items-start gap-2 text-slate-600 dark:text-slate-300"><University className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0 mt-0.5" /><p>Assigned Centers: {user.staffRegistryAssignedCenterNames.join(', ')}</p></div>)
                                 : user.role === 'STAFF_REGISTRY' ? (<div className="flex items-start gap-2 text-slate-500 dark:text-slate-400"><University className="h-4 w-4 flex-shrink-0 mt-0.5" /><p>No centers assigned</p></div>) : null}
+                              {user.phoneNumber && <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Phone className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><p>Phone: {user.phoneNumber}</p></div>}
+                              {user.bankName && <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Banknote className="h-4 w-4 text-slate-400 dark:text-slate-500 flex-shrink-0" /><p>Bank: {user.bankName} - {user.accountNumber}</p></div>}
                             </CardContent>
                           </Card>
                         ))}
@@ -460,28 +562,52 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
             <DialogDescription className="text-slate-500 dark:text-slate-400 text-sm">Update user details, role, and assignments.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateUser}>
-            <ScrollArea className="max-h-[calc(80vh-200px)] sm:max-h-[70vh] pr-4 -mr-4">
-              <div className="grid gap-5 py-4">
-                <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md border border-slate-200 dark:border-slate-700">
-                  <Avatar className="h-11 w-11">
-                    <AvatarImage src={actionUser.image || undefined} />
-                    <AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 text-base">{actionUser.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium text-base text-slate-800 dark:text-slate-100">{actionUser.name}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{actionUser.email}</p>
-                  </div>
+            {/* Applied overflow-y-auto directly to CardContent for reliable scrolling */}
+            <CardContent className="grid gap-5 py-4 p-6 sm:p-8 bg-slate-50/50 dark:bg-slate-700/30 overflow-y-auto max-h-[calc(80vh-200px)] sm:max-h-[70vh]">
+              <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md border border-slate-200 dark:border-slate-700">
+                <Avatar className="h-11 w-11">
+                  <AvatarImage src={actionUser.image || undefined} />
+                  <AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 text-base">{actionUser.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-base text-slate-800 dark:text-slate-100">{actionUser.name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{actionUser.email}</p>
                 </div>
-                <div className="space-y-1.5"><Label htmlFor="editUserRole-edit" className={dialogLabelClass}>Role <span className="text-red-700">*</span></Label><Select value={editUserRole} onValueChange={setEditUserRole} disabled={isLoading || actionUser.role === 'REGISTRY'}><SelectTrigger id="editUserRole-edit" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a role" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{ROLES.filter(r => r.value !== 'REGISTRY' || actionUser.role === 'REGISTRY').map(role => <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-1.5"><Label htmlFor="editUserDesignation-edit" className={dialogLabelClass}>Designation</Label><Select value={editUserDesignation} onValueChange={setEditUserDesignation} disabled={isLoading}><SelectTrigger id="editUserDesignation-edit" className={dialogSelectTriggerClass}><SelectValue placeholder="Select designation (optional)" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{DESIGNATIONS.map(des => <SelectItem key={des.value} value={des.value}>{des.label}</SelectItem>)}</SelectContent></Select></div>
-                {editUserRole === 'LECTURER' && (<div className="space-y-1.5"><Label htmlFor="editUserCenterId-edit" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label><Select value={editUserCenterId} onValueChange={setEditUserCenterId} disabled={isLoading}><SelectTrigger id="editUserCenterId-edit" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{centers.length > 0 ? (centers.map((center) => (<SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>))) : (<div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No centers available</div>)}</SelectContent></Select></div>)}
+              </div>
+              <div className="space-y-1.5"><Label htmlFor="editUserRole-edit" className={dialogLabelClass}>Role <span className="text-red-700">*</span></Label><Select value={editUserRole} onValueChange={setEditUserRole} disabled={isLoading || actionUser.role === 'REGISTRY'}><SelectTrigger id="editUserRole-edit" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a role" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{ROLES.filter(r => r.value !== 'REGISTRY' || actionUser.role === 'REGISTRY').map(role => <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-1.5"><Label htmlFor="editUserDesignation-edit" className={dialogLabelClass}>Designation</Label><Select value={editUserDesignation} onValueChange={setEditUserDesignation} disabled={isLoading}><SelectTrigger id="editUserDesignation-edit" className={dialogSelectTriggerClass}><SelectValue placeholder="Select designation (optional)" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{DESIGNATIONS.map(des => <SelectItem key={des.value} value={des.value}>{des.label}</SelectItem>)}</SelectContent></Select></div>
+              {editUserRole === 'LECTURER' && (
+                <>
+                  <div className="space-y-1.5"><Label htmlFor="editUserCenterId-edit" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label><Select value={editUserCenterId} onValueChange={setEditUserCenterId} disabled={isLoading}><SelectTrigger id="editUserCenterId-edit" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger><SelectContent className={dialogSelectContentClass}>{centers.length > 0 ? (centers.map((center) => (<SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>))) : (<div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No centers available</div>)}</SelectContent></Select></div>
+                  {/* Bank Details and Phone Number for Lecturer */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="editBankName-edit" className={dialogLabelClass}>Bank Name <span className="text-red-700">*</span></Label>
+                    <Input id="editBankName-edit" value={editBankName} onChange={(e) => setEditBankName(e.target.value)} placeholder="e.g., GCB Bank" disabled={isLoading} className={dialogInputClass} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="editBankBranch-edit" className={dialogLabelClass}>Bank Branch <span className="text-red-700">*</span></Label>
+                    <Input id="editBankBranch-edit" value={editBankBranch} onChange={(e) => setEditBankBranch(e.target.value)} placeholder="e.g., Winneba Branch" disabled={isLoading} className={dialogInputClass} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="editAccountName-edit" className={dialogLabelClass}>Account Name <span className="text-red-700">*</span></Label>
+                    <Input id="editAccountName-edit" value={editAccountName} onChange={(e) => setEditAccountName(e.target.value)} placeholder="Name on account" disabled={isLoading} className={dialogInputClass} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="editAccountNumber-edit" className={dialogLabelClass}>Account Number <span className="text-red-700">*</span></Label>
+                    <Input id="editAccountNumber-edit" value={editAccountNumber} onChange={(e) => setEditAccountNumber(e.target.value)} placeholder="e.g., 1234567890" disabled={isLoading} className={dialogInputClass} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="editPhoneNumber-edit" className={dialogLabelClass}>Phone Number <span className="text-red-700">*</span></Label>
+                    <Input id="editPhoneNumber-edit" type="tel" value={editPhoneNumber} onChange={(e) => setEditPhoneNumber(e.target.value)} placeholder="e.g., +233241234567" disabled={isLoading} className={dialogInputClass} />
+                  </div>
+                </>
+                )}
                 {editUserRole === 'STAFF_REGISTRY' && (<div className="space-y-1.5"><Label htmlFor="editStaffRegistryAssignedCenterIds-edit" className={dialogLabelClass}>Assigned Centers (Staff Registry)</Label><CenterMultiSelect selectedIds={editStaffRegistryAssignedCenterIds} onChange={setEditStaffRegistryAssignedCenterIds} disabled={isLoading} /></div>)}
                 {formError && (<div className={dialogErrorClass}><AlertTriangle className="h-4 w-4 flex-shrink-0"/> {formError}</div>)}
                 <Button type="button" variant="outline" onClick={() => handleOpenChangePasswordDialog(actionUser)} className={`gap-2 border-blue-600 text-blue-700 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-300 dark:hover:bg-blue-700/30 ${focusRingClass} h-10 px-5 text-sm rounded-lg`} disabled={isLoading}>
                   <KeyRound className="h-4 w-4" />Change Password
                 </Button>
-              </div>
-            </ScrollArea>
+              </CardContent>
             <DialogFooter className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
               <DialogClose asChild><Button type="button" variant="outline" disabled={isLoading} className={`h-10 px-5 text-sm rounded-lg ${focusRingClass}`}>Cancel</Button></DialogClose>
               <Button type="submit" disabled={isLoading} className={`h-10 px-5 text-sm rounded-lg bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium shadow ${focusRingClass}`}>
@@ -492,7 +618,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
         </DialogContent>
       </Dialog>)}
 
-      {actionUser && (<Dialog open={isChangePasswordDialogOpen} onOpenChange={(open) => { if (!open && !isLoading) { resetPasswordForm(); } setIsChangePasswordDialogOpen(open); }}>
+      {actionUser && (<Dialog open={isChangePasswordDialogOpen} onOpenChange={(open) => { if (!open && !isLoading) { resetPasswordChangeForm(); } setIsChangePasswordDialogOpen(open); }}>
         <DialogContent className="sm:max-w-[450px] bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-xl rounded-lg">
           <DialogHeader className="pb-4 pt-2 border-b border-slate-200 dark:border-slate-700">
             <DialogTitle className="flex items-center gap-2 text-xl sm:text-2xl text-blue-800 dark:text-blue-300 font-semibold">
