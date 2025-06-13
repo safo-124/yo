@@ -19,11 +19,14 @@ enum Role {
   STAFF_REGISTRY // New role
 }
 
-enum Designation { // For user designations
+enum Designation {
   ASSISTANT_LECTURER
   LECTURER
   SENIOR_LECTURER
   PROFESSOR
+  // NEW: Administrative and Technical Staff Designations
+  ADMINISTRATIVE_STAFF
+  TECHNICAL_STAFF
   // Add others as needed
 }
 
@@ -66,90 +69,107 @@ enum RequestStatus {
   REJECTED
 }
 
-
 // --- Models ---
 
 model User {
-  id                              String            @id @default(cuid())
-  email                           String            @unique
-  name                            String?
-  password                        String
-  role                            Role
-  designation                     Designation?      // User's academic/professional designation
-  createdAt                       DateTime          @default(now())
-  updatedAt                       DateTime          @updatedAt
-  
-  lecturerCenterId                String?           
-  departmentId                    String?           
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String?
+  password    String
+  role        Role
+  designation Designation? // User's academic/professional designation
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  Center_Center_coordinatorIdToUser Center?           @relation("CenterCoordinator")
-  Center_User_lecturerCenterIdToCenter Center?        @relation("CenterLecturers", fields: [lecturerCenterId], references: [id], onDelete: SetNull)
-  Department                      Department?       @relation("DepartmentLecturers", fields: [departmentId], references: [id], onDelete: SetNull)
-  
-  Claim_Claim_submittedByIdToUser   Claim[]           @relation("LecturerClaims")
-  Claim_Claim_processedByIdToUser   Claim[]           @relation("ProcessorClaims")
-  
-  SupervisedStudent               SupervisedStudent[] @relation("SupervisorStudents")
-  
-  approvedSignupRequest           SignupRequest?    @relation("ApprovedUserRequest", fields: [approvedSignupRequestId], references: [id], onDelete: SetNull)
-  approvedSignupRequestId         String?           @unique 
-  
-  processedSignupRequests         SignupRequest[]   @relation("RegistryProcessor")
+  lecturerCenterId String?
+  departmentId     String?
 
-  staffRegistryCenterAssignments  StaffRegistryCenterAssignment[] @relation("UserToStaffAssignments") // Relation to explicit join table
+  // NEW: Bank Details and Phone Number for Users (specifically lecturers)
+  bankName      String?
+  bankBranch    String?
+  accountName   String?
+  accountNumber String? @unique // Account number might be unique per bank/country, or unique within the system
+  phoneNumber   String?
+
+  Center_Center_coordinatorIdToUser    Center?     @relation("CenterCoordinator")
+  Center_User_lecturerCenterIdToCenter Center?     @relation("CenterLecturers", fields: [lecturerCenterId], references: [id], onDelete: SetNull)
+  Department                           Department? @relation("DepartmentLecturers", fields: [departmentId], references: [id], onDelete: SetNull)
+
+  Claim_Claim_submittedByIdToUser Claim[] @relation("LecturerClaims")
+  Claim_Claim_processedByIdToUser Claim[] @relation("ProcessorClaims")
+
+  SupervisedStudent SupervisedStudent[] @relation("SupervisorStudents")
+
+  approvedSignupRequest   SignupRequest? @relation("ApprovedUserRequest", fields: [approvedSignupRequestId], references: [id], onDelete: SetNull)
+  approvedSignupRequestId String?        @unique
+
+  processedSignupRequests SignupRequest[] @relation("RegistryProcessor")
+
+  staffRegistryCenterAssignments StaffRegistryCenterAssignment[] @relation("UserToStaffAssignments") // Relation to explicit join table
 
   @@index([lecturerCenterId])
   @@index([departmentId])
   @@index([approvedSignupRequestId])
+  @@index([phoneNumber]) // Add index for phone number for faster lookups
 }
 
 model SignupRequest {
-  id                    String        @id @default(cuid())
-  name                  String
-  email                 String        @unique
-  hashedPassword        String
-  requestedRole         Role          
-  requestedCenterId     String?       
-  // requestedDesignation Designation? // Add if designation is part of signup
+  id                String  @id @default(cuid())
+  name              String
+  email             String  @unique
+  hashedPassword    String
+  requestedRole     Role
+  requestedCenterId String?
+
+  // NEW: Bank Details and Phone Number for SignupRequest
+  bankName      String?
+  bankBranch    String?
+  accountName   String?
+  accountNumber String?
+  phoneNumber   String?
+
+  // requestedDesignation             Designation? // Add if designation is part of signup
   status                RequestStatus @default(PENDING)
   submittedAt           DateTime      @default(now())
   processedAt           DateTime?
-  // notes              String?       // Add this field if you want to store processing notes
-  processedByRegistryId String?       
+  // notes                            String?         // Add this field if you want to store processing notes
+  processedByRegistryId String?
   registryProcessor     User?         @relation("RegistryProcessor", fields: [processedByRegistryId], references: [id], onDelete: SetNull)
   approvedUser          User?         @relation("ApprovedUserRequest")
 
   @@index([status])
   @@index([processedByRegistryId])
   @@index([requestedCenterId])
+  @@index([accountNumber]) // Add index for account number
+  @@index([phoneNumber]) // Add index for phone number
 }
 
 model Center {
-  id                         String       @id @default(cuid())
-  name                       String       @unique
-  createdAt                  DateTime     @default(now())
-  updatedAt                  DateTime     @updatedAt
-  
-  coordinatorId              String       @unique 
-  coordinator                User         @relation("CenterCoordinator", fields: [coordinatorId], references: [id])
-  
-  lecturers                  User[]       @relation("CenterLecturers") 
-  departments                Department[] @relation("CenterDepartments")
-  claims                     Claim[]      @relation("CenterClaims")
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  staffRegistryAssignments   StaffRegistryCenterAssignment[]   @relation("CenterToStaffAssignments") // Relation to explicit join table
+  coordinatorId String @unique
+  coordinator   User   @relation("CenterCoordinator", fields: [coordinatorId], references: [id])
+
+  lecturers   User[]       @relation("CenterLecturers")
+  departments Department[] @relation("CenterDepartments")
+  claims      Claim[]      @relation("CenterClaims")
+
+  staffRegistryAssignments StaffRegistryCenterAssignment[] @relation("CenterToStaffAssignments") // Relation to explicit join table
 }
 
 // EXPLICIT JOIN TABLE for StaffRegistry User and Center Assignments
 model StaffRegistryCenterAssignment {
-  id          String   @id @default(cuid()) // Explicit primary key for the join table
-  userId      String
-  centerId    String
-  assignedAt  DateTime @default(now())
+  id         String   @id @default(cuid()) // Explicit primary key for the join table
+  userId     String
+  centerId   String
+  assignedAt DateTime @default(now())
   // assignedByUserId String? // Optional: Link to User (REGISTRY) who made the assignment
 
-  user        User     @relation("UserToStaffAssignments", fields: [userId], references: [id], onDelete: Cascade)
-  center      Center   @relation("CenterToStaffAssignments", fields: [centerId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserToStaffAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  center Center @relation("CenterToStaffAssignments", fields: [centerId], references: [id], onDelete: Cascade)
 
   @@unique([userId, centerId]) // Ensure a user isn't assigned to the same center multiple times
   @@index([userId])
@@ -157,45 +177,45 @@ model StaffRegistryCenterAssignment {
 }
 
 model Department {
-  id          String   @id @default(cuid())
-  name        String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  centerId    String
-  center      Center   @relation("CenterDepartments", fields: [centerId], references: [id], onDelete: Cascade)
-  lecturers   User[]   @relation("DepartmentLecturers")
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  centerId  String
+  center    Center   @relation("CenterDepartments", fields: [centerId], references: [id], onDelete: Cascade)
+  lecturers User[]   @relation("DepartmentLecturers")
 
   @@unique([name, centerId])
   @@index([centerId])
 }
 
 model Claim {
-  id                       String            @id @default(cuid())
-  claimType                ClaimType
-  status                   ClaimStatus       @default(PENDING)
-  submittedAt              DateTime          @default(now())
-  updatedAt                DateTime          @updatedAt
-  processedAt              DateTime?
-  submittedById            String            
-  centerId                 String            
-  processedById            String?           
+  id            String      @id @default(cuid())
+  claimType     ClaimType
+  status        ClaimStatus @default(PENDING)
+  submittedAt   DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  processedAt   DateTime?
+  submittedById String
+  centerId      String
+  processedById String?
 
   // Teaching fields
-  teachingDate             DateTime?
-  teachingStartTime        String?           
-  teachingEndTime          String?           
-  teachingHours            Float?            
-  courseTitle              String?           
-  courseCode               String?           
+  teachingDate      DateTime?
+  teachingStartTime String?
+  teachingEndTime   String?
+  teachingHours     Float?
+  courseTitle       String?
+  courseCode        String?
 
   // Transportation details specific to a Teaching Claim
-  transportToTeachingInDate      DateTime?
-  transportToTeachingFrom        String?
-  transportToTeachingTo          String?
-  transportToTeachingOutDate     DateTime?
-  transportToTeachingReturnFrom  String?
-  transportToTeachingReturnTo    String?
-  transportToTeachingDistanceKM  Float?    
+  transportToTeachingInDate     DateTime?
+  transportToTeachingFrom       String?
+  transportToTeachingTo         String?
+  transportToTeachingOutDate    DateTime?
+  transportToTeachingReturnFrom String?
+  transportToTeachingReturnTo   String?
+  transportToTeachingDistanceKM Float?
 
   // General Transportation fields
   transportType            TransportType?
@@ -206,16 +226,16 @@ model Claim {
   transportAmount          Float?
 
   // Thesis/Project fields
-  thesisType               ThesisType?
-  thesisSupervisionRank    SupervisionRank?
-  thesisExamCourseCode     String?
-  thesisExamDate           DateTime?
+  thesisType            ThesisType?
+  thesisSupervisionRank SupervisionRank?
+  thesisExamCourseCode  String?
+  thesisExamDate        DateTime?
 
   // Relations
-  submittedBy              User              @relation("LecturerClaims", fields: [submittedById], references: [id], onDelete: Cascade)
-  center                   Center            @relation("CenterClaims", fields: [centerId], references: [id], onDelete: Cascade)
-  processedBy              User?             @relation("ProcessorClaims", fields: [processedById], references: [id], onDelete: SetNull)
-  supervisedStudents       SupervisedStudent[] @relation("ClaimStudents")
+  submittedBy        User                @relation("LecturerClaims", fields: [submittedById], references: [id], onDelete: Cascade)
+  center             Center              @relation("CenterClaims", fields: [centerId], references: [id], onDelete: Cascade)
+  processedBy        User?               @relation("ProcessorClaims", fields: [processedById], references: [id], onDelete: SetNull)
+  supervisedStudents SupervisedStudent[] @relation("ClaimStudents")
 
   @@index([submittedById])
   @@index([centerId])
@@ -228,11 +248,11 @@ model SupervisedStudent {
   id           String @id @default(cuid())
   studentName  String
   thesisTitle  String
-  claimId      String   
-  supervisorId String   
-  
-  claim        Claim  @relation("ClaimStudents", fields: [claimId], references: [id], onDelete: Cascade)
-  supervisor   User   @relation("SupervisorStudents", fields: [supervisorId], references: [id], onDelete: Cascade)
+  claimId      String
+  supervisorId String
+
+  claim      Claim @relation("ClaimStudents", fields: [claimId], references: [id], onDelete: Cascade)
+  supervisor User  @relation("SupervisorStudents", fields: [supervisorId], references: [id], onDelete: Cascade)
 
   @@index([claimId])
   @@index([supervisorId])

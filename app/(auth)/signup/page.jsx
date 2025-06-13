@@ -26,8 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { requestSignup } from '@/lib/actions/auth.actions'; 
-import { getPublicCenters } from '@/lib/actions/registry.actions.js'; 
+import { requestSignup } from '@/lib/actions/auth.actions';
+import { getPublicCenters } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import Image from 'next/image';
@@ -37,29 +37,88 @@ const focusRingClass = "focus-visible:ring-2 focus-visible:ring-offset-2 focus-v
 const errorBorderClass = "border-red-500 dark:border-red-600 focus-visible:ring-red-500";
 const normalBorderClass = "border-slate-300 dark:border-slate-700"; // Adjusted dark border
 
+// Updated Zod Schema to include bank details and phone number
 const signupRequestSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(100),
   email: z.string().email("Invalid email address."),
   password: z.string().min(6, "Password must be at least 6 characters."),
   confirmPassword: z.string().min(6),
-  role: z.enum(["COORDINATOR", "LECTURER", "STAFF_REGISTRY"], { 
+  role: z.enum(["COORDINATOR", "LECTURER", "STAFF_REGISTRY"], {
     required_error: "Please select a role.",
     invalid_type_error: "Please select a valid role.",
   }),
   requestedCenterId: z.string().optional(),
   isCentersAvailable: z.boolean().optional(),
+  // New fields
+  bankName: z.string().optional(),
+  bankBranch: z.string().optional(),
+  accountName: z.string().optional(),
+  accountNumber: z.string().optional(),
+  phoneNumber: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match.",
   path: ["confirmPassword"],
 }).superRefine((data, ctx) => {
-    if (data.role === "LECTURER" && data.isCentersAvailable && !data.requestedCenterId) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Please select a center for the lecturer role.",
-            path: ["requestedCenterId"],
-        });
+  // Conditional validation for Lecturer role's requestedCenterId
+  if (data.role === "LECTURER") {
+    if (data.isCentersAvailable && !data.requestedCenterId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please select a center for the lecturer role.",
+        path: ["requestedCenterId"],
+      });
     }
+    // Conditional validation for bank details and phone number for Lecturers
+    if (!data.bankName?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Bank name is required for lecturers.",
+        path: ["bankName"],
+      });
+    }
+    if (!data.bankBranch?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Bank branch is required for lecturers.",
+        path: ["bankBranch"],
+      });
+    }
+    if (!data.accountName?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Account name is required for lecturers.",
+        path: ["accountName"],
+      });
+    }
+    if (!data.accountNumber?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Account number is required for lecturers.",
+        path: ["accountNumber"],
+      });
+    } else if (!/^\d+$/.test(data.accountNumber.trim())) { // Example simple numeric validation
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Account number must be numeric.",
+        path: ["accountNumber"],
+      });
+    }
+    if (!data.phoneNumber?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Phone number is required for lecturers.",
+        path: ["phoneNumber"],
+      });
+    } else if (!/^\+?\d{10,15}$/.test(data.phoneNumber.trim())) { // Example phone number format validation
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Invalid phone number format.",
+        path: ["phoneNumber"],
+      });
+    }
+  }
 });
+
 
 export default function SignupRequestPage() {
   const router = useRouter();
@@ -72,6 +131,7 @@ export default function SignupRequestPage() {
     defaultValues: {
       name: "", email: "", password: "", confirmPassword: "",
       role: undefined, requestedCenterId: "",
+      bankName: "", bankBranch: "", accountName: "", accountNumber: "", phoneNumber: "", // New default values
     },
   });
 
@@ -83,39 +143,57 @@ export default function SignupRequestPage() {
         const result = await getPublicCenters();
         if (result.success) {
           setAvailableCenters(result.centers || []);
+          // Set isCentersAvailable in form state for conditional validation
+          form.setValue("isCentersAvailable", (result.centers || []).length > 0, { shouldValidate: true });
         } else {
           setFetchCentersError(result.error || "Could not load centers list.");
           toast.error("Could not load centers list. You may proceed without selecting if applying as Lecturer and no centers are listed.");
+          form.setValue("isCentersAvailable", false, { shouldValidate: true });
         }
       } catch (error) {
         setFetchCentersError("Failed to fetch centers. Check connection.");
         toast.error("Failed to fetch centers. Please check connection or try again.");
+        form.setValue("isCentersAvailable", false, { shouldValidate: true });
       }
     };
     fetchCenters();
-  }, []);
+  }, [form]);
 
   const onSubmit = async (data) => {
     setIsLoading(true);
+    // Perform Zod validation manually, passing isCentersAvailable from state
     const validationResult = signupRequestSchema.safeParse({
-        ...data, isCentersAvailable: availableCenters.length > 0
+      ...data,
+      isCentersAvailable: availableCenters.length > 0,
     });
 
     if (!validationResult.success) {
-        validationResult.error.errors.forEach(err => {
-            form.setError(err.path.join('.'), { type: "manual", message: err.message });
-        });
-        if (validationResult.error.errors.length > 0) {
-            toast.error(validationResult.error.errors[0].message);
-        }
-        setIsLoading(false); return;
+      validationResult.error.errors.forEach(err => {
+        form.setError(err.path.join('.'), { type: "manual", message: err.message });
+      });
+      if (validationResult.error.errors.length > 0) {
+        toast.error(validationResult.error.errors[0].message);
+      }
+      setIsLoading(false); return;
     }
+
     const validatedData = validationResult.data;
+
+    // Prepare signupData to pass to server action, including new fields
     const signupData = {
-      name: validatedData.name, email: validatedData.email, password: validatedData.password,
+      name: validatedData.name,
+      email: validatedData.email,
+      password: validatedData.password,
       role: validatedData.role,
       requestedCenterId: validatedData.role === 'LECTURER' ? validatedData.requestedCenterId || null : null,
+      // Pass new fields if role is Lecturer
+      bankName: validatedData.role === 'LECTURER' ? validatedData.bankName?.trim() || null : null,
+      bankBranch: validatedData.role === 'LECTURER' ? validatedData.bankBranch?.trim() || null : null,
+      accountName: validatedData.role === 'LECTURER' ? validatedData.accountName?.trim() || null : null,
+      accountNumber: validatedData.role === 'LECTURER' ? validatedData.accountNumber?.trim() || null : null,
+      phoneNumber: validatedData.role === 'LECTURER' ? validatedData.phoneNumber?.trim() || null : null,
     };
+
     const result = await requestSignup(signupData);
     setIsLoading(false);
     if (result.success) {
@@ -125,13 +203,13 @@ export default function SignupRequestPage() {
     } else {
       toast.error(result.error || "Signup request failed.");
       if (result.error?.toLowerCase().includes("email")) {
-          form.setError("email", { type: "manual", message: result.error });
+        form.setError("email", { type: "manual", message: result.error });
       } else {
-          form.setError("root.serverError", { type: "manual", message: result.error });
+        form.setError("root.serverError", { type: "manual", message: result.error });
       }
     }
   };
-  
+
   const onError = (errors) => {
     console.error("Signup Form Validation Errors:", errors);
     for (const key in errors) {
@@ -141,13 +219,13 @@ export default function SignupRequestPage() {
 
   const inputClasses = (fieldName) =>
     `h-10 text-sm bg-white dark:bg-slate-700/80 text-slate-900 dark:text-slate-50 placeholder-slate-400 dark:placeholder-slate-500 ${focusRingClass} ${form.formState.errors[fieldName] ? errorBorderClass : normalBorderClass}`;
-  
-  const selectTriggerClasses = (fieldName) => 
+
+  const selectTriggerClasses = (fieldName) =>
     `h-10 text-sm bg-white dark:bg-slate-700/80 text-slate-900 dark:text-slate-50 data-[placeholder]:text-slate-500 dark:data-[placeholder]:text-slate-400 ${focusRingClass} ${form.formState.errors[fieldName] ? errorBorderClass : normalBorderClass}`;
 
   return (
-    <div className={`flex flex-col items-center justify-center min-h-screen p-4 selection:bg-violet-500 selection:text-white 
-                     bg-gradient-to-br from-red-500 via-purple-500 to-blue-500 
+    <div className={`flex flex-col items-center justify-center min-h-screen p-4 selection:bg-violet-500 selection:text-white
+                     bg-gradient-to-br from-red-500 via-purple-500 to-blue-500
                      dark:from-red-800 dark:via-purple-800 dark:to-blue-800`}>
       <Card className="w-full max-w-md sm:max-w-lg shadow-2xl rounded-xl overflow-hidden bg-white dark:bg-slate-800 border border-slate-200/30 dark:border-slate-700/50">
         <CardHeader className="text-center p-6 sm:p-8 bg-white dark:bg-slate-800">
@@ -206,39 +284,71 @@ export default function SignupRequestPage() {
               {form.formState.errors.role && <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.role.message}</p>}
             </div>
 
+            {/* Conditional fields for LECTURER role: Center, Bank Details, Phone Number */}
             {watchRole === "LECTURER" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="requestedCenterId" className="text-slate-700 dark:text-slate-200">Requested Center {availableCenters.length > 0 ? <span className="text-red-500">*</span> : "(Optional for now)"}</Label>
-                <Controller
-                  name="requestedCenterId"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value || ""} disabled={isLoading || !!fetchCentersError || availableCenters.length === 0}>
-                      <SelectTrigger id="requestedCenterId" className={selectTriggerClasses("requestedCenterId")}>
-                        <SelectValue placeholder={fetchCentersError ? "Error loading centers" : (availableCenters.length === 0 ? "No centers listed" : "Select your center")} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white dark:bg-slate-800 dark:text-white max-h-48">
-                        {availableCenters.length > 0 &&
-                          availableCenters.map((center) => (
-                            <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {form.formState.errors.requestedCenterId && <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.requestedCenterId.message}</p>}
-              </div>
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="requestedCenterId" className="text-slate-700 dark:text-slate-200">Requested Center {availableCenters.length > 0 ? <span className="text-red-500">*</span> : "(Optional for now)"}</Label>
+                  <Controller
+                    name="requestedCenterId"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={isLoading || !!fetchCentersError || availableCenters.length === 0}>
+                        <SelectTrigger id="requestedCenterId" className={selectTriggerClasses("requestedCenterId")}>
+                          <SelectValue placeholder={fetchCentersError ? "Error loading centers" : (availableCenters.length === 0 ? "No centers listed" : "Select your center")} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-slate-800 dark:text-white max-h-48">
+                          {availableCenters.length > 0 &&
+                            availableCenters.map((center) => (
+                              <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {form.formState.errors.requestedCenterId && <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.requestedCenterId.message}</p>}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="bankName" className="text-slate-700 dark:text-slate-200">Bank Name <span className="text-red-500">*</span></Label>
+                        <Input id="bankName" {...form.register("bankName")} disabled={isLoading} className={inputClasses("bankName")} placeholder="e.g., GCB Bank"/>
+                        {form.formState.errors.bankName && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.bankName.message}</p>}
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="bankBranch" className="text-slate-700 dark:text-slate-200">Bank Branch <span className="text-red-500">*</span></Label>
+                        <Input id="bankBranch" {...form.register("bankBranch")} disabled={isLoading} className={inputClasses("bankBranch")} placeholder="e.g., Winneba Branch"/>
+                        {form.formState.errors.bankBranch && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.bankBranch.message}</p>}
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="accountName" className="text-slate-700 dark:text-slate-200">Account Name <span className="text-red-500">*</span></Label>
+                        <Input id="accountName" {...form.register("accountName")} disabled={isLoading} className={inputClasses("accountName")} placeholder="Name on account"/>
+                        {form.formState.errors.accountName && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.accountName.message}</p>}
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="accountNumber" className="text-slate-700 dark:text-slate-200">Account Number <span className="text-red-500">*</span></Label>
+                        <Input id="accountNumber" {...form.register("accountNumber")} disabled={isLoading} className={inputClasses("accountNumber")} placeholder="e.g., 1234567890"/>
+                        {form.formState.errors.accountNumber && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.accountNumber.message}</p>}
+                    </div>
+                </div>
+                <div className="space-y-1.5">
+                    <Label htmlFor="phoneNumber" className="text-slate-700 dark:text-slate-200">Phone Number <span className="text-red-500">*</span></Label>
+                    <Input id="phoneNumber" type="tel" {...form.register("phoneNumber")} disabled={isLoading} className={inputClasses("phoneNumber")} placeholder="e.g., +233241234567"/>
+                    {form.formState.errors.phoneNumber && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.phoneNumber.message}</p>}
+                </div>
+              </>
             )}
+
             {form.formState.errors.root?.serverError && <p className="text-sm text-red-600 dark:text-red-400 text-center bg-red-100 dark:bg-red-900/40 p-3 rounded-md flex items-center gap-2 justify-center"><AlertCircle className="h-4 w-4"/>{form.formState.errors.root.serverError.message}</p>}
           </CardContent>
           <CardFooter className="flex flex-col gap-4 p-6 sm:p-8 bg-slate-100 dark:bg-slate-700/60 border-t dark:border-slate-700">
             <Button type="submit" className={`w-full text-white transition-all duration-300 ease-in-out transform hover:scale-[1.02] rounded-lg h-11 text-base font-semibold
-                                             bg-gradient-to-r from-blue-600 via-violet-600 to-red-600 
+                                             bg-gradient-to-r from-blue-600 via-violet-600 to-red-600
                                              hover:from-blue-700 hover:via-violet-700 hover:to-red-700
                                              dark:from-blue-500 dark:via-violet-500 dark:to-red-500
                                              dark:hover:from-blue-600 dark:hover:via-violet-600 dark:hover:to-red-600
-                                             disabled:opacity-70 ${focusRingClass}`} 
-                    disabled={isLoading}>
+                                             disabled:opacity-70 ${focusRingClass}`}
+                      disabled={isLoading}>
               <UserPlus className="mr-2 h-5 w-5" />
               {isLoading ? "Submitting Request..." : "Request Account"}
             </Button>
