@@ -1,7 +1,8 @@
 // app/(dashboard)/registry/courses/page.jsx
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/actions/auth.actions';
-import { getPrograms, getDepartments, getCourses, getLecturersForAssignment } from '@/lib/actions/registry.actions'; // Import all necessary actions
+// Import getCenters here
+import { getPrograms, getDepartments, getCourses, getLecturersForAssignment, getCenters } from '@/lib/actions/registry.actions'; // Import all necessary actions, including getCenters
 import {
   Alert, AlertDescription, AlertTitle
 } from "@/components/ui/alert";
@@ -19,21 +20,23 @@ export default async function RegistryCoursesPage() {
     redirect(session ? '/unauthorized' : '/login');
   }
 
-  // Fetch all initial data in parallel
-  const [programsResult, departmentsResult, coursesResult, lecturersResult] = await Promise.all([
-    getPrograms(),             // Fetches all programs
-    getDepartments(),           // Fetches all departments
-    getCourses(),               // Fetches all courses
-    getLecturersForAssignment() // Fetches all lecturers for assignment dropdowns
+  // Fetch all initial data in parallel, including centers
+  const [programsResult, departmentsResult, coursesResult, lecturersResult, centersResult] = await Promise.all([
+    getPrograms(),
+    getDepartments(),
+    getCourses(),
+    getLecturersForAssignment(),
+    getCenters() // Fetch centers here
   ]);
 
   // Handle data fetching errors
-  if (!programsResult.success || !departmentsResult.success || !coursesResult.success || !lecturersResult.success) {
+  if (!programsResult.success || !departmentsResult.success || !coursesResult.success || !lecturersResult.success || !centersResult.success) { // Include centersResult in error check
     const errorMsg =
       programsResult.error ||
       departmentsResult.error ||
       coursesResult.error ||
       lecturersResult.error ||
+      centersResult.error || // Include centersResult error
       "Could not load necessary data for managing courses and programs.";
     return (
       <div className="w-full py-6 px-4 flex flex-col items-center justify-center min-h-[calc(100vh-64px)]">
@@ -80,8 +83,9 @@ export default async function RegistryCoursesPage() {
       <ManageCoursesTab
         initialPrograms={programsResult.programs || []}
         initialDepartments={departmentsResult.departments || []}
-        initialCourses={coursesResult.courses || []} // Pass initial courses
-        initialLecturers={lecturersResult.lecturers || []} // Pass initial lecturers
+        initialCourses={coursesResult.courses || []}
+        initialLecturers={lecturersResult.lecturers || []}
+        initialCenters={centersResult.centers || []} // Pass initial centers here
       />
 
       <Toaster richColors position="top-right" theme="light" />
