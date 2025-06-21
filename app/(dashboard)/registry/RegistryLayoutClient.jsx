@@ -25,6 +25,7 @@ export default function RegistryLayoutClient({ session, children }) {
     { name: 'Manage Centers', href: '/registry/centers', icon: Building },
     { name: 'System Claims', href: '/registry/claims', icon: FileText },
     { name: 'Summaries', href: '/registry/summaries', icon: ClipboardList },
+    { name: 'Courses', href: '/registry/courses', icon: ClipboardList },
     { name: 'Signup Requests', href: '/registry/requests', icon: UserCheckIcon },
   ];
 
