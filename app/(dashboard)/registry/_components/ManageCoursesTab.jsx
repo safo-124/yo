@@ -465,9 +465,9 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                 return;
             }
             if (coursesToSend.length === 0) {
-                 setFormError("No valid course records found after parsing and client-side validation.");
-                 setIsLoadingForm(false);
-                 return;
+                setFormError("No valid course records found after parsing and client-side validation.");
+                setIsLoadingForm(false);
+                return;
             }
 
 
@@ -490,337 +490,337 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
             }
 
          };
-         reader.readAsArrayBuffer(excelFile);
+        reader.readAsArrayBuffer(excelFile);
 
-     } catch (error) {
-         console.error("Client: Bulk upload error:", error);
-         setFormError(`Error processing file: ${error.message}`);
-         toast.error(`Error processing file: ${error.message}`);
-     } finally {
-         setIsLoadingForm(false);
-     }
-   };
+      } catch (error) {
+        console.error("Client: Bulk upload error:", error);
+        setFormError(`Error processing file: ${error.message}`);
+        toast.error(`Error processing file: ${error.message}`);
+      } finally {
+        setIsLoadingForm(false);
+      }
+    };
 
-   // Handler for assigning courses to lecturers
-   const handleAssignCourses = async (event) => {
-     event.preventDefault();
-     setFormError('');
-     if (selectedCoursesForAssignment.length === 0 || !selectedLecturerForAssignment) {
-       setFormError("Please select at least one course and a lecturer for assignment."); return;
-     }
-     setIsLoadingForm(true);
-     const result = await assignCoursesToLecturers({
-       courseIds: selectedCoursesForAssignment,
-       lecturerId: selectedLecturerForAssignment,
-     });
-     setIsLoadingForm(false);
+    // Handler for assigning courses to lecturers
+    const handleAssignCourses = async (event) => {
+      event.preventDefault();
+      setFormError('');
+      if (selectedCoursesForAssignment.length === 0 || !selectedLecturerForAssignment) {
+        setFormError("Please select at least one course and a lecturer for assignment."); return;
+      }
+      setIsLoadingForm(true);
+      const result = await assignCoursesToLecturers({
+        courseIds: selectedCoursesForAssignment,
+        lecturerId: selectedLecturerForAssignment,
+      });
+      setIsLoadingForm(false);
 
-     if (result.success) {
-       toast.success(result.message || "Courses assigned successfully!");
-       const refetchResult = await getCourses();
-       if(refetchResult.success) {
+      if (result.success) {
+        toast.success(result.message || "Courses assigned successfully!");
+        const refetchResult = await getCourses();
+        if(refetchResult.success) {
          setCourses(refetchResult.courses);
-       } else {
+        } else {
          toast.error("Failed to re-fetch courses after assignment.");
-       }
-       setIsAssignCoursesDialogOpen(false);
-       setSelectedCoursesForAssignment([]);
-       setSelectedLecturerForAssignment('');
-     } else {
-       setFormError(result.error || "Failed to assign courses.");
-       toast.error(result.error || "Failed to assign courses.");
-     }
-   };
+        }
+        setIsAssignCoursesDialogOpen(false);
+        setSelectedCoursesForAssignment([]);
+        setSelectedLecturerForAssignment('');
+      } else {
+        setFormError(result.error || "Failed to assign courses.");
+        toast.error(result.error || "Failed to assign courses.");
+      }
+    };
 
-   const clearSearch = () => setSearchQuery('');
+    const clearSearch = () => setSearchQuery('');
 
-   return (
-     <Card className="bg-white dark:bg-slate-800/90 shadow-xl border-slate-200 dark:border-slate-700/80 rounded-lg p-4 sm:p-6 lg:p-8">
-       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-         {/* Search bar */}
-         <div className="relative flex-grow sm:max-w-xs">
-           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-slate-400 dark:text-slate-500" /></div>
-           <Input id="search-programs-courses" type="text" placeholder={`Search ${activeTab === 'programs' ? 'programs' : activeTab === 'courses' ? 'courses' : 'departments'}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-11 pr-10 w-full ${dialogInputClass}`} />
-           {searchQuery && (<Button variant="ghost" size="sm" className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 h-full" onClick={clearSearch}><XCircle className="h-4 w-4" /><span className="sr-only">Clear search</span></Button>)}
-         </div>
-         {/* Add New buttons */}
-         <div className="flex gap-2 flex-wrap justify-end">
-           {/* Add Department Dialog/Button */}
-           <Dialog open={isDepartmentDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetDepartmentForm(); } setIsDepartmentDialogOpen(open); }}>
-             <DialogTrigger asChild>
-               <Button className="bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
-                 <PlusCircle className="mr-2 h-4 w-4" /><span>New Department</span>
-               </Button>
-             </DialogTrigger>
-             <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                 <DialogTitle className="flex items-center gap-2"><Building2 className="h-5 w-5 text-blue-700" /> Create New Department</DialogTitle>
-                 <DialogDescription>Add a new academic department and assign it to a center.</DialogDescription>
-               </DialogHeader>
-               <form onSubmit={handleCreateDepartment}>
-                 <div className="grid gap-4 py-4">
-                   <div className="space-y-1.5">
-                     <Label htmlFor="departmentName" className={dialogLabelClass}>Department Name <span className="text-red-700">*</span></Label>
-                     <Input id="departmentName" value={newDepartmentName} onChange={(e) => setNewDepartmentName(e.target.value)} placeholder="e.g., Department of Computer Science" disabled={isLoadingForm} className={dialogInputClass} />
-                   </div>
-                   {/* Re-introduced the 'Assign to Center' dropdown */}
-                   <div className="space-y-1.5">
-                     <Label htmlFor="departmentCenterId" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label>
-                     <Select value={newDepartmentCenterId} onValueChange={setNewDepartmentCenterId} disabled={isLoadingForm || centers.length === 0}>
-                       <SelectTrigger id="departmentCenterId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger>
-                       <SelectContent className={dialogSelectContentClass}>
-                         {centers.length > 0 ? centers.map(center => (
-                           <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
-                         )) : <div className="px-3 py-2 text-sm text-slate-500">No centers found.</div>}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                   {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
-                 </div>
-                 <DialogFooter>
-                   <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
-                   <Button type="submit" disabled={isLoadingForm}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Create Department</Button>
-                 </DialogFooter>
-               </form>
-             </DialogContent>
-           </Dialog>
+    return (
+      <Card className="bg-white dark:bg-slate-800/90 shadow-xl border-slate-200 dark:border-slate-700/80 rounded-lg p-4 sm:p-6 lg:p-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          {/* Search bar */}
+          <div className="relative flex-grow sm:max-w-xs">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-slate-400 dark:text-slate-500" /></div>
+            <Input id="search-programs-courses" type="text" placeholder={`Search ${activeTab === 'programs' ? 'programs' : activeTab === 'courses' ? 'courses' : 'departments'}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-11 pr-10 w-full ${dialogInputClass}`} />
+            {searchQuery && (<Button variant="ghost" size="sm" className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 h-full" onClick={clearSearch}><XCircle className="h-4 w-4" /><span className="sr-only">Clear search</span></Button>)}
+          </div>
+          {/* Add New buttons */}
+          <div className="flex gap-2 flex-wrap justify-end">
+            {/* Add Department Dialog/Button */}
+            <Dialog open={isDepartmentDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetDepartmentForm(); } setIsDepartmentDialogOpen(open); }}>
+              <DialogTrigger asChild>
+                <Button className="bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
+                  <PlusCircle className="mr-2 h-4 w-4" /><span>New Department</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><Building2 className="h-5 w-5 text-blue-700" /> Create New Department</DialogTitle>
+                  <DialogDescription>Add a new academic department and assign it to a center.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateDepartment}>
+                  <div className="grid gap-4 py-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="departmentName" className={dialogLabelClass}>Department Name <span className="text-red-700">*</span></Label>
+                      <Input id="departmentName" value={newDepartmentName} onChange={(e) => setNewDepartmentName(e.target.value)} placeholder="e.g., Department of Computer Science" disabled={isLoadingForm} className={dialogInputClass} />
+                    </div>
+                    {/* Re-introduced the 'Assign to Center' dropdown */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="departmentCenterId" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label>
+                      <Select value={newDepartmentCenterId} onValueChange={setNewDepartmentCenterId} disabled={isLoadingForm || centers.length === 0}>
+                        <SelectTrigger id="departmentCenterId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger>
+                        <SelectContent className={dialogSelectContentClass}>
+                          {centers.length > 0 ? centers.map(center => (
+                            <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
+                          )) : <div className="px-3 py-2 text-sm text-slate-500">No centers found.</div>}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
+                    <Button type="submit" disabled={isLoadingForm}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Create Department</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
 
-           {/* Add Program Dialog/Button */}
-           <Dialog open={isProgramDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetProgramForm(); } setIsProgramDialogOpen(open); }}>
-             <DialogTrigger asChild>
-               <Button className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
-                 <PlusCircle className="mr-2 h-4 w-4" /><span>New Program</span>
-               </Button>
-             </DialogTrigger>
-             <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                 <DialogTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-violet-700" /> Create New Program</DialogTitle>
-                 <DialogDescription>Add a new academic program to the system.</DialogDescription>
-               </DialogHeader>
-               <form onSubmit={handleCreateProgram}>
-                 <div className="grid gap-4 py-4">
-                   <div className="space-y-1.5">
-                     <Label htmlFor="programCode" className={dialogLabelClass}>Program Code <span className="text-red-700">*</span></Label>
-                     <Input id="programCode" value={newProgramCode} onChange={(e) => setNewProgramCode(e.target.value)} placeholder="e.g., BSc-CS" disabled={isLoadingForm} className={dialogInputClass} />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label htmlFor="programTitle" className={dialogLabelClass}>Program Title <span className="text-red-700">*</span></Label>
-                     <Input id="programTitle" value={newProgramTitle} onChange={(e) => setNewProgramTitle(e.target.value)} placeholder="e.g., Bachelor of Science in Computer Science" disabled={isLoadingForm} className={dialogInputClass} />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label htmlFor="programCategory" className={dialogLabelClass}>Program Category <span className="text-red-700">*</span></Label>
-                     <Select value={newProgramCategory} onValueChange={setNewProgramCategory} disabled={isLoadingForm}>
-                       <SelectTrigger id="programCategory" className={dialogSelectTriggerClass}><SelectValue placeholder="Select category" /></SelectTrigger>
-                       <SelectContent className={dialogSelectContentClass}>
-                         {PROGRAM_CATEGORIES.map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label htmlFor="programDepartmentId" className={dialogLabelClass}>Department <span className="text-red-700">*</span></Label>
-                     <Select value={newProgramDepartmentId} onValueChange={setNewProgramDepartmentId} disabled={isLoadingForm || departments.length === 0}>
-                       <SelectTrigger id="programDepartmentId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select department" /></SelectTrigger>
-                       <SelectContent className={dialogSelectContentClass}>
-                         {departments.length > 0 ? departments.map(dept => (
-                           <SelectItem key={dept.id} value={dept.id}>{dept.name} ({dept.centerName})</SelectItem>
-                         )) : <div className="px-3 py-2 text-sm text-slate-500">No departments found.</div>}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                   {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
-                 </div>
-                 <DialogFooter>
-                   <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
-                   <Button type="submit" disabled={isLoadingForm}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Create Program</Button>
-                 </DialogFooter>
-               </form>
-             </DialogContent>
-           </Dialog>
+            {/* Add Program Dialog/Button */}
+            <Dialog open={isProgramDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetProgramForm(); } setIsProgramDialogOpen(open); }}>
+              <DialogTrigger asChild>
+                <Button className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
+                  <PlusCircle className="mr-2 h-4 w-4" /><span>New Program</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-violet-700" /> Create New Program</DialogTitle>
+                  <DialogDescription>Add a new academic program to the system.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateProgram}>
+                  <div className="grid gap-4 py-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="programCode" className={dialogLabelClass}>Program Code <span className="text-red-700">*</span></Label>
+                      <Input id="programCode" value={newProgramCode} onChange={(e) => setNewProgramCode(e.target.value)} placeholder="e.g., BSc-CS" disabled={isLoadingForm} className={dialogInputClass} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="programTitle" className={dialogLabelClass}>Program Title <span className="text-red-700">*</span></Label>
+                      <Input id="programTitle" value={newProgramTitle} onChange={(e) => setNewProgramTitle(e.target.value)} placeholder="e.g., Bachelor of Science in Computer Science" disabled={isLoadingForm} className={dialogInputClass} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="programCategory" className={dialogLabelClass}>Program Category <span className="text-red-700">*</span></Label>
+                      <Select value={newProgramCategory} onValueChange={setNewProgramCategory} disabled={isLoadingForm}>
+                        <SelectTrigger id="programCategory" className={dialogSelectTriggerClass}><SelectValue placeholder="Select category" /></SelectTrigger>
+                        <SelectContent className={dialogSelectContentClass}>
+                          {PROGRAM_CATEGORIES.map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="programDepartmentId" className={dialogLabelClass}>Department <span className="text-red-700">*</span></Label>
+                      <Select value={newProgramDepartmentId} onValueChange={setNewProgramDepartmentId} disabled={isLoadingForm || departments.length === 0}>
+                        <SelectTrigger id="programDepartmentId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select department" /></SelectTrigger>
+                        <SelectContent className={dialogSelectContentClass}>
+                          {departments.length > 0 ? departments.map(dept => (
+                            <SelectItem key={dept.id} value={dept.id}>{dept.name} ({dept.centerName})</SelectItem>
+                          )) : <div className="px-3 py-2 text-sm text-slate-500">No departments found.</div>}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
+                    <Button type="submit" disabled={isLoadingForm}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Create Program</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
 
-           {/* Add Course Dialog/Button */}
-           <Dialog open={isCourseDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetCourseForm(); } setIsCourseDialogOpen(open); }}>
-             <DialogTrigger asChild>
-               <Button className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
-                 <PlusCircle className="mr-2 h-4 w-4" /><span>New Course</span>
-               </Button>
-             </DialogTrigger>
-             <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                 <DialogTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-violet-700" /> Create New Course</DialogTitle>
-                 <DialogDescription>Add a new course to an existing program.</DialogDescription>
-               </DialogHeader>
-               <form onSubmit={handleCreateCourse}>
-                 <div className="grid gap-4 py-4">
-                   <div className="space-y-1.5">
-                     <Label htmlFor="courseCode" className={dialogLabelClass}>Course Code <span className="text-red-700">*</span></Label>
-                     <Input id="courseCode" value={newCourseCode} onChange={(e) => setNewCourseCode(e.target.value)} placeholder="e.g., CSCD101" disabled={isLoadingForm} className={dialogInputClass} />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label htmlFor="courseTitle" className={dialogLabelClass}>Course Title <span className="text-red-700">*</span></Label>
-                     <Input id="courseTitle" value={newCourseTitle} onChange={(e) => setNewCourseTitle(e.target.value)} placeholder="e.g., Introduction to Programming" disabled={isLoadingForm} className={dialogInputClass} />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label htmlFor="creditHours" className={dialogLabelClass}>Credit Hours <span className="text-red-700">*</span></Label>
-                     <Input id="creditHours" type="number" step="0.5" value={newCreditHours} onChange={(e) => setNewCreditHours(e.target.value)} placeholder="e.g., 3.0" disabled={isLoadingForm} className={dialogInputClass} />
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label htmlFor="courseLevel" className={dialogLabelClass}>Level <span className="text-red-700">*</span></Label>
-                     <Select value={newCourseLevel} onValueChange={setNewCourseLevel} disabled={isLoadingForm}>
-                       <SelectTrigger id="courseLevel" className={dialogSelectTriggerClass}><SelectValue placeholder="Select level" /></SelectTrigger>
-                       <SelectContent className={dialogSelectContentClass}>
-                         {COURSE_LEVELS.map(level => <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>)}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label htmlFor="academicSemester" className={dialogLabelClass}>Academic Semester <span className="text-red-700">*</span></Label>
-                     <Select value={newAcademicSemester} onValueChange={setNewAcademicSemester} disabled={isLoadingForm}>
-                       <SelectTrigger id="academicSemester" className={dialogSelectTriggerClass}><SelectValue placeholder="Select semester" /></SelectTrigger>
-                       <SelectContent className={dialogSelectContentClass}>
-                         {ACADEMIC_SEMESTERS.map(sem => <SelectItem key={sem.value} value={sem.value}>{sem.label}</SelectItem>)}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label htmlFor="courseProgramId" className={dialogLabelClass}>Program <span className="text-red-700">*</span></Label>
-                     <Select value={newCourseProgramId} onValueChange={setNewCourseProgramId} disabled={isLoadingForm || programs.length === 0}>
-                       <SelectTrigger id="courseProgramId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select program" /></SelectTrigger>
-                       <SelectContent className={dialogSelectContentClass}>
-                         {programs.length > 0 ? programs.map(program => (
-                           <SelectItem key={program.id} value={program.id}>{program.programTitle} ({program.programCode})</SelectItem>
-                         )) : <div className="px-3 py-2 text-sm text-slate-500">No programs found.</div>}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                   {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
-                 </div>
-                 <DialogFooter>
-                   <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
-                   <Button type="submit" disabled={isLoadingForm}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Create Course</Button>
-                 </DialogFooter>
-               </form>
-             </DialogContent>
-           </Dialog>
+            {/* Add Course Dialog/Button */}
+            <Dialog open={isCourseDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetCourseForm(); } setIsCourseDialogOpen(open); }}>
+              <DialogTrigger asChild>
+                <Button className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
+                  <PlusCircle className="mr-2 h-4 w-4" /><span>New Course</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-violet-700" /> Create New Course</DialogTitle>
+                  <DialogDescription>Add a new course to an existing program.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateCourse}>
+                  <div className="grid gap-4 py-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="courseCode" className={dialogLabelClass}>Course Code <span className="text-red-700">*</span></Label>
+                      <Input id="courseCode" value={newCourseCode} onChange={(e) => setNewCourseCode(e.target.value)} placeholder="e.g., CSCD101" disabled={isLoadingForm} className={dialogInputClass} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="courseTitle" className={dialogLabelClass}>Course Title <span className="text-red-700">*</span></Label>
+                      <Input id="courseTitle" value={newCourseTitle} onChange={(e) => setNewCourseTitle(e.target.value)} placeholder="e.g., Introduction to Programming" disabled={isLoadingForm} className={dialogInputClass} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="creditHours" className={dialogLabelClass}>Credit Hours <span className="text-red-700">*</span></Label>
+                      <Input id="creditHours" type="number" step="0.5" value={newCreditHours} onChange={(e) => setNewCreditHours(e.target.value)} placeholder="e.g., 3.0" disabled={isLoadingForm} className={dialogInputClass} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="courseLevel" className={dialogLabelClass}>Level <span className="text-red-700">*</span></Label>
+                      <Select value={newCourseLevel} onValueChange={setNewCourseLevel} disabled={isLoadingForm}>
+                        <SelectTrigger id="courseLevel" className={dialogSelectTriggerClass}><SelectValue placeholder="Select level" /></SelectTrigger>
+                        <SelectContent className={dialogSelectContentClass}>
+                          {COURSE_LEVELS.map(level => <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="academicSemester" className={dialogLabelClass}>Academic Semester <span className="text-red-700">*</span></Label>
+                      <Select value={newAcademicSemester} onValueChange={setNewAcademicSemester} disabled={isLoadingForm}>
+                        <SelectTrigger id="academicSemester" className={dialogSelectTriggerClass}><SelectValue placeholder="Select semester" /></SelectTrigger>
+                        <SelectContent className={dialogSelectContentClass}>
+                          {ACADEMIC_SEMESTERS.map(sem => <SelectItem key={sem.value} value={sem.value}>{sem.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="courseProgramId" className={dialogLabelClass}>Program <span className="text-red-700">*</span></Label>
+                      <Select value={newCourseProgramId} onValueChange={setNewCourseProgramId} disabled={isLoadingForm || programs.length === 0}>
+                        <SelectTrigger id="courseProgramId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select program" /></SelectTrigger>
+                        <SelectContent className={dialogSelectContentClass}>
+                          {programs.length > 0 ? programs.map(program => (
+                            <SelectItem key={program.id} value={program.id}>{program.programTitle} ({program.programCode})</SelectItem>
+                          )) : <div className="px-3 py-2 text-sm text-slate-500">No programs found.</div>}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
+                    <Button type="submit" disabled={isLoadingForm}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Create Course</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
 
-           {/* Bulk Upload Courses Dialog/Button */}
-           <Dialog open={isBulkUploadDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setExcelFile(null); setBulkUploadStatus(null); setFormError(''); } setIsBulkUploadDialogOpen(open); }}>
-             <DialogTrigger asChild>
-               <Button variant="outline" className="text-slate-700 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium h-10 px-5 text-sm rounded-lg shadow-md"><Upload className="mr-2 h-4 w-4" />Bulk Upload</Button>
-             </DialogTrigger>
-             <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                 <DialogTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-blue-700" /> Bulk Upload Courses</DialogTitle>
-                 <DialogDescription>Upload multiple courses using an Excel file (.xlsx). Refer to template for format.</DialogDescription>
-               </DialogHeader>
-               <form onSubmit={handleBulkUpload}>
-                 <div className="grid gap-4 py-4">
-                   <div className="space-y-1.5">
-                     <Label htmlFor="excelFile" className={dialogLabelClass}>Excel File (.xlsx) <span className="text-red-700">*</span></Label>
-                     <Input id="excelFile" type="file" accept=".xlsx" onChange={(e) => setExcelFile(e.target.files[0])} disabled={isLoadingForm} className={dialogInputClass} />
-                   </div>
-                   {bulkUploadStatus && (
-                     <div className={`p-2 rounded-md text-xs ${bulkUploadStatus.failedCount > 0 ? 'bg-red-50 text-red-700 border-red-300' : 'bg-green-50 text-green-700 border-green-300'}`}>
-                       <p className="font-semibold">{bulkUploadStatus.message}</p>
-                       {bulkUploadStatus.failedRecords && bulkUploadStatus.failedRecords.length > 0 && (
-                         <ScrollArea className="h-24 mt-2 pr-2">
-                           <p className="font-bold">Failed Records:</p>
-                           <ul className="list-disc list-inside">
-                             {bulkUploadStatus.failedRecords.map((rec, index) => (
-                               <li key={index}>Row {index + 1}: {rec.error} (Code: {rec.data.courseCode || 'N/A'})</li>
-                             ))}
-                           </ul>
-                         </ScrollArea>
-                       )}
-                     </div>
-                   )}
-                   {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
-                 </div>
-                 <DialogFooter>
-                   <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
-                   <Button type="submit" disabled={isLoadingForm || !excelFile}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Upload Courses</Button>
-                 </DialogFooter>
-               </form>
-             </DialogContent>
-           </Dialog>
+            {/* Bulk Upload Courses Dialog/Button */}
+            <Dialog open={isBulkUploadDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setExcelFile(null); setBulkUploadStatus(null); setFormError(''); } setIsBulkUploadDialogOpen(open); }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="text-slate-700 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium h-10 px-5 text-sm rounded-lg shadow-md"><Upload className="mr-2 h-4 w-4" />Bulk Upload</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-blue-700" /> Bulk Upload Courses</DialogTitle>
+                  <DialogDescription>Upload multiple courses using an Excel file (.xlsx). Refer to template for format.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleBulkUpload}>
+                  <div className="grid gap-4 py-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="excelFile" className={dialogLabelClass}>Excel File (.xlsx) <span className="text-red-700">*</span></Label>
+                      <Input id="excelFile" type="file" accept=".xlsx" onChange={(e) => setExcelFile(e.target.files[0])} disabled={isLoadingForm} className={dialogInputClass} />
+                    </div>
+                    {bulkUploadStatus && (
+                      <div className={`p-2 rounded-md text-xs ${bulkUploadStatus.failedCount > 0 ? 'bg-red-50 text-red-700 border-red-300' : 'bg-green-50 text-green-700 border-green-300'}`}>
+                        <p className="font-semibold">{bulkUploadStatus.message}</p>
+                        {bulkUploadStatus.failedRecords && bulkUploadStatus.failedRecords.length > 0 && (
+                          <ScrollArea className="h-24 mt-2 pr-2">
+                            <p className="font-bold">Failed Records:</p>
+                            <ul className="list-disc list-inside">
+                              {bulkUploadStatus.failedRecords.map((rec, index) => (
+                                <li key={index}>Row {index + 1}: {rec.error} (Code: {rec.data.courseCode || 'N/A'})</li>
+                              ))}
+                            </ul>
+                          </ScrollArea>
+                        )}
+                      </div>
+                    )}
+                    {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
+                    <Button type="submit" disabled={isLoadingForm || !excelFile}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Upload Courses</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
 
-           {/* Assign Courses Dialog/Button */}
-           <Dialog open={isAssignCoursesDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setSelectedCoursesForAssignment([]); setSelectedLecturerForAssignment(''); setFormError(''); } setIsAssignCoursesDialogOpen(open); }}>
-             <DialogTrigger asChild>
-               <Button variant="outline" className="text-blue-700 border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700/30 font-medium h-10 px-5 text-sm rounded-lg shadow-md"><UserPlus className="mr-2 h-4 w-4" />Assign Courses</Button>
-             </DialogTrigger>
-             <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                 <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-blue-700" /> Assign Courses to Lecturer</DialogTitle>
-                 <DialogDescription>Select courses and assign them to a lecturer.</DialogDescription>
-               </DialogHeader>
-               <form onSubmit={handleAssignCourses}>
-                 <div className="grid gap-4 py-4">
-                   <div className="space-y-1.5">
-                     <Label htmlFor="selectCourses" className={dialogLabelClass}>Courses to Assign <span className="text-red-700">*</span></Label>
-                     {/* Courses Multi-Select */}
-                     <ScrollArea className="h-32 border rounded-md p-2 bg-slate-50 dark:bg-slate-700/30">
-                         {courses.length > 0 ? (
-                             <ul className="list-none space-y-1">
-                                 {courses.map(course => (
-                                     <li key={course.id} className={`flex items-center justify-between p-1 rounded-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 ${selectedCoursesForAssignment.includes(course.id) ? 'bg-slate-200 dark:bg-slate-700 font-semibold' : ''}`}
-                                         onClick={() => {
-                                             setSelectedCoursesForAssignment(prev => prev.includes(course.id)
-                                                 ? prev.filter(id => id !== course.id)
-                                                 : [...prev, course.id]
-                                             );
-                                         }}>
-                                         <span className="text-sm">{course.courseCode} - {course.courseTitle}</span>
-                                         {selectedCoursesForAssignment.includes(course.id) && <CheckSquare className="h-4 w-4 text-green-600" />}
-                                     </li>
-                                 ))}
-                             </ul>
-                         ) : (
-                             <p className="text-sm italic text-slate-500 text-center py-6">No courses available for assignment.</p>
-                         )}
-                     </ScrollArea>
-                     {selectedCoursesForAssignment.length > 0 && (
-                         <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
-                             Selected: {selectedCoursesForAssignment.length} course(s).
-                         </p>
-                     )}
-                   </div>
-                   <div className="space-y-1.5">
-                     <Label htmlFor="selectLecturer" className={dialogLabelClass}>Assign to Lecturer <span className="text-red-700">*</span></Label>
-                     <Select value={selectedLecturerForAssignment} onValueChange={setSelectedLecturerForAssignment} disabled={isLoadingForm || lecturers.length === 0}>
-                       <SelectTrigger id="selectLecturer" className={dialogSelectTriggerClass}><SelectValue placeholder="Select lecturer" /></SelectTrigger>
-                       <SelectContent className={dialogSelectContentClass}>
-                         {lecturers.length > 0 ? lecturers.map(lecturer => (
-                           <SelectItem key={lecturer.id} value={lecturer.id}>{lecturer.name} ({lecturer.email})</SelectItem>
-                         )) : <div className="px-3 py-2 text-sm text-slate-500">No lecturers found.</div>}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                   {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
-                 </div>
-                 <DialogFooter>
-                   <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
-                   <Button type="submit" disabled={isLoadingForm || selectedCoursesForAssignment.length === 0 || !selectedLecturerForAssignment}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Assign Courses</Button>
-                 </DialogFooter>
-               </form>
-             </DialogContent>
-           </Dialog>
-         </div>
-       </div>
+            {/* Assign Courses Dialog/Button */}
+            <Dialog open={isAssignCoursesDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setSelectedCoursesForAssignment([]); setSelectedLecturerForAssignment(''); setFormError(''); } setIsAssignCoursesDialogOpen(open); }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="text-blue-700 border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700/30 font-medium h-10 px-5 text-sm rounded-lg shadow-md"><UserPlus className="mr-2 h-4 w-4" />Assign Courses</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-blue-700" /> Assign Courses to Lecturer</DialogTitle>
+                  <DialogDescription>Select courses and assign them to a lecturer.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAssignCourses}>
+                  <div className="grid gap-4 py-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="selectCourses" className={dialogLabelClass}>Courses to Assign <span className="text-red-700">*</span></Label>
+                      {/* Courses Multi-Select */}
+                      <ScrollArea className="h-32 border rounded-md p-2 bg-slate-50 dark:bg-slate-700/30">
+                        {courses.length > 0 ? (
+                            <ul className="list-none space-y-1">
+                              {courses.map(course => (
+                                  <li key={course.id} className={`flex items-center justify-between p-1 rounded-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 ${selectedCoursesForAssignment.includes(course.id) ? 'bg-slate-200 dark:bg-slate-700 font-semibold' : ''}`}
+                                    onClick={() => {
+                                      setSelectedCoursesForAssignment(prev => prev.includes(course.id)
+                                          ? prev.filter(id => id !== course.id)
+                                          : [...prev, course.id]
+                                      );
+                                    }}>
+                                    <span className="text-sm">{course.courseCode} - {course.courseTitle}</span>
+                                    {selectedCoursesForAssignment.includes(course.id) && <CheckSquare className="h-4 w-4 text-green-600" />}
+                                  </li>
+                              ))}
+                            </ul>
+                        ) : (
+                            <p className="text-sm italic text-slate-500 text-center py-6">No courses available for assignment.</p>
+                        )}
+                      </ScrollArea>
+                      {selectedCoursesForAssignment.length > 0 && (
+                          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
+                              Selected: {selectedCoursesForAssignment.length} course(s).
+                          </p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="selectLecturer" className={dialogLabelClass}>Assign to Lecturer <span className="text-red-700">*</span></Label>
+                      <Select value={selectedLecturerForAssignment} onValueChange={setSelectedLecturerForAssignment} disabled={isLoadingForm || lecturers.length === 0}>
+                        <SelectTrigger id="selectLecturer" className={dialogSelectTriggerClass}><SelectValue placeholder="Select lecturer" /></SelectTrigger>
+                        <SelectContent className={dialogSelectContentClass}>
+                          {lecturers.length > 0 ? lecturers.map(lecturer => (
+                            <SelectItem key={lecturer.id} value={lecturer.id}>{lecturer.name} ({lecturer.email})</SelectItem>
+                          )) : <div className="px-3 py-2 text-sm text-slate-500">No lecturers found.</div>}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
+                    <Button type="submit" disabled={isLoadingForm || selectedCoursesForAssignment.length === 0 || !selectedLecturerForAssignment}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Assign Courses</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
 
-       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-         {/* Updated TabsList to include Departments tab */}
-         <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-700 rounded-lg p-1 mb-4 flex-shrink-0">
-           <TabsTrigger value="departments" className="px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all">Department Management</TabsTrigger>
-           <TabsTrigger value="programs" className="px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all">Program Management</TabsTrigger>
-           <TabsTrigger value="courses" className="px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all">Course Management</TabsTrigger>
-         </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          {/* Updated TabsList to include Departments tab */}
+          <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-700 rounded-lg p-1 mb-4 flex-shrink-0">
+            <TabsTrigger value="departments" className="px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all">Department Management</TabsTrigger>
+            <TabsTrigger value="programs" className="px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all">Program Management</TabsTrigger>
+            <TabsTrigger value="courses" className="px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all">Course Management</TabsTrigger>
+          </TabsList>
 
-         {/* FIX: Changed parent div to flex-1 flex-col to better control height for TabsContent children */}
-         <div className="flex-1 flex flex-col">
-           {/* Departments Tab Content */}
-           <TabsContent value="departments" className="h-full mt-0 pt-0 data-[state=inactive]:hidden">
-             {/* Department Edit Dialog */}
-             {editingDepartment && (
+          {/* FIX: Changed parent div to flex-1 flex-col to better control height for TabsContent children */}
+          <div className="flex-1 flex flex-col">
+            {/* Departments Tab Content */}
+            <TabsContent value="departments" className="h-full mt-0 pt-0 data-[state=inactive]:hidden">
+              {/* Department Edit Dialog */}
+              {editingDepartment && (
                 <Dialog open={isEditDepartmentDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetEditDepartmentForm(); } setIsEditDepartmentDialogOpen(open); }}>
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
@@ -855,240 +855,416 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                         </form>
                     </DialogContent>
                 </Dialog>
-             )}
-             
-             {/* FIX: Moved p-4 inside ScrollArea's content div */}
-             <ScrollArea className="h-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg bg-white dark:bg-slate-800/90">
-               <div className="p-4"> {/* Added padding inside ScrollArea's content */}
-                 {isLoadingForm && activeTab === 'departments' && ( // Only show skeleton if form operation is ongoing AND this tab is active
-                   <div className="space-y-4">
-                       <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                       <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                       <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                   </div>
-                 )}
-                 {searchQuery && filteredDepartments.length === 0 && (
-                   <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
-                     <Search className="h-10 w-10 mb-3" />
-                     <p className="font-semibold">No departments found for "{searchQuery}".</p>
-                     <Button variant="link" onClick={clearSearch} className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Clear Search</Button>
-                   </div>
-                 )}
-                 {!isLoadingForm && filteredDepartments.length === 0 && !searchQuery && (
-                   <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
-                     <Building2 className="h-10 w-10 mb-3" />
-                     <p className="font-semibold">No departments added yet. Start by creating one.</p>
-                     <Button onClick={() => setIsDepartmentDialogOpen(true)} variant="link" className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Add First Department</Button>
-                   </div>
-                 )}
-                 {!isLoadingForm && filteredDepartments.length > 0 && (
-                   <Table className="w-full">
-                     <TableHeader className="bg-slate-100/90 dark:bg-slate-700/70 sticky top-0 z-10 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
-                       <TableRow>
-                         <TableHead className="w-[35%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Department Name</TableHead>
-                         <TableHead className="w-[30%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Center</TableHead>
-                         <TableHead className="w-[10%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 text-center whitespace-nowrap">Programs</TableHead>
-                         <TableHead className="w-[10%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 text-center whitespace-nowrap">Lecturers</TableHead>
-                         <TableHead className="w-[15%] text-right text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Actions</TableHead>
-                       </TableRow>
-                     </TableHeader>
-                     <TableBody className="divide-y divide-slate-100 dark:divide-slate-700/80">
-                       {filteredDepartments.map(department => (
-                         <TableRow key={department.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors">
-                           <TableCell className="px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                             <div className="flex items-center gap-2"><Building2 className="h-4 w-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />{department.name}</div>
-                           </TableCell>
-                           <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                             {department.centerName || 'N/A'}
-                           </TableCell>
-                           <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 text-center whitespace-nowrap">
-                             {department.programCount}
-                           </TableCell>
-                           <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 text-center whitespace-nowrap">
-                             {department.lecturerCount}
-                           </TableCell>
-                           <TableCell className="text-right px-4 py-2.5 whitespace-nowrap">
-                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingDepartment(department); setIsEditDepartmentDialogOpen(true); }}>
-                               <Edit2 className="h-4 w-4" />
-                               <span className="sr-only">Edit Department</span>
-                             </Button>
-                             {/* Add Delete Button for Department here if needed */}
-                           </TableCell>
-                         </TableRow>
-                       ))}
-                       {filteredDepartments.length === 0 && searchQuery && (
+              )}
+              
+              {/* FIX: Moved p-4 inside ScrollArea's content div */}
+              <ScrollArea className="h-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg bg-white dark:bg-slate-800/90">
+                <div className="p-4"> {/* Added padding inside ScrollArea's content */}
+                  {isLoadingForm && activeTab === 'departments' && ( // Only show skeleton if form operation is ongoing AND this tab is active
+                    <div className="space-y-4">
+                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
+                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
+                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
+                    </div>
+                  )}
+                  {searchQuery && filteredDepartments.length === 0 && (
+                    <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
+                      <Search className="h-10 w-10 mb-3" />
+                      <p className="font-semibold">No departments found for "{searchQuery}".</p>
+                      <Button variant="link" onClick={clearSearch} className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Clear Search</Button>
+                    </div>
+                  )}
+                  {!isLoadingForm && filteredDepartments.length === 0 && !searchQuery && (
+                    <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
+                      <Building2 className="h-10 w-10 mb-3" />
+                      <p className="font-semibold">No departments added yet. Start by creating one.</p>
+                      <Button onClick={() => setIsDepartmentDialogOpen(true)} variant="link" className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Add First Department</Button>
+                    </div>
+                  )}
+                  {!isLoadingForm && filteredDepartments.length > 0 && (
+                    <Table className="w-full">
+                      <TableHeader className="bg-slate-100/90 dark:bg-slate-700/70 sticky top-0 z-10 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
+                        <TableRow>
+                          <TableHead className="w-[35%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Department Name</TableHead>
+                          <TableHead className="w-[30%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Center</TableHead>
+                          <TableHead className="w-[10%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 text-center whitespace-nowrap">Programs</TableHead>
+                          <TableHead className="w-[10%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 text-center whitespace-nowrap">Lecturers</TableHead>
+                          <TableHead className="w-[15%] text-right text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody className="divide-y divide-slate-100 dark:divide-slate-700/80">
+                        {filteredDepartments.map(department => (
+                          <TableRow key={department.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors">
+                            <TableCell className="px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                              <div className="flex items-center gap-2"><Building2 className="h-4 w-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />{department.name}</div>
+                            </TableCell>
+                            <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                              {department.centerName || 'N/A'}
+                            </TableCell>
+                            <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 text-center whitespace-nowrap">
+                              {department.programCount}
+                            </TableCell>
+                            <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 text-center whitespace-nowrap">
+                              {department.lecturerCount}
+                            </TableCell>
+                            <TableCell className="text-right px-4 py-2.5 whitespace-nowrap">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingDepartment(department); setIsEditDepartmentDialogOpen(true); }}>
+                                <Edit2 className="h-4 w-4" />
+                                <span className="sr-only">Edit Department</span>
+                              </Button>
+                              {/* Add Delete Button for Department here if needed */}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredDepartments.length === 0 && searchQuery && (
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center text-slate-500 py-4">
                                     No departments found for "{searchQuery}".
                                 </TableCell>
                             </TableRow>
                         )}
-                     </TableBody>
-                   </Table>
-                 )}
-               </div>
-             </ScrollArea>
-           </TabsContent>
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
 
-           {/* Programs Tab Content */}
-           <TabsContent value="programs" className="h-full mt-0 pt-0 data-[state=inactive]:hidden">
-             {/* FIX: Moved p-4 inside ScrollArea's content div */}
-             <ScrollArea className="h-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg bg-white dark:bg-slate-800/90">
-               <div className="p-4"> {/* Added padding inside ScrollArea's content */}
-                 {isLoadingForm && activeTab === 'programs' && (
-                   <div className="space-y-4">
-                       <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                       <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                       <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                   </div>
-                 )}
-                 {searchQuery && filteredPrograms.length === 0 && (
-                   <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
-                     <Search className="h-10 w-10 mb-3" />
-                     <p className="font-semibold">No programs found for "{searchQuery}".</p>
-                     <Button variant="link" onClick={clearSearch} className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Clear Search</Button>
-                   </div>
-                 )}
-                 {!isLoadingForm && filteredPrograms.length === 0 && !searchQuery && (
-                   <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
-                     <GraduationCap className="h-10 w-10 mb-3" />
-                     <p className="font-semibold">No programs added yet. Start by creating one.</p>
-                     <Button onClick={() => setIsProgramDialogOpen(true)} variant="link" className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Add First Program</Button>
-                   </div>
-                 )}
-                 {!isLoadingForm && filteredPrograms.length > 0 && (
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                     {filteredPrograms.map(program => (
-                       <Card key={program.id} className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg hover:shadow-md transition-shadow">
-                         <CardHeader className="pb-3">
-                           <CardTitle className="text-lg font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
-                             <BookOpen className="h-5 w-5 flex-shrink-0 text-violet-700 dark:text-violet-500" />
-                             {program.programTitle}
-                           </CardTitle>
-                           <CardDescription className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                               <Hash className="h-3.5 w-3.5" />{program.programCode}
-                           </CardDescription>
-                         </CardHeader>
-                         <CardContent className="space-y-1 text-sm">
-                           <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                             <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                             <span>Category: <Badge variant="secondary" className="capitalize">{program.programCategory.toLowerCase()}</Badge></span>
-                           </div>
-                           <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                             <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                             <span>Dept: {program.departmentName}</span>
-                           </div>
-                           {program.centerName && (
-                             <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                               <CheckSquare className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                               <span>Center: {program.centerName}</span>
-                             </div>
-                           )}
-                           <Separator className="my-2" />
-                           <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+            {/* Programs Tab Content */}
+            <TabsContent value="programs" className="h-full mt-0 pt-0 data-[state=inactive]:hidden">
+              {/* ======================= EDIT PROGRAM DIALOG (ADD THIS) ======================= */}
+{editingProgram && (
+  <Dialog open={isEditProgramDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetEditProgramForm(); } setIsEditProgramDialogOpen(open); }}>
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2"><Edit2 className="h-5 w-5 text-violet-700" /> Edit Program</DialogTitle>
+        <DialogDescription>Update the details for the program: {editingProgram.programCode}.</DialogDescription>
+      </DialogHeader>
+      <form onSubmit={handleUpdateProgram}>
+        <div className="grid gap-4 py-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="editProgramCode" className={dialogLabelClass}>Program Code <span className="text-red-700">*</span></Label>
+            <Input
+              id="editProgramCode"
+              value={editingProgram.programCode || ''}
+              onChange={(e) => setEditingProgram(prev => ({ ...prev, programCode: e.target.value }))}
+              placeholder="e.g., BSc-CS"
+              disabled={isLoadingForm}
+              className={dialogInputClass}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="editProgramTitle" className={dialogLabelClass}>Program Title <span className="text-red-700">*</span></Label>
+            <Input
+              id="editProgramTitle"
+              value={editingProgram.programTitle || ''}
+              onChange={(e) => setEditingProgram(prev => ({ ...prev, programTitle: e.target.value }))}
+              placeholder="e.g., Bachelor of Science in Computer Science"
+              disabled={isLoadingForm}
+              className={dialogInputClass}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="editProgramCategory" className={dialogLabelClass}>Program Category <span className="text-red-700">*</span></Label>
+            <Select
+              value={editingProgram.programCategory || ''}
+              onValueChange={(val) => setEditingProgram(prev => ({ ...prev, programCategory: val }))}
+              disabled={isLoadingForm}
+            >
+              <SelectTrigger id="editProgramCategory" className={dialogSelectTriggerClass}><SelectValue placeholder="Select category" /></SelectTrigger>
+              <SelectContent className={dialogSelectContentClass}>
+                {PROGRAM_CATEGORIES.map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="editProgramDepartmentId" className={dialogLabelClass}>Department <span className="text-red-700">*</span></Label>
+            <Select
+              value={editingProgram.departmentId || ''}
+              onValueChange={(val) => setEditingProgram(prev => ({ ...prev, departmentId: val }))}
+              disabled={isLoadingForm || departments.length === 0}
+            >
+              <SelectTrigger id="editProgramDepartmentId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select department" /></SelectTrigger>
+              <SelectContent className={dialogSelectContentClass}>
+                {departments.length > 0 ? departments.map(dept => (
+                  <SelectItem key={dept.id} value={dept.id}>{dept.name} ({dept.centerName})</SelectItem>
+                )) : <div className="px-3 py-2 text-sm text-slate-500">No departments found.</div>}
+              </SelectContent>
+            </Select>
+          </div>
+          {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+        </div>
+        <DialogFooter>
+          <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
+          <Button type="submit" disabled={isLoadingForm}>
+            {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  </Dialog>
+)}
+{/* ================================================================================= */}
+              {/* FIX: Moved p-4 inside ScrollArea's content div */}
+              <ScrollArea className="h-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg bg-white dark:bg-slate-800/90">
+                <div className="p-4"> {/* Added padding inside ScrollArea's content */}
+                  {isLoadingForm && activeTab === 'programs' && (
+                    <div className="space-y-4">
+                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
+                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
+                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
+                    </div>
+                  )}
+                  {searchQuery && filteredPrograms.length === 0 && (
+                    <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
+                      <Search className="h-10 w-10 mb-3" />
+                      <p className="font-semibold">No programs found for "{searchQuery}".</p>
+                      <Button variant="link" onClick={clearSearch} className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Clear Search</Button>
+                    </div>
+                  )}
+                  {!isLoadingForm && filteredPrograms.length === 0 && !searchQuery && (
+                    <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
+                      <GraduationCap className="h-10 w-10 mb-3" />
+                      <p className="font-semibold">No programs added yet. Start by creating one.</p>
+                      <Button onClick={() => setIsProgramDialogOpen(true)} variant="link" className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Add First Program</Button>
+                    </div>
+                  )}
+                  {!isLoadingForm && filteredPrograms.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredPrograms.map(program => (
+                        <Card key={program.id} className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-lg font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                              <BookOpen className="h-5 w-5 flex-shrink-0 text-violet-700 dark:text-violet-500" />
+                              {program.programTitle}
+                            </CardTitle>
+                            <CardDescription className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                                <Hash className="h-3.5 w-3.5" />{program.programCode}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-1 text-sm">
+                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                                <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                                <span>Category: <Badge variant="secondary" className="capitalize">{program.programCategory.toLowerCase()}</Badge></span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                                <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                                <span>Dept: {program.departmentName}</span>
+                            </div>
+                            {program.centerName && (
+                              <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                                  <CheckSquare className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                                  <span>Center: {program.centerName}</span>
+                              </div>
+                            )}
+                            <Separator className="my-2" />
+                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
                               <BookText className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
                               <span>Courses: {program.courseCount}</span>
-                           </div>
-                           <div className="flex justify-end mt-2">
-                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingProgram(program); setIsEditProgramDialogOpen(true); }}>
-                                   <Edit2 className="h-4 w-4" />
-                                   <span className="sr-only">Edit Program</span>
-                               </Button>
-                           </div>
-                         </CardContent>
-                       </Card>
-                     ))}
-                   </div>
-                 )}
-               </div>
-             </ScrollArea>
-           </TabsContent>
+                            </div>
+                            <div className="flex justify-end mt-2">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingProgram(program); setIsEditProgramDialogOpen(true); }}>
+                                    <Edit2 className="h-4 w-4" />
+                                    <span className="sr-only">Edit Program</span>
+                                </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
 
-           {/* Courses Tab Content */}
-           <TabsContent value="courses" className="h-full mt-0 pt-0 data-[state=inactive]:hidden">
-             {/* FIX: Moved p-4 inside ScrollArea's content div */}
-             <ScrollArea className="h-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg bg-white dark:bg-slate-800/90">
-               <div className="p-4"> {/* Added padding inside ScrollArea's content */}
-                   {isLoadingForm && activeTab === 'courses' && (
-                       <div className="space-y-4">
-                           <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                           <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                           <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                       </div>
-                   )}
-                   {searchQuery && filteredCourses.length === 0 && (
-                       <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
-                         <Search className="h-10 w-10 mb-3" />
-                         <p className="font-semibold">No courses found for "{searchQuery}".</p>
-                         <Button variant="link" onClick={clearSearch} className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Clear Search</Button>
-                       </div>
-                   )}
-                   {!isLoadingForm && courses.length === 0 && !searchQuery && (
-                       <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
-                           <BookOpen className="h-10 w-10 mb-3" />
-                           <p className="font-semibold">No courses added yet. Start by creating a program first.</p>
-                           <Button onClick={() => setIsCourseDialogOpen(true)} variant="link" className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200" disabled={programs.length === 0}>Add First Course</Button>
-                       </div>
-                   )}
-                   {!isLoadingForm && filteredCourses.length > 0 && (
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                           {filteredCourses.map(course => (
-                               <Card key={course.id} className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg hover:shadow-md transition-shadow">
-                                   <CardHeader className="pb-3">
-                                       <CardTitle className="text-lg font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
-                                           <BookText className="h-5 w-5 flex-shrink-0 text-violet-700 dark:text-violet-500" />
-                                           {course.courseTitle}
-                                       </CardTitle>
-                                       <CardDescription className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                                           <Hash className="h-3.5 w-3.5" />{course.courseCode}
-                                       </CardDescription>
-                                   </CardHeader>
-                                   <CardContent className="space-y-1 text-sm">
-                                       <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                           <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                           <span>Credits: {course.creditHours}</span>
-                                       </div>
-                                       <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                           <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                           <span>Level: <Badge variant="secondary" className="capitalize">{course.level.toLowerCase().replace('_', ' ')}</Badge></span>
-                                       </div>
-                                       <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                           <CalendarDays className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                           <span>Semester: <Badge variant="secondary" className="capitalize">{course.academicSemester.toLowerCase().replace('_', ' ')}</Badge></span>
-                                       </div>
-                                       <Separator className="my-2" />
-                                       <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                           <GraduationCap className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                           <span>Program: {course.programTitle} ({course.programCode})</span>
-                                       </div>
-                                       {course.departmentName && (
-                                           <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                               <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                               <span>Dept: {course.departmentName}</span>
-                                           </div>
-                                       )}
-                                       {course.assignedLecturers && course.assignedLecturers.length > 0 && (
-                                           <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                               <User className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                               <span>Assigned: {course.assignedLecturers.map(l => l.name).join(', ')}</span>
-                                           </div>
-                                       )}
-                                   </CardContent>
-                                   <div className="flex justify-end mt-2">
-                                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingCourse(course); setIsEditCourseDialogOpen(true); }}>
-                                           <Edit2 className="h-4 w-4" />
-                                           <span className="sr-only">Edit Course</span>
-                                       </Button>
-                                   </div>
-                               </Card>
-                           ))}
-                       </div>
-                   )}
-               </div>
-             </ScrollArea>
-           </TabsContent>
-         </div>
-       </Tabs>
-     </Card>
-   );
- }
+            {/* Courses Tab Content */}
+            <TabsContent value="courses" className="h-full mt-0 pt-0 data-[state=inactive]:hidden">
+              
+              {/* ======================= EDIT COURSE DIALOG ======================= */}
+              {editingCourse && (
+                <Dialog open={isEditCourseDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetEditCourseForm(); } setIsEditCourseDialogOpen(open); }}>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2"><Edit2 className="h-5 w-5 text-violet-700" /> Edit Course</DialogTitle>
+                      <DialogDescription>Update the details for the course: {editingCourse.courseCode}.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleUpdateCourse}>
+                      <div className="grid gap-4 py-4">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="editCourseCode" className={dialogLabelClass}>Course Code <span className="text-red-700">*</span></Label>
+                          <Input
+                            id="editCourseCode"
+                            value={editingCourse.courseCode || ''}
+                            onChange={(e) => setEditingCourse(prev => ({ ...prev, courseCode: e.target.value }))}
+                            placeholder="e.g., CSCD101"
+                            disabled={isLoadingForm}
+                            className={dialogInputClass}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="editCourseTitle" className={dialogLabelClass}>Course Title <span className="text-red-700">*</span></Label>
+                          <Input
+                            id="editCourseTitle"
+                            value={editingCourse.courseTitle || ''}
+                            onChange={(e) => setEditingCourse(prev => ({ ...prev, courseTitle: e.target.value }))}
+                            placeholder="e.g., Introduction to Programming"
+                            disabled={isLoadingForm}
+                            className={dialogInputClass}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="editCreditHours" className={dialogLabelClass}>Credit Hours <span className="text-red-700">*</span></Label>
+                          <Input
+                            id="editCreditHours"
+                            type="number"
+                            step="0.5"
+                            value={editingCourse.creditHours || ''}
+                            onChange={(e) => setEditingCourse(prev => ({ ...prev, creditHours: e.target.value }))}
+                            placeholder="e.g., 3.0"
+                            disabled={isLoadingForm}
+                            className={dialogInputClass}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="editCourseLevel" className={dialogLabelClass}>Level <span className="text-red-700">*</span></Label>
+                          <Select
+                            value={editingCourse.level || ''}
+                            onValueChange={(val) => setEditingCourse(prev => ({ ...prev, level: val }))}
+                            disabled={isLoadingForm}
+                          >
+                            <SelectTrigger id="editCourseLevel" className={dialogSelectTriggerClass}><SelectValue placeholder="Select level" /></SelectTrigger>
+                            <SelectContent className={dialogSelectContentClass}>
+                              {COURSE_LEVELS.map(level => <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="editAcademicSemester" className={dialogLabelClass}>Academic Semester <span className="text-red-700">*</span></Label>
+                          <Select
+                            value={editingCourse.academicSemester || ''}
+                            onValueChange={(val) => setEditingCourse(prev => ({ ...prev, academicSemester: val }))}
+                            disabled={isLoadingForm}
+                          >
+                            <SelectTrigger id="editAcademicSemester" className={dialogSelectTriggerClass}><SelectValue placeholder="Select semester" /></SelectTrigger>
+                            <SelectContent className={dialogSelectContentClass}>
+                              {ACADEMIC_SEMESTERS.map(sem => <SelectItem key={sem.value} value={sem.value}>{sem.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="editCourseProgramId" className={dialogLabelClass}>Program <span className="text-red-700">*</span></Label>
+                          <Select
+                            value={editingCourse.programId || ''}
+                            onValueChange={(val) => setEditingCourse(prev => ({ ...prev, programId: val }))}
+                            disabled={isLoadingForm || programs.length === 0}
+                          >
+                            <SelectTrigger id="editCourseProgramId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select program" /></SelectTrigger>
+                            <SelectContent className={dialogSelectContentClass}>
+                              {programs.length > 0 ? programs.map(program => (
+                                <SelectItem key={program.id} value={program.id}>{program.programTitle} ({program.programCode})</SelectItem>
+                              )) : <div className="px-3 py-2 text-sm text-slate-500">No programs found.</div>}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+                      </div>
+                      <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
+                        <Button type="submit" disabled={isLoadingForm}>
+                          {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                          Save Changes
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
+              {/* ================================================================================= */}
+
+              {/* FIX: Moved p-4 inside ScrollArea's content div */}
+              <ScrollArea className="h-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg bg-white dark:bg-slate-800/90">
+                <div className="p-4"> {/* Added padding inside ScrollArea's content */}
+                    {isLoadingForm && activeTab === 'courses' && (
+                        <div className="space-y-4">
+                            <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
+                            <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
+                            <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
+                        </div>
+                    )}
+                    {searchQuery && filteredCourses.length === 0 && (
+                        <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
+                          <Search className="h-10 w-10 mb-3" />
+                          <p className="font-semibold">No courses found for "{searchQuery}".</p>
+                          <Button variant="link" onClick={clearSearch} className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Clear Search</Button>
+                        </div>
+                    )}
+                    {!isLoadingForm && courses.length === 0 && !searchQuery && (
+                        <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
+                            <BookOpen className="h-10 w-10 mb-3" />
+                            <p className="font-semibold">No courses added yet. Start by creating a program first.</p>
+                            <Button onClick={() => setIsCourseDialogOpen(true)} variant="link" className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200" disabled={programs.length === 0}>Add First Course</Button>
+                        </div>
+                    )}
+                    {!isLoadingForm && filteredCourses.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredCourses.map(course => (
+                                <Card key={course.id} className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg hover:shadow-md transition-shadow">
+                                    <CardHeader className="pb-3">
+                                        <CardTitle className="text-lg font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                                            <BookText className="h-5 w-5 flex-shrink-0 text-violet-700 dark:text-violet-500" />
+                                            {course.courseTitle}
+                                        </CardTitle>
+                                        <CardDescription className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                                            <Hash className="h-3.5 w-3.5" />{course.courseCode}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-1 text-sm">
+                                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                                            <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                                            <span>Credits: {course.creditHours}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                                            <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                                            <span>Level: <Badge variant="secondary" className="capitalize">{course.level.toLowerCase().replace('_', ' ')}</Badge></span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                                            <CalendarDays className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                                            <span>Semester: <Badge variant="secondary" className="capitalize">{course.academicSemester.toLowerCase().replace('_', ' ')}</Badge></span>
+                                        </div>
+                                        <Separator className="my-2" />
+                                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                                            <GraduationCap className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                                            <span>Program: {course.programTitle} ({course.programCode})</span>
+                                        </div>
+                                        {course.departmentName && (
+                                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                                                <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                                                <span>Dept: {course.departmentName}</span>
+                                            </div>
+                                        )}
+                                        {course.assignedLecturers && course.assignedLecturers.length > 0 && (
+                                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                                                <User className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                                                <span>Assigned: {course.assignedLecturers.map(l => l.name).join(', ')}</span>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                    <div className="flex justify-end mt-2">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingCourse(course); setIsEditCourseDialogOpen(true); }}>
+                                            <Edit2 className="h-4 w-4" />
+                                            <span className="sr-only">Edit Course</span>
+                                        </Button>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </div>
+        </Tabs>
+      </Card>
+    );
+  }
