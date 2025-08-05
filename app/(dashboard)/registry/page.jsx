@@ -5,7 +5,8 @@ import { getSession } from '@/lib/actions/auth.actions';
 import {
   getCenters,
   getAllUsers,
-  getAllClaimsSystemWide
+  getAllClaimsSystemWide,
+  getSystemOverviewData // 1. Import the new server action
 } from '@/lib/actions/registry.actions.js';
 import {
   Card,
@@ -14,42 +15,75 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Building, Users, FileText, AlertTriangle, BarChart3, Activity, ExternalLink, DatabaseZap } from "lucide-react";
+import { 
+    Building, Users, FileText, AlertTriangle, BarChart3, Activity, ExternalLink, DatabaseZap, 
+    Database, CheckCircle, XCircle, 
+    UserPlus
+} from "lucide-react";
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-// Color constants for clarity (used for elements other than card gradients now)
-const brandColors = {
-  blue: "blue-800",
-  violet: "violet-800",
-  red: "red-800",
+// Helper to get icon for activity feed items
+const getActivityIcon = (type) => {
+    switch(type) {
+        case 'NEW_CLAIM': return { Icon: FileText, color: 'text-blue-500' };
+        case 'NEW_USER_REQUEST': return { Icon: Users, color: 'text-orange-500' };
+        case 'CLAIM_PROCESSED': return { Icon: CheckCircle, color: 'text-green-500' };
+        default: return { Icon: Activity, color: 'text-slate-500' };
+    }
 };
 
-export default async function RegistryOverviewPage() {
+// Helper function to format time since an event
+const timeSince = (date) => {
+    if (!date) return '';
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " years ago";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " minutes ago";
+    return Math.floor(seconds) + " seconds ago";
+};
+
+export default async function RegistryDashboardPage() { // Renamed for clarity
   const session = await getSession();
 
   if (!session || session.role !== 'REGISTRY') {
     redirect(session ? '/unauthorized' : '/login');
   }
 
+  // 2. Add the new data promise to the list
   const centersDataPromise = getCenters();
   const usersDataPromise = getAllUsers();
   const pendingClaimsDataPromise = getAllClaimsSystemWide({ status: "PENDING" });
-  const approvedClaimsDataPromise = getAllClaimsSystemWide({ status: "APPROVED" });
+  const overviewDataPromise = getSystemOverviewData(); // Fetch overview data
 
   const [
     centersResult,
     usersResult,
     pendingClaimsResult,
-    approvedClaimsResult,
+    overviewResult, // Get result for overview data
   ] = await Promise.allSettled([
     centersDataPromise,
     usersDataPromise,
     pendingClaimsDataPromise,
-    approvedClaimsDataPromise,
+    overviewDataPromise,
   ]);
 
-  const processSettledResult = (result, dataKey) => {
+  const processSettledResult = (result, dataKey, isCount=true) => {
     if (result.status === 'fulfilled' && result.value.success) {
-      return { success: true, data: result.value[dataKey], count: result.value[dataKey]?.length ?? 0, error: null };
+      const data = result.value[dataKey];
+      return { 
+        success: true, 
+        data: data, 
+        count: isCount ? (data?.length ?? 0) : null,
+        error: null 
+      };
     }
     const errorMessage = result.status === 'fulfilled' ? result.value.error : result.reason?.message || "Failed to fetch data";
     return { success: false, data: null, count: 0, error: errorMessage };
@@ -58,7 +92,12 @@ export default async function RegistryOverviewPage() {
   const centersInfo = processSettledResult(centersResult, 'centers');
   const usersInfo = processSettledResult(usersResult, 'users');
   const pendingClaimsInfo = processSettledResult(pendingClaimsResult, 'claims');
-  const approvedClaimsInfo = processSettledResult(approvedClaimsResult, 'claims');
+  
+  // 3. Process the new overview data result
+  const overviewInfo = processSettledResult(overviewResult, 'stats', false);
+  const activityFeed = (overviewResult.status === 'fulfilled' && overviewResult.value.success) ? overviewResult.value.activityFeed : [];
+  const healthStatus = (overviewResult.status === 'fulfilled' && overviewResult.value.success) ? overviewResult.value.health : { database: { status: 'error' }, googleMaps: { status: 'error' } };
+
 
   const stats = [
     {
@@ -68,7 +107,6 @@ export default async function RegistryOverviewPage() {
       href: "/registry/centers",
       description: "Manage all academic centers.",
       error: centersInfo.error,
-      // Hardcoded gradient classes
       gradientClasses: "bg-gradient-to-br from-blue-700 via-blue-800 to-violet-700",
       iconColor: "text-white/80",
     },
@@ -84,57 +122,52 @@ export default async function RegistryOverviewPage() {
     },
     {
       title: "Pending Claims",
-      count: pendingClaimsInfo.count,
+      // Use the more accurate count from the overview data if available
+      count: overviewInfo.success ? overviewInfo.data.pendingClaimsCount : pendingClaimsInfo.count,
       icon: FileText,
       href: "/registry/claims?status=PENDING",
       description: "Review and process claims.",
-      error: pendingClaimsInfo.error,
-      gradientClasses: "bg-gradient-to-br from-red-700 via-red-800 to-orange-700", // Using orange as an accent with red
+      error: pendingClaimsInfo.error || overviewInfo.error,
+      gradientClasses: "bg-gradient-to-br from-red-700 via-red-800 to-orange-700",
       iconColor: "text-white/80",
     },
     {
-      title: "Approved Claims",
-      count: approvedClaimsInfo.count,
-      icon: BarChart3,
-      href: "/registry/claims?status=APPROVED",
-      description: "View all approved claims.",
-      error: approvedClaimsInfo.error,
-      // A mix for "approved" - could also be a less intense gradient or solid color if preferred
+      title: "Pending Signups",
+      // Get this count from our new overview data
+      count: overviewInfo.success ? overviewInfo.data.pendingSignupsCount : 'N/A',
+      icon: UserPlus,
+      href: "/registry/requests",
+      description: "Review new account requests.",
+      error: overviewInfo.error,
       gradientClasses: "bg-gradient-to-br from-violet-600 via-blue-700 to-sky-600", 
       iconColor: "text-white/80",
     },
   ];
 
   return (
-    <div className="min-h-full space-y-6 sm:space-y-8 p-3 sm:p-4 md:p-6 lg:p-8 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-50">
+    <div className="min-h-full space-y-6 sm:space-y-8 p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
       <div className="mb-6 sm:mb-8">
-        <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight text-${brandColors.blue} dark:text-blue-400 flex items-center`}>
-          <DatabaseZap className={`mr-3 h-7 w-7 sm:h-8 sm:w-8 text-${brandColors.blue} dark:text-blue-500`} />
+        <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight text-blue-800 dark:text-blue-400 flex items-center`}>
+          <DatabaseZap className={`mr-3 h-7 w-7 sm:h-8 sm:w-8 text-blue-700 dark:text-blue-500`} />
           Registry Dashboard
         </h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1 text-sm sm:text-base">
-          Welcome, <span className="font-semibold">{session.name || session.email}</span>! Key statistics and quick actions.
+        <p className="text-slate-600 dark:text-slate-400 mt-1.5 text-sm sm:text-base">
+          Welcome, <span className="font-semibold">{session.name || session.email}</span>! Key statistics and system overview.
         </p>
       </div>
 
-      {/* Stats Cards Grid */}
       <div className="grid gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Link href={stat.href} key={stat.title} className="block group rounded-xl overflow-hidden shadow-lg hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-violet-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900 transition-shadow duration-300">
             <Card className={`text-white border-none ${stat.gradientClasses} transform transition-all duration-300 ease-in-out group-hover:scale-[1.02] group-focus-visible:scale-[1.02] group-hover:brightness-110 group-focus-visible:brightness-110 h-full flex flex-col`}>
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2 pt-4 px-4">
-                <CardTitle className="text-sm sm:text-base font-medium">
-                  {stat.title}
-                </CardTitle>
+                <CardTitle className="text-sm sm:text-base font-medium">{stat.title}</CardTitle>
                 <stat.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${stat.iconColor} opacity-90`} />
               </CardHeader>
               <CardContent className="px-4 pb-4 flex-grow flex flex-col justify-between">
                 <div>
                   {stat.error ? (
-                    <div className="flex items-center text-red-200 dark:text-red-300 mt-1">
-                      <AlertTriangle className="mr-2 h-6 w-6 sm:h-7 sm:w-7" />
-                      <p className="text-2xl sm:text-3xl font-bold">Error</p>
-                    </div>
+                    <div className="flex items-center text-red-200 dark:text-red-300 mt-1"><AlertTriangle className="mr-2 h-6 w-6 sm:h-7 sm:w-7" /><p className="text-2xl sm:text-3xl font-bold">Error</p></div>
                   ) : (
                     <div className="text-3xl sm:text-4xl font-bold">{stat.count}</div>
                   )}
@@ -148,39 +181,62 @@ export default async function RegistryOverviewPage() {
         ))}
       </div>
 
-      {/* System Health & Activity Card */}
+      {/* --- UPDATED: System Health & Activity Card --- */}
       <Card className="bg-white dark:bg-slate-800/70 shadow-xl rounded-xl border border-slate-200 dark:border-slate-700">
-        <CardHeader>
+        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
           <div className="flex items-center space-x-3">
-            <Activity className={`h-6 w-6 sm:h-7 sm:w-7 text-${brandColors.blue} dark:text-blue-400`} />
+            <Activity className={`h-6 w-6 sm:h-7 sm:w-7 text-blue-700 dark:text-blue-400`} />
             <div>
-              <CardTitle className={`text-lg sm:text-xl font-semibold text-${brandColors.blue} dark:text-blue-300`}>System Health & Activity</CardTitle>
+              <CardTitle className={`text-lg sm:text-xl font-semibold text-blue-800 dark:text-blue-300`}>System Health & Activity</CardTitle>
               <CardDescription className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm">
-                Overview of recent system events or notifications.
+                A live overview of core services and recent events.
               </CardDescription>
             </div>
           </div>
+          <Button asChild variant="outline" className="mt-3 sm:mt-0 border-blue-600 text-blue-700 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-300 dark:hover:bg-blue-900/40">
+            <Link href="/registry/overview">View Full Report <ExternalLink className="ml-2 h-4 w-4" /></Link>
+          </Button>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-slate-700 dark:text-slate-300">
-            This area can be used for important system-wide announcements, a summary of recent user registrations,
-            or critical pending tasks. For now, it's a placeholder for future enhancements.
-          </p>
-          <div className="mt-4 space-y-2 text-xs sm:text-sm">
-            {[
-              { text: "New center 'Faculty of Science Education' approved.", color: `bg-${brandColors.blue}`, link: "/registry/centers" },
-              { text: "3 new signup requests awaiting approval.", color: `bg-${brandColors.red}`, link: "/registry/users?status=PENDING_APPROVAL" }, // using red for attention
-              { text: "System maintenance scheduled for May 15th, 2025, 02:00 GMT.", color: `bg-${brandColors.violet}`, link: "#" }
-            ].map((item, index) => (
-              <Link href={item.link} key={index} className="block group">
-                <div className="flex items-center p-2.5 sm:p-3 bg-slate-50 dark:bg-slate-700/40 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-transparent group-hover:border-slate-200 dark:group-hover:border-slate-600 focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:ring-violet-500">
-                  <span className={`flex-shrink-0 h-2.5 w-2.5 rounded-full ${item.color} mr-2.5 sm:mr-3`} />
-                  <span className="text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100 flex-1">{item.text}</span>
-                  <ExternalLink className="flex-shrink-0 h-3.5 w-3.5 text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-opacity opacity-0 group-hover:opacity-100 ml-2" />
+        <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
+            {/* Health Status Section */}
+            <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 border-b dark:border-slate-700 pb-2">Core Services</h3>
+                <div className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700/50 rounded-md">
+                    <div className="flex items-center gap-2"><Database className="h-4 w-4 text-slate-500 dark:text-slate-400"/><span>Database Connection</span></div>
+                    {healthStatus.database.status === 'ok' ? 
+                        <Badge variant="outline" className="border-green-500 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">OK</Badge> : 
+                        <Badge variant="destructive">Error</Badge>}
                 </div>
-              </Link>
-            ))}
-          </div>
+                <div className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700/50 rounded-md">
+                    <div className="flex items-center gap-2"><Building className="h-4 w-4 text-slate-500 dark:text-slate-400"/><span>Google Maps Service</span></div>
+                    {healthStatus.googleMaps.status === 'ok' ? 
+                        <Badge variant="outline" className="border-green-500 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">Configured</Badge> : 
+                        <Badge variant="destructive" title={healthStatus.googleMaps.message}>Not Configured</Badge>}
+                </div>
+            </div>
+
+            {/* Recent Activity Feed */}
+            <div className="space-y-3">
+                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 border-b dark:border-slate-700 pb-2">Recent Activity</h3>
+                 {activityFeed.length > 0 ? (
+                    <ul className="space-y-3">
+                        {activityFeed.slice(0, 4).map((item, index) => { // Show top 4 items
+                            const { Icon, color } = getActivityIcon(item.type);
+                            return (
+                                <li key={index} className="flex items-start gap-3">
+                                    <div className="mt-1"><Icon className={`h-4 w-4 ${color}`} /></div>
+                                    <div className="flex-1">
+                                        <p className="text-xs text-slate-800 dark:text-slate-100">{item.details}</p>
+                                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{timeSince(item.timestamp)}</p>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                 ) : (
+                    <p className="text-sm text-center text-slate-500 dark:text-slate-400 py-6">No recent activity logged.</p>
+                 )}
+            </div>
         </CardContent>
       </Card>
     </div>
