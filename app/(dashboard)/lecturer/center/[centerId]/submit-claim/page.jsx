@@ -1,7 +1,7 @@
 // app/(dashboard)/lecturer/center/[centerId]/submit-claim/page.jsx
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { submitNewClaim } from '@/lib/actions/lecturer.actions.js';
+import { submitNewClaim, getAssignedCoursesForLecturer } from '@/lib/actions/lecturer.actions.js';
 import { getSession } from '@/lib/actions/auth.actions';
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -48,15 +48,14 @@ const claimFormSchema = z.object({
     required_error: "Claim type is required.",
   }),
   // Teaching fields
-  courseCode: z.string().optional(),      
-  courseTitle: z.string().optional(),     
+  courseId: z.string().optional(), // CHANGED: Replaced courseCode and courseTitle with courseId
   teachingDate: z.string().optional(),
   teachingStartTime: z.string().optional(), 
-  teachingEndTime: z.string().optional(),   
+  teachingEndTime: z.string().optional(), 
   teachingHours: z.preprocess( 
     (val) => (val === "" || val === null || val === undefined ? undefined : parseFloat(String(val))),
     z.number({ invalid_type_error: "Hours must be a number." }).positive("Hours must be positive.").optional()
-  ),     
+  ),   
   transportToTeachingInDate: z.string().optional(),
   transportToTeachingFrom: z.string().optional(),
   transportToTeachingTo: z.string().optional(),
@@ -86,8 +85,7 @@ const claimFormSchema = z.object({
   thesisExamDate: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.claimType === "TEACHING") {
-    if (!data.courseCode?.trim()) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Course code is required.", path: ["courseCode"] });
-    if (!data.courseTitle?.trim()) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Course title is required.", path: ["courseTitle"] });
+    if (!data.courseId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "An assigned course must be selected.", path: ["courseId"] });
     if (!data.teachingDate) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Teaching date is required.", path: ["teachingDate"] });
     if (!data.teachingStartTime) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Start time is required.", path: ["teachingStartTime"] });
     if (!data.teachingEndTime) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "End time is required.", path: ["teachingEndTime"] });
@@ -176,12 +174,14 @@ export default function SubmitClaimPage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const [assignedCourses, setAssignedCourses] = useState([]);
+  const [isCoursesLoading, setIsCoursesLoading] = useState(true);
 
   const form = useForm({
     resolver: zodResolver(claimFormSchema),
     defaultValues: {
       claimType: undefined,
-      courseCode: "", courseTitle: "", 
+      courseId: undefined,
       teachingDate: "", teachingStartTime: "", teachingEndTime: "", teachingHours: undefined,
       transportToTeachingInDate: "", transportToTeachingFrom: "", transportToTeachingTo: "",
       transportToTeachingOutDate: "", transportToTeachingReturnFrom: "", transportToTeachingReturnTo: "",
@@ -197,7 +197,6 @@ export default function SubmitClaimPage() {
 
   const watchClaimType = watch("claimType");
   const watchThesisType = watch("thesisType");
-  const watchTransportType = watch("transportType");
   const watchTeachingDate = watch("teachingDate");
   const watchTeachingStartTime = watch("teachingStartTime");
   const watchTeachingEndTime = watch("teachingEndTime");
@@ -214,7 +213,7 @@ export default function SubmitClaimPage() {
         if (endDateTime.getTime() > startDateTime.getTime()) {
           const durationMs = endDateTime.getTime() - startDateTime.getTime();
           const hours = parseFloat((durationMs / (1000 * 60 * 60)).toFixed(2));
-          setValue('teachingHours', hours, { shouldValidate: false, shouldDirty: true }); // Mark as dirty for display
+          setValue('teachingHours', hours, { shouldValidate: false, shouldDirty: true });
         } else { setValue('teachingHours', undefined, { shouldValidate: false, shouldDirty: true }); }
       } else { setValue('teachingHours', undefined, { shouldValidate: false, shouldDirty: true }); }
     } else if (getValues('teachingHours') !== undefined && watchClaimType !== "TEACHING") {
@@ -223,12 +222,23 @@ export default function SubmitClaimPage() {
   }, [watchTeachingDate, watchTeachingStartTime, watchTeachingEndTime, watchClaimType, setValue, getValues]);
 
   useEffect(() => {
-    async function fetchAndSetUser() {
+    async function fetchInitialData() {
       setIsSessionLoading(true);
       try {
-        const session = await (async () => getSession())();
-        if (session?.userId && (session?.role === 'LECTURER' || session?.role === 'COORDINATOR')) { // Allow Coordinators to submit too
+        const session = await getSession();
+        if (session?.userId && (session?.role === 'LECTURER' || session?.role === 'COORDINATOR')) {
           setCurrentUser(session);
+          
+          setIsCoursesLoading(true);
+          const courseResult = await getAssignedCoursesForLecturer(session.userId);
+          if (courseResult.success) {
+            setAssignedCourses(courseResult.courses);
+          } else {
+            toast.error("Could not load your assigned courses.");
+            setAssignedCourses([]);
+          }
+          setIsCoursesLoading(false);
+          
         } else if (session?.userId) {
             toast.error("Access Denied: Only Lecturers or Coordinators can submit claims.");
             router.replace('/dashboard'); 
@@ -244,7 +254,7 @@ export default function SubmitClaimPage() {
         setIsSessionLoading(false);
       }
     }
-    if (centerId) { fetchAndSetUser(); } 
+    if (centerId) { fetchInitialData(); } 
     else { toast.error("Center information is missing from URL."); setIsSessionLoading(false); }
   }, [router, centerId]);
 
@@ -262,17 +272,19 @@ export default function SubmitClaimPage() {
         claimPayload.supervisedStudents = data.supervisedStudents.filter(s => s.studentName?.trim() || s.thesisTitle?.trim());
         if (claimPayload.supervisedStudents.length === 0) delete claimPayload.supervisedStudents;
     }
-    // teachingHours is part of 'data' and will be sent; server action recalculates for TEACHING claims
     const result = await submitNewClaim(claimPayload);
     setIsLoading(false);
     if (result.success) {
       toast.success("Claim submitted successfully!");
-      form.reset(); // Reset to defaultValues
+      form.reset();
       router.push(`/lecturer/center/${centerId}/my-claims`);
     } else { toast.error(result.error || "Failed to submit claim."); }
   };
   
-  const onError = (formErrors) => { /* ... same as before ... */ };
+  const onError = (formErrors) => {
+      console.log("Form validation errors:", formErrors);
+      toast.error("Please correct the errors in the form before submitting.");
+  };
 
   if (isSessionLoading) { return ( <div className="flex flex-col justify-center items-center min-h-[calc(100vh-12rem)] text-blue-700 dark:text-blue-300 p-4"> <Loader2 className="h-10 w-10 animate-spin mb-4" /> <p className="text-lg font-medium">Loading your session...</p> </div> ); }
   if (!centerId && !isSessionLoading) { return ( <div className="flex flex-col justify-center items-center min-h-[calc(100vh-12rem)] text-red-700 dark:text-red-400 p-4"> <p className="text-lg font-medium text-center">Center information missing from URL.<br/>Please navigate from your dashboard.</p><Button onClick={() => router.push('/dashboard')} className="mt-4 bg-blue-700 hover:bg-blue-800 text-white">Go to Dashboard</Button></div> ); }
@@ -312,12 +324,34 @@ export default function SubmitClaimPage() {
                       <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-2.5 border-b border-blue-200 dark:border-blue-700 pb-3 mb-5">
                         <CalendarClock className="h-5 w-5"/> Teaching Session Details
                       </h3>
-                      <FieldWrapper label="Course Code" htmlFor="courseCode" required error={errors.courseCode} icon={Hash}>
-                        <Input id="courseCode" {...register("courseCode")} placeholder="e.g., EDTE 401" className={`${inputBaseClass} ${focusRingClass} ${errors.courseCode ? errorBorderClass : normalBorderClass}`} />
+                      
+                      <FieldWrapper label="Select an Assigned Course" htmlFor="courseId" required error={errors.courseId} icon={BookText}>
+                        <Controller
+                            name="courseId"
+                            control={control}
+                            render={({ field }) => (
+                                <Select onValueChange={field.onChange} value={field.value || ""} disabled={isCoursesLoading}>
+                                    <SelectTrigger id="courseId" className={`${inputBaseClass} ${focusRingClass} ${errors.courseId ? errorBorderClass : normalBorderClass}`}>
+                                        <SelectValue placeholder={isCoursesLoading ? "Loading courses..." : "Select a course"} />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700">
+                                        {assignedCourses.length > 0 ? (
+                                            assignedCourses.map(course => (
+                                                <SelectItem key={course.id} value={course.id}>
+                                                    {course.courseCode} - {course.courseTitle}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                                {isCoursesLoading ? "Loading..." : "No courses assigned to you."}
+                                            </div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
                       </FieldWrapper>
-                      <FieldWrapper label="Course Title" htmlFor="courseTitle" required error={errors.courseTitle} icon={BookText}>
-                        <Input id="courseTitle" {...register("courseTitle")} placeholder="e.g., Advanced Programming" className={`${inputBaseClass} ${focusRingClass} ${errors.courseTitle ? errorBorderClass : normalBorderClass}`} />
-                      </FieldWrapper>
+                      
                       <FieldWrapper label="Date of Teaching" htmlFor="teachingDate" required error={errors.teachingDate} icon={CalendarDays}>
                         <Input type="date" id="teachingDate" {...register("teachingDate")} className={`${inputBaseClass} ${focusRingClass} ${errors.teachingDate ? errorBorderClass : normalBorderClass}`} />
                       </FieldWrapper>
