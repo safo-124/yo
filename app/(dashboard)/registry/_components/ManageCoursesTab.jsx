@@ -13,21 +13,20 @@ import {
 } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import {
-  createProgram, getPrograms, createCourse, getCourses, getDepartments, getLecturersForAssignment, bulkUploadCourses, assignCoursesToLecturers, createDepartment
+  createProgram, getPrograms, createCourse, getCourses, getDepartments, getLecturersForAssignment, bulkUploadCourses, assignCoursesToLecturers, createDepartment,
+  updateProgram, updateCourse, updateDepartment // Import update actions
 } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
 import {
   PlusCircle, BookOpen, GraduationCap, Building2, Layers, CalendarDays, BookText, Hash, Clock, FileWarning, Loader2,
-  List, CheckSquare, Search, XCircle, Upload, UserPlus, Home, User
+  List, CheckSquare, Search, XCircle, Upload, UserPlus, Home, User, Edit2, Trash2 // Added Edit2, Trash2 icons
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-// Import Table components for department listing
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const focusRingClass = "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 dark:focus-visible:ring-blue-400 focus-visible:ring-offset-background dark:focus-visible:ring-offset-slate-900";
 const dialogInputClass = `h-9 sm:h-10 text-sm bg-white dark:bg-slate-700/80 border-slate-300 dark:border-slate-600 focus-visible:ring-blue-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-md ${focusRingClass}`;
@@ -60,17 +59,35 @@ const ACADEMIC_SEMESTERS = [
 
 export default function ManageCoursesTab({ initialPrograms = [], initialDepartments = [], initialCourses = [], initialLecturers = [], initialCenters = [] }) {
   const [activeTab, setActiveTab] = useState("programs");
+  // State variables are initialized directly from props.
+  // These states will receive fresh values from the parent (Server Component) on re-renders caused by revalidatePath.
   const [departments, setDepartments] = useState(initialDepartments);
   const [programs, setPrograms] = useState(initialPrograms);
   const [courses, setCourses] = useState(initialCourses);
   const [lecturers, setLecturers] = useState(initialLecturers);
   const [centers, setCenters] = useState(initialCenters); // State for centers
 
+  // DEBUG LOGS for centers data flow (will appear in browser console)
+  console.log("ManageCoursesTab: initialCenters prop received:", initialCenters);
+  console.log("ManageCoursesTab: centers state initialized to:", centers);
+
+
   const [isProgramDialogOpen, setIsProgramDialogOpen] = useState(false);
   const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
   const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isAssignCoursesDialogOpen, setIsAssignCoursesDialogOpen] = useState(false);
+
+  // Edit dialog states
+  const [isEditProgramDialogOpen, setIsEditProgramDialogOpen] = useState(false);
+  const [editingProgram, setEditingProgram] = useState(null); // Program object being edited
+
+  const [isEditCourseDialogOpen, setIsEditCourseDialogOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState(null); // Course object being edited
+
+  const [isEditDepartmentDialogOpen, setIsEditDepartmentDialogOpen] = useState(false);
+  const [editingDepartment, setEditingDepartment] = useState(null); // Department object being edited
+
 
   const [isLoadingForm, setIsLoadingForm] = useState(false);
   const [formError, setFormError] = useState('');
@@ -90,9 +107,9 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
   const [newAcademicSemester, setNewAcademicSemester] = useState('');
   const [newCourseProgramId, setNewCourseProgramId] = useState('');
 
-  // Form state for Create Department (re-introduced newDepartmentCenterId state)
+  // Form state for Create Department
   const [newDepartmentName, setNewDepartmentName] = useState('');
-  const [newDepartmentCenterId, setNewDepartmentCenterId] = useState(''); // Re-introduced for UI selection
+  const [newDepartmentCenterId, setNewDepartmentCenterId] = useState(''); // For single center assignment
 
 
   // Bulk Upload states
@@ -157,11 +174,29 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
     setFormError('');
   };
 
-  // Reset Department form (re-added newDepartmentCenterId to reset)
   const resetDepartmentForm = () => {
     setNewDepartmentName(''); setNewDepartmentCenterId('');
     setFormError('');
   };
+
+  // Reset Edit Program Form
+  const resetEditProgramForm = () => {
+    setEditingProgram(null);
+    setFormError('');
+  };
+
+  // Reset Edit Course Form
+  const resetEditCourseForm = () => {
+    setEditingCourse(null);
+    setFormError('');
+  };
+
+  // Reset Edit Department Form
+  const resetEditDepartmentForm = () => {
+    setEditingDepartment(null);
+    setFormError('');
+  };
+
 
   const handleCreateProgram = async (event) => {
     event.preventDefault();
@@ -189,6 +224,37 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
     } else {
       setFormError(result.error || "Failed to create program.");
       toast.error(result.error || "Failed to create program.");
+    }
+  };
+
+  // Handle Update Program
+  const handleUpdateProgram = async (event) => {
+    event.preventDefault();
+    setFormError('');
+    if (!editingProgram?.id || !editingProgram.programCode.trim() || !editingProgram.programTitle.trim() || !editingProgram.programCategory || !editingProgram.departmentId) {
+      setFormError("All program fields are required for update."); return;
+    }
+    setIsLoadingForm(true);
+    const result = await updateProgram({
+      id: editingProgram.id,
+      programCode: editingProgram.programCode.trim(),
+      programTitle: editingProgram.programTitle.trim(),
+      programCategory: editingProgram.programCategory,
+      departmentId: editingProgram.departmentId,
+    });
+    setIsLoadingForm(false);
+    if (result.success) {
+      toast.success(`Program "${result.program.programTitle}" updated!`);
+      const refetchResult = await getPrograms();
+      if(refetchResult.success) {
+        setPrograms(refetchResult.programs);
+      } else {
+        toast.error("Failed to re-fetch programs after update.");
+      }
+      setIsEditProgramDialogOpen(false); resetEditProgramForm();
+    } else {
+      setFormError(result.error || "Failed to update program.");
+      toast.error(result.error || "Failed to update program.");
     }
   };
 
@@ -227,12 +293,48 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
     }
   };
 
-  // Handle Create Department (re-introduced specific center selection)
+  // Handle Update Course
+  const handleUpdateCourse = async (event) => {
+    event.preventDefault();
+    setFormError('');
+    if (!editingCourse?.id || !editingCourse.courseCode.trim() || !editingCourse.courseTitle.trim() || !editingCourse.creditHours || !editingCourse.level || !editingCourse.academicSemester || !editingCourse.programId) {
+      setFormError("All course fields are required for update."); return;
+    }
+    if (isNaN(parseFloat(editingCourse.creditHours)) || parseFloat(editingCourse.creditHours) <= 0) {
+        setFormError("Credit hours must be a positive number."); return;
+    }
+    setIsLoadingForm(true);
+    const result = await updateCourse({
+      id: editingCourse.id,
+      courseCode: editingCourse.courseCode.trim(),
+      courseTitle: editingCourse.courseTitle.trim(),
+      creditHours: parseFloat(editingCourse.creditHours),
+      level: editingCourse.level,
+      academicSemester: editingCourse.academicSemester,
+      programId: editingCourse.programId,
+    });
+    setIsLoadingForm(false);
+    if (result.success) {
+      toast.success(`Course "${result.course.courseCode}" updated!`);
+      const refetchResult = await getCourses();
+      if(refetchResult.success) {
+        setCourses(refetchResult.courses);
+      } else {
+        toast.error("Failed to re-fetch courses after update.");
+      }
+      setIsEditCourseDialogOpen(false); resetEditCourseForm();
+    } else {
+      setFormError(result.error || "Failed to update course.");
+      toast.error(result.error || "Failed to update course.");
+    }
+  };
+
+
+  // Handle Create Department
   const handleCreateDepartment = async (event) => {
     event.preventDefault();
     setFormError('');
-    // Re-added newDepartmentCenterId validation
-    if (!newDepartmentName.trim() || !newDepartmentCenterId) {
+    if (!newDepartmentName.trim() || !newDepartmentCenterId) { // Re-added newDepartmentCenterId validation
       setFormError("Department name and Center are required."); return;
     }
 
@@ -244,9 +346,8 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
     setIsLoadingForm(false);
     if (result.success) {
       toast.success(`Department "${result.department.name}" created!`);
-      // Re-fetch all departments and programs (as programs link to departments)
       const refetchDepartmentsResult = await getDepartments();
-      const refetchProgramsResult = await getPrograms(); // Programs are linked to departments, so refresh
+      const refetchProgramsResult = await getPrograms();
       if(refetchDepartmentsResult.success) {
         setDepartments(refetchDepartmentsResult.departments);
       } else {
@@ -259,6 +360,40 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
     } else {
       setFormError(result.error || "Failed to create department.");
       toast.error(result.error || "Failed to create department.");
+    }
+  };
+
+  // Handle Update Department
+  const handleUpdateDepartment = async (event) => {
+    event.preventDefault();
+    setFormError('');
+    if (!editingDepartment?.id || !editingDepartment.name.trim() || !editingDepartment.centerId) {
+      setFormError("Department ID, name, and Center are required for update."); return;
+    }
+
+    setIsLoadingForm(true);
+    const result = await updateDepartment({
+      id: editingDepartment.id,
+      name: editingDepartment.name.trim(),
+      centerId: editingDepartment.centerId,
+    });
+    setIsLoadingForm(false);
+    if (result.success) {
+      toast.success(`Department "${result.department.name}" updated!`);
+      const refetchDepartmentsResult = await getDepartments();
+      const refetchProgramsResult = await getPrograms();
+      if(refetchDepartmentsResult.success) {
+        setDepartments(refetchDepartmentsResult.departments);
+      } else {
+        toast.error("Failed to re-fetch departments after update.");
+      }
+      if(refetchProgramsResult.success) {
+        setPrograms(refetchProgramsResult.programs);
+      }
+      setIsEditDepartmentDialogOpen(false); resetEditDepartmentForm();
+    } else {
+      setFormError(result.error || "Failed to update department.");
+      toast.error(result.error || "Failed to update department.");
     }
   };
 
@@ -413,7 +548,9 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
            {/* Add Department Dialog/Button */}
            <Dialog open={isDepartmentDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetDepartmentForm(); } setIsDepartmentDialogOpen(open); }}>
              <DialogTrigger asChild>
-               <Button className="bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md"><Home className="mr-2 h-4 w-4" />New Department</Button>
+               <Button className="bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
+                 <PlusCircle className="mr-2 h-4 w-4" /><span>New Department</span>
+               </Button>
              </DialogTrigger>
              <DialogContent className="sm:max-w-md">
                <DialogHeader>
@@ -451,7 +588,9 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
            {/* Add Program Dialog/Button */}
            <Dialog open={isProgramDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetProgramForm(); } setIsProgramDialogOpen(open); }}>
              <DialogTrigger asChild>
-               <Button className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md"><PlusCircle className="mr-2 h-4 w-4" />New Program</Button>
+               <Button className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
+                 <PlusCircle className="mr-2 h-4 w-4" /><span>New Program</span>
+               </Button>
              </DialogTrigger>
              <DialogContent className="sm:max-w-md">
                <DialogHeader>
@@ -501,7 +640,9 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
            {/* Add Course Dialog/Button */}
            <Dialog open={isCourseDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetCourseForm(); } setIsCourseDialogOpen(open); }}>
              <DialogTrigger asChild>
-               <Button className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md"><PlusCircle className="mr-2 h-4 w-4" />New Course</Button>
+               <Button className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
+                 <PlusCircle className="mr-2 h-4 w-4" /><span>New Course</span>
+               </Button>
              </DialogTrigger>
              <DialogContent className="sm:max-w-md">
                <DialogHeader>
@@ -678,6 +819,44 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
          <div className="flex-1 flex flex-col">
            {/* Departments Tab Content */}
            <TabsContent value="departments" className="h-full mt-0 pt-0 data-[state=inactive]:hidden">
+             {/* Department Edit Dialog */}
+             {editingDepartment && (
+                <Dialog open={isEditDepartmentDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetEditDepartmentForm(); } setIsEditDepartmentDialogOpen(open); }}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2"><Building2 className="h-5 w-5 text-blue-700" /> Edit Department</DialogTitle>
+                            <DialogDescription>Update the details of this department.</DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleUpdateDepartment}>
+                            <div className="grid gap-4 py-4">
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="editDepartmentName" className={dialogLabelClass}>Department Name <span className="text-red-700">*</span></Label>
+                                    <Input id="editDepartmentName" value={editingDepartment.name} onChange={(e) => setEditingDepartment(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g., Department of Computer Science" disabled={isLoadingForm} className={dialogInputClass} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="editDepartmentCenterId" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label>
+                                    <Select value={editingDepartment.centerId} onValueChange={(val) => setEditingDepartment(prev => ({ ...prev, centerId: val }))} disabled={isLoadingForm || centers.length === 0}>
+                                        <SelectTrigger id="editDepartmentCenterId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger>
+                                        <SelectContent className={dialogSelectContentClass}>
+                                            {centers.length > 0 ? centers.map(center => (
+                                                <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
+                                            )) : <div className="px-3 py-2 text-sm text-slate-500">No centers found.</div>}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
+                                <Button type="submit" disabled={isLoadingForm}>
+                                    {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Save Changes
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+             )}
+             
              {/* FIX: Moved p-4 inside ScrollArea's content div */}
              <ScrollArea className="h-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg bg-white dark:bg-slate-800/90">
                <div className="p-4"> {/* Added padding inside ScrollArea's content */}
@@ -703,31 +882,49 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                    </div>
                  )}
                  {!isLoadingForm && filteredDepartments.length > 0 && (
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                     {filteredDepartments.map(department => (
-                       <Card key={department.id} className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg hover:shadow-md transition-shadow">
-                         <CardHeader className="pb-3">
-                           <CardTitle className="text-lg font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
-                             <Building2 className="h-5 w-5 flex-shrink-0 text-blue-700 dark:text-blue-500" />
-                             {department.name}
-                           </CardTitle>
-                           <CardDescription className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                               <Home className="h-3.5 w-3.5" />Center: {department.centerName}
-                           </CardDescription>
-                         </CardHeader>
-                         <CardContent className="space-y-1 text-sm">
-                           <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                             <BookOpen className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                             <span>Programs: {department.programCount}</span>
-                           </div>
-                           <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                             <User className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                             <span>Lecturers: {department.lecturerCount}</span>
-                           </div>
-                         </CardContent>
-                       </Card>
-                     ))}
-                   </div>
+                   <Table className="w-full">
+                     <TableHeader className="bg-slate-100/90 dark:bg-slate-700/70 sticky top-0 z-10 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
+                       <TableRow>
+                         <TableHead className="w-[35%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Department Name</TableHead>
+                         <TableHead className="w-[30%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Center</TableHead>
+                         <TableHead className="w-[10%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 text-center whitespace-nowrap">Programs</TableHead>
+                         <TableHead className="w-[10%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 text-center whitespace-nowrap">Lecturers</TableHead>
+                         <TableHead className="w-[15%] text-right text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Actions</TableHead>
+                       </TableRow>
+                     </TableHeader>
+                     <TableBody className="divide-y divide-slate-100 dark:divide-slate-700/80">
+                       {filteredDepartments.map(department => (
+                         <TableRow key={department.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors">
+                           <TableCell className="px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                             <div className="flex items-center gap-2"><Building2 className="h-4 w-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />{department.name}</div>
+                           </TableCell>
+                           <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                             {department.centerName || 'N/A'}
+                           </TableCell>
+                           <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 text-center whitespace-nowrap">
+                             {department.programCount}
+                           </TableCell>
+                           <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 text-center whitespace-nowrap">
+                             {department.lecturerCount}
+                           </TableCell>
+                           <TableCell className="text-right px-4 py-2.5 whitespace-nowrap">
+                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingDepartment(department); setIsEditDepartmentDialogOpen(true); }}>
+                               <Edit2 className="h-4 w-4" />
+                               <span className="sr-only">Edit Department</span>
+                             </Button>
+                             {/* Add Delete Button for Department here if needed */}
+                           </TableCell>
+                         </TableRow>
+                       ))}
+                       {filteredDepartments.length === 0 && searchQuery && (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center text-slate-500 py-4">
+                                    No departments found for "{searchQuery}".
+                                </TableCell>
+                            </TableRow>
+                        )}
+                     </TableBody>
+                   </Table>
                  )}
                </div>
              </ScrollArea>
@@ -791,6 +988,12 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
                               <BookText className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
                               <span>Courses: {program.courseCount}</span>
+                           </div>
+                           <div className="flex justify-end mt-2">
+                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingProgram(program); setIsEditProgramDialogOpen(true); }}>
+                                   <Edit2 className="h-4 w-4" />
+                                   <span className="sr-only">Edit Program</span>
+                               </Button>
                            </div>
                          </CardContent>
                        </Card>
@@ -871,6 +1074,12 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                                            </div>
                                        )}
                                    </CardContent>
+                                   <div className="flex justify-end mt-2">
+                                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingCourse(course); setIsEditCourseDialogOpen(true); }}>
+                                           <Edit2 className="h-4 w-4" />
+                                           <span className="sr-only">Edit Course</span>
+                                       </Button>
+                                   </div>
                                </Card>
                            ))}
                        </div>
