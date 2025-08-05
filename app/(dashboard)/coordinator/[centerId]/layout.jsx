@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/actions/auth.actions';
 import prisma from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
-import { Home, Users, FileText, Building } from 'lucide-react';
+import { Home, Users, FileText, Building, BookUser } from 'lucide-react'; // Added BookUser
 import UserProfileDropdown from '../../UserProfileDropdown';
 import { MobileSidebar } from './_components/MobileSidebar';
 
@@ -50,6 +50,7 @@ export default async function CoordinatorLayout({ children, params }) {
     { name: 'Overview', href: `/coordinator/${centerId}`, icon: 'Home' },
     { name: 'Departments', href: `/coordinator/${centerId}/departments`, icon: 'Building' },
     { name: 'Lecturers', href: `/coordinator/${centerId}/lecturers`, icon: 'Users' },
+    { name: 'Assignments', href: `/coordinator/${centerId}/assignments`, icon: 'BookUser' }, // <-- NEW ITEM ADDED HERE
     { name: 'Claims', href: `/coordinator/${centerId}/claims`, icon: 'FileText' },
   ];
 
@@ -84,6 +85,7 @@ export default async function CoordinatorLayout({ children, params }) {
                 {item.icon === 'Home' && <Home className="mr-3 h-5 w-5" />}
                 {item.icon === 'Building' && <Building className="mr-3 h-5 w-5" />}
                 {item.icon === 'Users' && <Users className="mr-3 h-5 w-5" />}
+                {item.icon === 'BookUser' && <BookUser className="mr-3 h-5 w-5" />} {/* <-- NEW ICON ADDED HERE */}
                 {item.icon === 'FileText' && <FileText className="mr-3 h-5 w-5" />}
                 {item.name}
               </Link>
@@ -96,16 +98,13 @@ export default async function CoordinatorLayout({ children, params }) {
         </div>
       </aside>
 
-      {/* Main Content Area - Now takes about 80% width */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col lg:ml-64">
-        {/* Empty header for mobile to maintain spacing */}
         <header className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10 lg:hidden h-16" />
         
         <main className="flex-grow mx-auto p-4 sm:p-6 lg:p-8 w-full max-w-[80vw]">
           {children}
         </main>
-        
-    
       </div>
     </div>
   );
