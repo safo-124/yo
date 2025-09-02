@@ -703,45 +703,68 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
             </Dialog>
 
             {/* Bulk Upload Courses Dialog/Button */}
-            <Dialog open={isBulkUploadDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setExcelFile(null); setBulkUploadStatus(null); setFormError(''); } setIsBulkUploadDialogOpen(open); }}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="text-slate-700 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium h-10 px-5 text-sm rounded-lg shadow-md"><Upload className="mr-2 h-4 w-4" />Bulk Upload</Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-blue-700" /> Bulk Upload Courses</DialogTitle>
-                  <DialogDescription>Upload multiple courses using an Excel file (.xlsx). Refer to template for format.</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleBulkUpload}>
-                  <div className="grid gap-4 py-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="excelFile" className={dialogLabelClass}>Excel File (.xlsx) <span className="text-red-700">*</span></Label>
-                      <Input id="excelFile" type="file" accept=".xlsx" onChange={(e) => setExcelFile(e.target.files[0])} disabled={isLoadingForm} className={dialogInputClass} />
-                    </div>
-                    {bulkUploadStatus && (
-                      <div className={`p-2 rounded-md text-xs ${bulkUploadStatus.failedCount > 0 ? 'bg-red-50 text-red-700 border-red-300' : 'bg-green-50 text-green-700 border-green-300'}`}>
-                        <p className="font-semibold">{bulkUploadStatus.message}</p>
-                        {bulkUploadStatus.failedRecords && bulkUploadStatus.failedRecords.length > 0 && (
-                          <ScrollArea className="h-24 mt-2 pr-2">
-                            <p className="font-bold">Failed Records:</p>
-                            <ul className="list-disc list-inside">
-                              {bulkUploadStatus.failedRecords.map((rec, index) => (
-                                <li key={index}>Row {index + 1}: {rec.error} (Code: {rec.data.courseCode || 'N/A'})</li>
-                              ))}
-                            </ul>
-                          </ScrollArea>
-                        )}
-                      </div>
-                    )}
-                    {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
-                  </div>
-                  <DialogFooter>
-                    <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
-                    <Button type="submit" disabled={isLoadingForm || !excelFile}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Upload Courses</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+<Dialog open={isBulkUploadDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setExcelFile(null); setBulkUploadStatus(null); setFormError(''); } setIsBulkUploadDialogOpen(open); }}>
+  <DialogTrigger asChild>
+    <Button variant="outline" className="text-slate-700 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium h-10 px-5 text-sm rounded-lg shadow-md">
+      <Upload className="mr-2 h-4 w-4" />
+      Bulk Upload Courses
+    </Button>
+  </DialogTrigger>
+  <DialogContent className="sm:max-w-md">
+    <DialogHeader>
+      <DialogTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-blue-700" /> Bulk Upload Courses</DialogTitle>
+      <DialogDescription>
+        Upload an Excel file (.xlsx) to create multiple courses at once.
+        <a href="/course_upload_template.xlsx" download className="text-blue-600 hover:underline font-medium block mt-2">
+          Download the required template here.
+        </a>
+      </DialogDescription>
+    </DialogHeader>
+    <form onSubmit={handleBulkUpload}>
+      <div className="grid gap-4 py-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="excelFile" className={dialogLabelClass}>Excel File (.xlsx) <span className="text-red-700">*</span></Label>
+          <Input 
+            id="excelFile" 
+            type="file" 
+            accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
+            onChange={(e) => setExcelFile(e.target.files[0])} 
+            disabled={isLoadingForm} 
+            className={dialogInputClass} 
+          />
+        </div>
+
+        {/* This section displays the results after an upload attempt */}
+        {bulkUploadStatus && (
+          <div className={`p-3 rounded-md text-xs border ${bulkUploadStatus.failedCount > 0 ? 'bg-red-50 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-700' : 'bg-green-50 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-700'}`}>
+            <p className="font-semibold mb-2">{bulkUploadStatus.message}</p>
+            {bulkUploadStatus.failedRecords && bulkUploadStatus.failedRecords.length > 0 && (
+              <ScrollArea className="h-24 mt-2 pr-3">
+                <p className="font-bold">Failed Records:</p>
+                <ul className="list-disc list-inside space-y-1 mt-1">
+                  {bulkUploadStatus.failedRecords.map((rec, index) => (
+                    <li key={index}>
+                      <span className="font-semibold">Code: {rec.data.courseCode || 'N/A'}</span> - {rec.error}
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            )}
+          </div>
+        )}
+
+        {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+      </div>
+      <DialogFooter>
+        <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
+        <Button type="submit" disabled={isLoadingForm || !excelFile}>
+          {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+          Upload and Create
+        </Button>
+      </DialogFooter>
+    </form>
+  </DialogContent>
+</Dialog>
 
             {/* Assign Courses Dialog/Button */}
             <Dialog open={isAssignCoursesDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setSelectedCoursesForAssignment([]); setSelectedLecturerForAssignment(''); setFormError(''); } setIsAssignCoursesDialogOpen(open); }}>
