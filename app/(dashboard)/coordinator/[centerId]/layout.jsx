@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/actions/auth.actions';
 import prisma from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
-import { Home, Users, FileText, Building, BookUser } from 'lucide-react'; // Added BookUser
+import { Home, Users, FileText, Building, BookUser, Send } from 'lucide-react'; // <-- ADDED 'Send' ICON
 import UserProfileDropdown from '../../UserProfileDropdown';
 import { MobileSidebar } from './_components/MobileSidebar';
 
@@ -46,13 +46,15 @@ export default async function CoordinatorLayout({ children, params }) {
     redirect('/unauthorized?error=center_mismatch');
   }
 
-  const navigationItems = [
-    { name: 'Overview', href: `/coordinator/${centerId}`, icon: 'Home' },
-    { name: 'Departments', href: `/coordinator/${centerId}/departments`, icon: 'Building' },
-    { name: 'Lecturers', href: `/coordinator/${centerId}/lecturers`, icon: 'Users' },
-    { name: 'Assignments', href: `/coordinator/${centerId}/assignments`, icon: 'BookUser' }, // <-- NEW ITEM ADDED HERE
-    { name: 'Claims', href: `/coordinator/${centerId}/claims`, icon: 'FileText' },
-  ];
+ const navigationItems = [
+  { name: 'Overview', href: `/coordinator/${centerId}`, icon: 'Home' },
+  { name: 'Departments', href: `/coordinator/${centerId}/departments`, icon: 'Building' },
+  { name: 'Lecturers', href: `/coordinator/${centerId}/lecturers`, icon: 'Users' },
+  // VVVV CHECK THIS LINE CAREFULLY VVVV
+  { name: 'Assignments', href: `/coordinator/${centerId}/assignments`, icon: 'BookUser' },
+  { name: 'Claims', href: `/coordinator/${centerId}/claims`, icon: 'FileText' },
+  { name: 'Submit Claim', href: `/lecturer/center/${centerId}/submit-claim`, icon: 'Send' },
+];
 
   return (
     <div className={`min-h-screen bg-gray-50 dark:bg-gray-900 ${inter.className} flex flex-col lg:flex-row`}>
@@ -85,8 +87,9 @@ export default async function CoordinatorLayout({ children, params }) {
                 {item.icon === 'Home' && <Home className="mr-3 h-5 w-5" />}
                 {item.icon === 'Building' && <Building className="mr-3 h-5 w-5" />}
                 {item.icon === 'Users' && <Users className="mr-3 h-5 w-5" />}
-                {item.icon === 'BookUser' && <BookUser className="mr-3 h-5 w-5" />} {/* <-- NEW ICON ADDED HERE */}
+                {item.icon === 'BookUser' && <BookUser className="mr-3 h-5 w-5" />}
                 {item.icon === 'FileText' && <FileText className="mr-3 h-5 w-5" />}
+                {item.icon === 'Send' && <Send className="mr-3 h-5 w-5" />} {/* <-- ADDED THIS LINE */}
                 {item.name}
               </Link>
             </Button>

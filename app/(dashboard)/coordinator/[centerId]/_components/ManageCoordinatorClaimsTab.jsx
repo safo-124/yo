@@ -21,10 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge"; // For claim status
-import { processClaim } from '@/lib/actions/coordinator.actions.js';
+import { Badge } from "@/components/ui/badge";
+// ================== FIXED IMPORT ==================
+import { processClaimByCoordinator } from '@/lib/actions/coordinator.actions.js';
+// ================================================
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Eye, ListFilter } from "lucide-react"; // Icons
+import { CheckCircle, XCircle, Eye, ListFilter } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,8 +58,6 @@ const formatClaimDetails = (claim) => {
     details.push(`Thesis Type: ${claim.thesisType || 'N/A'}`);
     if (claim.thesisType === 'SUPERVISION') {
       details.push(`Rank: ${claim.thesisSupervisionRank || 'N/A'}`);
-      // Supervised students would ideally be listed here if fetched
-      // For now, we'll skip displaying student list in this simple view
       details.push(`Students: ${claim.supervisedStudents?.length || 0} (details not shown)`);
     } else if (claim.thesisType === 'EXAMINATION') {
       details.push(`Course Code: ${claim.thesisExamCourseCode || 'N/A'}`);
@@ -70,18 +70,17 @@ const formatClaimDetails = (claim) => {
 
 export default function ManageCoordinatorClaimsTab({
   centerId,
-  initialClaims = [], // Initially pending claims
-  allClaimsFromCenter = [], // All claims for filtering if needed
+  initialClaims = [],
+  allClaimsFromCenter = [],
   coordinatorUserId
 }) {
   const [claims, setClaims] = useState(initialClaims);
-  const [selectedClaim, setSelectedClaim] = useState(null); // For viewing details
+  const [selectedClaim, setSelectedClaim] = useState(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [filterStatus, setFilterStatus] = useState("PENDING"); // Default filter
+  const [filterStatus, setFilterStatus] = useState("PENDING");
 
   useEffect(() => {
-    // Filter claims based on filterStatus when allClaimsFromCenter or filterStatus changes
     const filtered = allClaimsFromCenter.filter(claim => claim.status === filterStatus);
     setClaims(filtered);
   }, [allClaimsFromCenter, filterStatus]);
@@ -94,21 +93,18 @@ export default function ManageCoordinatorClaimsTab({
 
   const handleProcessClaim = async (claimId, status) => {
     setIsProcessing(true);
-    const result = await processClaim({
+    // ================== FIXED FUNCTION CALL ==================
+    const result = await processClaimByCoordinator({
       claimId,
       status,
       processedById: coordinatorUserId,
-      centerId, // For revalidation
+      centerId,
     });
+    // =======================================================
 
     if (result.success) {
       toast.success(`Claim ${status.toLowerCase()} successfully!`);
-      // The parent page revalidation should update the claims list.
-      // For immediate UI update if parent doesn't re-fetch allClaimsFromCenter:
-      // setClaims(prevClaims => prevClaims.filter(c => c.id !== claimId)); // Remove processed claim from pending list
-      // Or update its status if showing all claims:
-      // setClaims(prevClaims => prevClaims.map(c => c.id === claimId ? {...c, status: status, processedAt: new Date()} : c));
-      setIsDetailDialogOpen(false); // Close dialog if open
+      setIsDetailDialogOpen(false);
       setSelectedClaim(null);
     } else {
       toast.error(result.error || `Failed to ${status.toLowerCase()} claim.`);
@@ -119,7 +115,7 @@ export default function ManageCoordinatorClaimsTab({
   const getStatusBadgeVariant = (status) => {
     switch (status) {
       case 'PENDING': return 'outline';
-      case 'APPROVED': return 'default'; // Greenish in default shadcn
+      case 'APPROVED': return 'default';
       case 'REJECTED': return 'destructive';
       default: return 'secondary';
     }
@@ -147,7 +143,6 @@ export default function ManageCoordinatorClaimsTab({
         </DropdownMenu>
       </div>
 
-      {/* View Claim Detail Dialog */}
       {selectedClaim && (
         <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
           <DialogContent className="sm:max-w-lg">
@@ -186,17 +181,16 @@ export default function ManageCoordinatorClaimsTab({
                   </Button>
                 </DialogFooter>
               )}
-               {selectedClaim.processedAt && (
-                 <p className="text-xs text-muted-foreground mt-2">
-                    Processed At: {new Date(selectedClaim.processedAt).toLocaleString()}
-                 </p>
-               )}
+              {selectedClaim.processedAt && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Processed At: {new Date(selectedClaim.processedAt).toLocaleString()}
+                </p>
+              )}
             </div>
           </DialogContent>
         </Dialog>
       )}
 
-      {/* Table of Claims */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
@@ -236,7 +230,7 @@ export default function ManageCoordinatorClaimsTab({
         </Table>
       </div>
       {claims.length === 0 && (
-         <p className="text-center text-muted-foreground">There are no claims matching the current filter.</p>
+          <p className="text-center text-muted-foreground">There are no claims matching the current filter.</p>
       )}
     </div>
   );

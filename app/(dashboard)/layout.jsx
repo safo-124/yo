@@ -61,7 +61,7 @@ export default async function DashboardLayout({ children }) {
               University of Education, Winneba
             </p>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             &copy; {new Date().getFullYear()} CODeL Claims Portal. All rights reserved.
           </p>
         </div>
