@@ -15,7 +15,7 @@ export default async function LecturerCenterLayout({ children, params }) {
   const { centerId } = params;
 
   if (!session?.userId) redirect('/login');
-  if (session.role !== 'LECTURER') redirect('/unauthorized');
+  if (session.role !== 'LECTURER' && session.role !== 'COORDINATOR') redirect('/unauthorized');
 
   const currentUser = await prisma.user.findUnique({
     where: { id: session.userId },
@@ -28,10 +28,26 @@ export default async function LecturerCenterLayout({ children, params }) {
     }
   });
 
-  if (currentUser?.lecturerCenterId !== centerId) {
+  // For lecturers, verify they're accessing their assigned center
+  if (session.role === 'LECTURER' && currentUser?.lecturerCenterId !== centerId) {
     currentUser?.lecturerCenterId 
       ? redirect(`/lecturer/center/${currentUser.lecturerCenterId}/dashboard`)
       : redirect('/lecturer/assignment-pending');
+  }
+  
+  // For coordinators, verify if this center is their assigned center
+  if (session.role === 'COORDINATOR') {
+    const coordinatorCenter = await prisma.center.findUnique({
+      where: {
+        id: centerId,
+        coordinatorId: session.userId,
+      },
+      select: { id: true }
+    });
+    
+    if (!coordinatorCenter) {
+      redirect('/unauthorized?error=coordinator_center_mismatch');
+    }
   }
 
   let centerName = "Your Center";

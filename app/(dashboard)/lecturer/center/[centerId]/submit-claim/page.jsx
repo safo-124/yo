@@ -277,7 +277,12 @@ export default function SubmitClaimPage() {
     if (result.success) {
       toast.success("Claim submitted successfully!");
       form.reset();
-      router.push(`/lecturer/center/${centerId}/my-claims`);
+      // Check user role to determine redirect path
+      if (currentUser.role === 'COORDINATOR') {
+        router.push(`/coordinator/${centerId}/claims`);
+      } else {
+        router.push(`/lecturer/center/${centerId}/my-claims`);
+      }
     } else { toast.error(result.error || "Failed to submit claim."); }
   };
   
