@@ -51,6 +51,7 @@ export default async function AssignmentPage({ params }) {
         lecturers={result.lecturers}
         courses={result.courses}
         coordinatorId={session.userId}
+        maxCoursesAllowed={result.maxCoursesAllowed}
       />
     </div>
   );

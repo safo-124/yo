@@ -12,10 +12,11 @@ import { toast } from "sonner";
 import { assignCoursesToLecturerByCoordinator } from '@/lib/actions/coordinator.actions.js';
 import { Loader2 } from "lucide-react";
 
-export function AssignmentForm({ lecturers = [], courses = [], coordinatorId }) {
+export function AssignmentForm({ lecturers = [], courses = [], coordinatorId, maxCoursesAllowed = 3 }) {
   const [selectedLecturerId, setSelectedLecturerId] = useState('');
   const [selectedCourseIds, setSelectedCourseIds] = useState(new Set());
   const [isLoading, setIsLoading] = useState(false);
+  const [limitExceeded, setLimitExceeded] = useState(false);
 
   // When a new lecturer is selected, update the checkboxes
   useEffect(() => {
@@ -33,9 +34,16 @@ export function AssignmentForm({ lecturers = [], courses = [], coordinatorId }) 
     setSelectedCourseIds(prev => {
       const newSet = new Set(prev);
       if (checked) {
+        // Check if adding this would exceed the maximum allowed
+        if (newSet.size >= maxCoursesAllowed) {
+          toast.warning(`Cannot select more than ${maxCoursesAllowed} courses as set by registry`);
+          setLimitExceeded(true);
+          return prev; // Don't change the selection
+        }
         newSet.add(courseId);
       } else {
         newSet.delete(courseId);
+        setLimitExceeded(false); // Reset the exceeded flag when removing
       }
       return newSet;
     });
@@ -94,9 +102,19 @@ export function AssignmentForm({ lecturers = [], courses = [], coordinatorId }) 
 
         {selectedLecturerId && (
           <div className="space-y-2">
-            <Label className="font-semibold">
-              2. Assign Courses for {selectedLecturerName}
-            </Label>
+            <div className="flex justify-between items-center">
+              <Label className="font-semibold">
+                2. Assign Courses for {selectedLecturerName}
+              </Label>
+              <div className="text-sm text-muted-foreground">
+                Selected: {selectedCourseIds.size}/{maxCoursesAllowed} courses
+              </div>
+            </div>
+            {limitExceeded && (
+              <div className="text-sm p-2 bg-amber-100 text-amber-800 rounded-md">
+                Maximum of {maxCoursesAllowed} courses allowed per lecturer as set by registry.
+              </div>
+            )}
             <ScrollArea className="h-72 w-full rounded-md border p-4">
               <div className="space-y-3">
                 {courses.length > 0 ? (
@@ -106,6 +124,7 @@ export function AssignmentForm({ lecturers = [], courses = [], coordinatorId }) 
                         id={`course-${course.id}`}
                         checked={selectedCourseIds.has(course.id)}
                         onCheckedChange={(checked) => handleCheckboxChange(course.id, checked)}
+                        disabled={!selectedCourseIds.has(course.id) && selectedCourseIds.size >= maxCoursesAllowed}
                       />
                       <label
                         htmlFor={`course-${course.id}`}

@@ -27,6 +27,7 @@ export default function RegistryLayoutClient({ session, children }) {
     { name: 'Summaries', href: '/registry/summaries', icon: ClipboardList },
     { name: 'Courses', href: '/registry/courses', icon: ClipboardList },
     { name: 'Signup Requests', href: '/registry/requests', icon: UserCheckIcon },
+    { name: 'Settings', href: '/registry/settings', icon: ShieldCheck },
   ];
 
   // SidebarContent is now consistently styled for a dark gradient background
