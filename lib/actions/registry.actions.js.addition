@@ -1,0 +1,219 @@
+// Delete course function
+export async function deleteCourse(id) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [deleteCourse] Action called for ID: ${id}`);
+
+  if (!id) {
+    return { success: false, error: "Course ID is required for deletion." };
+  }
+
+  try {
+    // First, find the course to get its information for logging
+    const course = await prisma.course.findUnique({
+      where: { id },
+      include: { 
+        program: { select: { programTitle: true } } 
+      }
+    });
+
+    if (!course) {
+      return { success: false, error: "Course not found." };
+    }
+
+    // Check if the course has any existing assignments to lecturers
+    const assignments = await prisma.lecturerCourseAssignment.findMany({
+      where: { courseId: id },
+      select: { lecturerId: true }
+    });
+
+    if (assignments.length > 0) {
+      return { 
+        success: false, 
+        error: "Cannot delete this course because it's assigned to lecturers. Please remove all assignments first." 
+      };
+    }
+
+    // Delete the course
+    await prisma.course.delete({
+      where: { id }
+    });
+
+    // Update the Excel template file after deletion
+    try {
+      // Import server utilities for generating Excel template
+      const { generateCourseExcelTemplate } = await import('@/lib/excelUtils');
+      
+      // Get all courses to update the template
+      const allCourses = await prisma.course.findMany({
+        include: {
+          program: {
+            select: { programCode: true }
+          }
+        },
+        orderBy: { courseCode: 'asc' }
+      });
+      
+      // Generate updated Excel template
+      await generateCourseExcelTemplate(allCourses);
+    } catch (excelError) {
+      console.error(`[${timestamp}] [deleteCourse] Error updating Excel template:`, excelError);
+      // Continue with the function even if Excel update fails
+    }
+
+    revalidatePath('/registry/courses');
+
+    console.log(`[${timestamp}] [deleteCourse] Successfully deleted course: ${course.courseCode} - ${course.courseTitle}`);
+    return { 
+      success: true, 
+      message: `Successfully deleted course: ${course.courseCode} - ${course.courseTitle}` 
+    };
+
+  } catch (error) {
+    console.error(`[${timestamp}] [deleteCourse] Error:`, error.message, error.stack);
+    
+    // Handle foreign key constraint violations
+    if (error.code === 'P2003') {
+      return { 
+        success: false, 
+        error: "Cannot delete this course because it is referenced by other records in the system." 
+      };
+    }
+    
+    return { success: false, error: `Failed to delete course: ${error.message || "Unknown error."}` };
+  }
+}
+
+// Delete program function
+export async function deleteProgram(id) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [deleteProgram] Action called for ID: ${id}`);
+
+  if (!id) {
+    return { success: false, error: "Program ID is required for deletion." };
+  }
+
+  try {
+    // First, check if the program has any courses
+    const courseCount = await prisma.course.count({
+      where: { programId: id }
+    });
+
+    if (courseCount > 0) {
+      return { 
+        success: false, 
+        error: `Cannot delete this program because it has ${courseCount} course(s) associated with it. Please delete all courses first.` 
+      };
+    }
+
+    // Find the program to get its information for logging
+    const program = await prisma.program.findUnique({
+      where: { id },
+      select: { programCode: true, programTitle: true }
+    });
+
+    if (!program) {
+      return { success: false, error: "Program not found." };
+    }
+
+    // Delete the program
+    await prisma.program.delete({
+      where: { id }
+    });
+
+    revalidatePath('/registry/courses');
+
+    console.log(`[${timestamp}] [deleteProgram] Successfully deleted program: ${program.programCode} - ${program.programTitle}`);
+    return { 
+      success: true, 
+      message: `Successfully deleted program: ${program.programCode} - ${program.programTitle}` 
+    };
+
+  } catch (error) {
+    console.error(`[${timestamp}] [deleteProgram] Error:`, error.message, error.stack);
+    
+    // Handle foreign key constraint violations
+    if (error.code === 'P2003') {
+      return { 
+        success: false, 
+        error: "Cannot delete this program because it is referenced by other records in the system." 
+      };
+    }
+    
+    return { success: false, error: `Failed to delete program: ${error.message || "Unknown error."}` };
+  }
+}
+
+// Delete department function
+export async function deleteDepartment(id) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [deleteDepartment] Action called for ID: ${id}`);
+
+  if (!id) {
+    return { success: false, error: "Department ID is required for deletion." };
+  }
+
+  try {
+    // Check if there are any programs in this department
+    const programCount = await prisma.program.count({
+      where: { departmentId: id }
+    });
+
+    if (programCount > 0) {
+      return { 
+        success: false, 
+        error: `Cannot delete this department because it has ${programCount} program(s). Please delete all programs first.` 
+      };
+    }
+
+    // Check if there are any lecturers in this department
+    const lecturerCount = await prisma.user.count({
+      where: { 
+        departmentId: id
+      }
+    });
+
+    if (lecturerCount > 0) {
+      return { 
+        success: false, 
+        error: `Cannot delete this department because it has ${lecturerCount} lecturer(s) assigned to it. Please reassign all lecturers first.` 
+      };
+    }
+
+    // Find department for logging
+    const department = await prisma.department.findUnique({
+      where: { id },
+      select: { name: true }
+    });
+
+    if (!department) {
+      return { success: false, error: "Department not found." };
+    }
+
+    // Delete the department
+    await prisma.department.delete({
+      where: { id }
+    });
+
+    revalidatePath('/registry/courses');
+    revalidatePath('/registry/departments');
+
+    console.log(`[${timestamp}] [deleteDepartment] Successfully deleted department: ${department.name}`);
+    return { 
+      success: true, 
+      message: `Successfully deleted department: ${department.name}` 
+    };
+
+  } catch (error) {
+    console.error(`[${timestamp}] [deleteDepartment] Error:`, error.message, error.stack);
+    
+    // Handle foreign key constraint violations
+    if (error.code === 'P2003') {
+      return { 
+        success: false, 
+        error: "Cannot delete this department because it is referenced by other records in the system." 
+      };
+    }
+    
+    return { success: false, error: `Failed to delete department: ${error.message || "Unknown error."}` };
+  }
+}

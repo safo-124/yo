@@ -51,7 +51,7 @@ export function AssignmentForm({ lecturers = [], courses = [], coordinatorId, ma
 
   const handleSaveChanges = async () => {
     if (!selectedLecturerId) {
-      toast.error("Please select a lecturer first.");
+      toast.error("Please select a user first.");
       return;
     }
 
@@ -80,21 +80,21 @@ export function AssignmentForm({ lecturers = [], courses = [], coordinatorId, ma
       <CardContent className="pt-6 space-y-4">
         <div className="max-w-md space-y-2">
           <Label htmlFor="lecturer-select" className="font-semibold">
-            1. Select a Lecturer
+            1. Select a Lecturer or Coordinator
           </Label>
           <Select value={selectedLecturerId} onValueChange={setSelectedLecturerId}>
             <SelectTrigger id="lecturer-select">
-              <SelectValue placeholder="Choose a lecturer to manage..." />
+              <SelectValue placeholder="Choose a user to manage..." />
             </SelectTrigger>
             <SelectContent>
               {lecturers.length > 0 ? (
-                lecturers.map(lecturer => (
-                  <SelectItem key={lecturer.id} value={lecturer.id}>
-                    {lecturer.name} ({lecturer.email})
+                lecturers.map(user => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.name} ({user.isCoordinator ? 'Coordinator' : 'Lecturer'})
                   </SelectItem>
                 ))
               ) : (
-                <div className="p-4 text-sm text-muted-foreground">No lecturers found in this center.</div>
+                <div className="p-4 text-sm text-muted-foreground">No users found in this center.</div>
               )}
             </SelectContent>
           </Select>
@@ -104,7 +104,8 @@ export function AssignmentForm({ lecturers = [], courses = [], coordinatorId, ma
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <Label className="font-semibold">
-                2. Assign Courses for {selectedLecturerName}
+                2. Assign Courses for {selectedLecturerName} 
+                {lecturers.find(l => l.id === selectedLecturerId)?.isCoordinator && <span className="ml-1 text-blue-600">(Coordinator)</span>}
               </Label>
               <div className="text-sm text-muted-foreground">
                 Selected: {selectedCourseIds.size}/{maxCoursesAllowed} courses
@@ -112,7 +113,7 @@ export function AssignmentForm({ lecturers = [], courses = [], coordinatorId, ma
             </div>
             {limitExceeded && (
               <div className="text-sm p-2 bg-amber-100 text-amber-800 rounded-md">
-                Maximum of {maxCoursesAllowed} courses allowed per lecturer as set by registry.
+                Maximum of {maxCoursesAllowed} courses allowed per user as set by registry.
               </div>
             )}
             <ScrollArea className="h-72 w-full rounded-md border p-4">

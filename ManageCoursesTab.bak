@@ -1,7 +1,7 @@
 // app/(dashboard)/registry/_components/ManageCoursesTab.jsx
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
@@ -410,144 +410,83 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
 
   // Handler for deleting a department
   const handleDeleteDepartment = async () => {
-    if (!deletingDepartment?.id) {
-      console.error("Cannot delete department: Missing ID");
-      toast.error("Cannot delete: Missing department ID");
-      return { success: false, error: "Missing department ID" };
-    }
+    if (!deletingDepartment?.id) return;
     
-    try {
-      const stringId = typeof deletingDepartment.id === 'object' ? deletingDepartment.id.id : deletingDepartment.id;
-      console.log("Sending department ID for deletion:", stringId);
-      
-      const result = await deleteDepartment(stringId);
-      
-      console.log("Delete department result:", result);
-      
-      // Ensure we have a valid result object
-      const safeResult = result || { success: false, error: "No response from server" };
-      
-      if (safeResult.success) {
-        toast.success(`Department "${deletingDepartment.name}" deleted successfully!`);
-        // Refetch departments to update the UI
-        const refetchResult = await getDepartments();
-        if(refetchResult.success) {
-          setDepartments(refetchResult.departments);
-        } else {
-          toast.error("Failed to re-fetch departments after deletion.");
-        }
-        // Also refetch programs as they may be affected
-        const refetchProgramsResult = await getPrograms();
-        if(refetchProgramsResult.success) {
-          setPrograms(refetchProgramsResult.programs);
-        }
-        setIsDeleteDepartmentDialogOpen(false);
-        setDeletingDepartment(null);
+    setIsLoadingForm(true);
+    const result = await deleteDepartment({ id: deletingDepartment.id });
+    setIsLoadingForm(false);
+    
+    if (result.success) {
+      toast.success(`Department "${deletingDepartment.name}" deleted successfully!`);
+      // Refetch departments to update the UI
+      const refetchResult = await getDepartments();
+      if(refetchResult.success) {
+        setDepartments(refetchResult.departments);
       } else {
-        toast.error(safeResult.error || "Failed to delete department.");
+        toast.error("Failed to re-fetch departments after deletion.");
       }
-      
-      return safeResult;
-    } catch (error) {
-      console.error("Error deleting department:", error);
-      const errorMessage = error.message || "Unknown error";
-      toast.error(`Error deleting department: ${errorMessage}`);
-      return { success: false, error: errorMessage };
+      // Also refetch programs as they may be affected
+      const refetchProgramsResult = await getPrograms();
+      if(refetchProgramsResult.success) {
+        setPrograms(refetchProgramsResult.programs);
+      }
+      setIsDeleteDepartmentDialogOpen(false);
+      setDeletingDepartment(null);
+    } else {
+      toast.error(result.error || "Failed to delete department.");
     }
   };
 
   // Handler for deleting a program
   const handleDeleteProgram = async () => {
-    if (!deletingProgram?.id) {
-      console.error("Cannot delete program: Missing ID");
-      toast.error("Cannot delete: Missing program ID");
-      return { success: false, error: "Missing program ID" };
-    }
+    if (!deletingProgram?.id) return;
     
-    try {
-      const stringId = typeof deletingProgram.id === 'object' ? deletingProgram.id.id : deletingProgram.id;
-      console.log("Sending program ID for deletion:", stringId);
-      
-      const result = await deleteProgram(stringId);
-      
-      console.log("Delete program result:", result);
-      
-      // Ensure we have a valid result object
-      const safeResult = result || { success: false, error: "No response from server" };
-      
-      if (safeResult.success) {
-        toast.success(`Program "${deletingProgram.programTitle}" deleted successfully!`);
-        // Refetch programs to update the UI
-        const refetchResult = await getPrograms();
-        if(refetchResult.success) {
-          setPrograms(refetchResult.programs);
-        } else {
-          toast.error("Failed to re-fetch programs after deletion.");
-        }
-        // Also refetch courses as they may be affected
-        const refetchCoursesResult = await getCourses();
-        if(refetchCoursesResult.success) {
-          setCourses(refetchCoursesResult.courses);
-        }
-        setIsDeleteProgramDialogOpen(false);
-        setDeletingProgram(null);
+    setIsLoadingForm(true);
+    const result = await deleteProgram({ id: deletingProgram.id });
+    setIsLoadingForm(false);
+    
+    if (result.success) {
+      toast.success(`Program "${deletingProgram.programTitle}" deleted successfully!`);
+      // Refetch programs to update the UI
+      const refetchResult = await getPrograms();
+      if(refetchResult.success) {
+        setPrograms(refetchResult.programs);
       } else {
-        toast.error(safeResult.error || "Failed to delete program.");
+        toast.error("Failed to re-fetch programs after deletion.");
       }
-      
-      return safeResult;
-    } catch (error) {
-      console.error("Error deleting program:", error);
-      const errorMessage = error.message || "Unknown error";
-      toast.error(`Error deleting program: ${errorMessage}`);
-      return { success: false, error: errorMessage };
+      // Also refetch courses as they may be affected
+      const refetchCoursesResult = await getCourses();
+      if(refetchCoursesResult.success) {
+        setCourses(refetchCoursesResult.courses);
+      }
+      setIsDeleteProgramDialogOpen(false);
+      setDeletingProgram(null);
+    } else {
+      toast.error(result.error || "Failed to delete program.");
     }
   };
 
   // Handler for deleting a course
   const handleDeleteCourse = async () => {
-    if (!deletingCourse?.id) {
-      console.error("Cannot delete course: Missing ID");
-      toast.error("Cannot delete: Missing course ID");
-      return { success: false, error: "Missing course ID" };
-    }
+    if (!deletingCourse?.id) return;
     
-    // Debug logging
-    console.log("Deleting course with ID:", deletingCourse.id);
-    console.log("deletingCourse object:", JSON.stringify(deletingCourse));
+    setIsLoadingForm(true);
+    const result = await deleteCourse({ id: deletingCourse.id });
+    setIsLoadingForm(false);
     
-    try {
-      const stringId = typeof deletingCourse.id === 'object' ? deletingCourse.id.id : deletingCourse.id;
-      console.log("Sending ID for deletion:", stringId);
-      
-      const result = await deleteCourse(stringId);
-      
-      console.log("Delete course result:", result);
-      
-      // Ensure we have a valid result object
-      const safeResult = result || { success: false, error: "No response from server" };
-      
-      if (safeResult.success) {
-        toast.success(`Course "${deletingCourse.courseCode}" deleted successfully!`);
-        // Refetch courses to update the UI
-        const refetchResult = await getCourses();
-        if(refetchResult.success) {
-          setCourses(refetchResult.courses);
-        } else {
-          toast.error("Failed to re-fetch courses after deletion.");
-        }
-        setIsDeleteCourseDialogOpen(false);
-        setDeletingCourse(null);
+    if (result.success) {
+      toast.success(`Course "${deletingCourse.courseCode}" deleted successfully!`);
+      // Refetch courses to update the UI
+      const refetchResult = await getCourses();
+      if(refetchResult.success) {
+        setCourses(refetchResult.courses);
       } else {
-        toast.error(safeResult.error || "Failed to delete course.");
+        toast.error("Failed to re-fetch courses after deletion.");
       }
-      
-      return safeResult;
-    } catch (error) {
-      console.error("Error deleting course:", error);
-      const errorMessage = error.message || "Unknown error";
-      toast.error(`Error deleting course: ${errorMessage}`);
-      return { success: false, error: errorMessage };
+      setIsDeleteCourseDialogOpen(false);
+      setDeletingCourse(null);
+    } else {
+      toast.error(result.error || "Failed to delete course.");
     }
   };
 
@@ -689,15 +628,14 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
     const clearSearch = () => setSearchQuery('');
 
     return (
-      <>
-        <Card className="bg-white dark:bg-slate-800/90 shadow-xl border-slate-200 dark:border-slate-700/80 rounded-lg p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            {/* Search bar */}
-            <div className="relative flex-grow sm:max-w-xs">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-slate-400 dark:text-slate-500" /></div>
-              <Input id="search-programs-courses" type="text" placeholder={`Search ${activeTab === 'programs' ? 'programs' : activeTab === 'courses' ? 'courses' : 'departments'}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-11 pr-10 w-full ${dialogInputClass}`} />
-              {searchQuery && (<Button variant="ghost" size="sm" className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 h-full" onClick={clearSearch}><XCircle className="h-4 w-4" /><span className="sr-only">Clear search</span></Button>)}
-            </div>
+      <Card className="bg-white dark:bg-slate-800/90 shadow-xl border-slate-200 dark:border-slate-700/80 rounded-lg p-4 sm:p-6 lg:p-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          {/* Search bar */}
+          <div className="relative flex-grow sm:max-w-xs">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-slate-400 dark:text-slate-500" /></div>
+            <Input id="search-programs-courses" type="text" placeholder={`Search ${activeTab === 'programs' ? 'programs' : activeTab === 'courses' ? 'courses' : 'departments'}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-11 pr-10 w-full ${dialogInputClass}`} />
+            {searchQuery && (<Button variant="ghost" size="sm" className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 h-full" onClick={clearSearch}><XCircle className="h-4 w-4" /><span className="sr-only">Clear search</span></Button>)}
+          </div>
           {/* Add New buttons */}
           <div className="flex gap-2 flex-wrap justify-end">
             {/* Add Department Dialog/Button */}
@@ -1445,11 +1383,7 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                                             <span className="sr-only">Edit Course</span>
                                         </Button>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" 
-                                          onClick={() => { 
-                                            console.log("Course to delete:", course);
-                                            setDeletingCourse(course); 
-                                            setIsDeleteCourseDialogOpen(true); 
-                                          }}>
+                                          onClick={() => { setDeletingCourse(course); setIsDeleteCourseDialogOpen(true); }}>
                                             <Trash2 className="h-4 w-4" />
                                             <span className="sr-only">Delete Course</span>
                                         </Button>
@@ -1464,6 +1398,8 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
           </div>
         </Tabs>
       </Card>
+
+      {/* Delete Department Confirmation Dialog */}
       <Dialog open={isDeleteDepartmentDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setDeletingDepartment(null); } setIsDeleteDepartmentDialogOpen(open); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1483,27 +1419,7 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
             <Button variant="outline" onClick={() => setIsDeleteDepartmentDialogOpen(false)} disabled={isLoadingForm} className="border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100">
               Cancel
             </Button>
-            <Button 
-              onClick={async () => {
-                try {
-                  console.log("Delete button clicked for department:", deletingDepartment?.id);
-                  if (!deletingDepartment?.id) {
-                    console.error("Missing department ID for deletion");
-                    toast.error("Cannot delete: Missing department ID");
-                    return;
-                  }
-                  setIsLoadingForm(true);
-                  await handleDeleteDepartment();
-                } catch (error) {
-                  console.error("Error in delete button handler:", error);
-                  toast.error("Error deleting department");
-                } finally {
-                  setIsLoadingForm(false);
-                }
-              }}
-              disabled={isLoadingForm} 
-              className="bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold"
-            >
+            <Button onClick={handleDeleteDepartment} disabled={isLoadingForm} className="bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold">
               {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}
               {isLoadingForm ? "Deleting..." : "Yes, Delete Department"}
             </Button>
@@ -1531,27 +1447,7 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
             <Button variant="outline" onClick={() => setIsDeleteProgramDialogOpen(false)} disabled={isLoadingForm} className="border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100">
               Cancel
             </Button>
-            <Button 
-              onClick={async () => {
-                try {
-                  console.log("Delete button clicked for program:", deletingProgram?.id);
-                  if (!deletingProgram?.id) {
-                    console.error("Missing program ID for deletion");
-                    toast.error("Cannot delete: Missing program ID");
-                    return;
-                  }
-                  setIsLoadingForm(true);
-                  await handleDeleteProgram();
-                } catch (error) {
-                  console.error("Error in delete button handler:", error);
-                  toast.error("Error deleting program");
-                } finally {
-                  setIsLoadingForm(false);
-                }
-              }}
-              disabled={isLoadingForm} 
-              className="bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold"
-            >
+            <Button onClick={handleDeleteProgram} disabled={isLoadingForm} className="bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold">
               {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}
               {isLoadingForm ? "Deleting..." : "Yes, Delete Program"}
             </Button>
@@ -1579,33 +1475,12 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
             <Button variant="outline" onClick={() => setIsDeleteCourseDialogOpen(false)} disabled={isLoadingForm} className="border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100">
               Cancel
             </Button>
-            <Button 
-              onClick={async () => {
-                try {
-                  console.log("Delete button clicked for course:", deletingCourse?.id);
-                  if (!deletingCourse?.id) {
-                    console.error("Missing course ID for deletion");
-                    toast.error("Cannot delete: Missing course ID");
-                    return;
-                  }
-                  setIsLoadingForm(true);
-                  await handleDeleteCourse();
-                } catch (error) {
-                  console.error("Error in delete button handler:", error);
-                  toast.error("Error deleting course");
-                } finally {
-                  setIsLoadingForm(false);
-                }
-              }} 
-              disabled={isLoadingForm} 
-              className="bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold"
-            >
+            <Button onClick={handleDeleteCourse} disabled={isLoadingForm} className="bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold">
               {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}
               {isLoadingForm ? "Deleting..." : "Yes, Delete Course"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </>
     );
   }
