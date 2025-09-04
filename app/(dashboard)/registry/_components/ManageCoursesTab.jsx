@@ -15,7 +15,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import {
   createProgram, getPrograms, createCourse, getCourses, getDepartments, getLecturersForAssignment, bulkUploadCourses, assignCoursesToLecturers, createDepartment,
   updateProgram, updateCourse, updateDepartment, // Import update actions
-  deleteCourse, deleteProgram, deleteDepartment // Import delete actions
+  deleteCourse, deleteProgram, deleteDepartment, // Import delete actions
+  unassignCourseFromLecturers // Import unassign action
 } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
 import {
@@ -92,6 +93,8 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
   // Delete confirmation dialogs
   const [isDeleteCourseDialogOpen, setIsDeleteCourseDialogOpen] = useState(false);
   const [deletingCourse, setDeletingCourse] = useState(null);
+  const [courseAssignedLecturers, setCourseAssignedLecturers] = useState([]);
+  const [isUnassigningCourse, setIsUnassigningCourse] = useState(false);
   
   const [isDeleteProgramDialogOpen, setIsDeleteProgramDialogOpen] = useState(false);
   const [deletingProgram, setDeletingProgram] = useState(null);
@@ -500,6 +503,51 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
       console.error("Error deleting program:", error);
       const errorMessage = error.message || "Unknown error";
       toast.error(`Error deleting program: ${errorMessage}`);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  // Handler for unassigning a course from all lecturers
+  const handleUnassignCourse = async () => {
+    if (!deletingCourse?.id) {
+      console.error("Cannot unassign course: Missing ID");
+      toast.error("Cannot unassign: Missing course ID");
+      return { success: false, error: "Missing course ID" };
+    }
+    
+    try {
+      setIsUnassigningCourse(true);
+      const stringId = typeof deletingCourse.id === 'object' ? deletingCourse.id.id : deletingCourse.id;
+      console.log("Unassigning course with ID:", stringId);
+      
+      const result = await unassignCourseFromLecturers(stringId);
+      
+      console.log("Unassign course result:", result);
+      
+      // Ensure we have a valid result object
+      const safeResult = result || { success: false, error: "No response from server" };
+      
+      if (safeResult.success) {
+        toast.success(`Course "${deletingCourse.courseCode}" unassigned from ${safeResult.unassignedCount} lecturer(s)`);
+        // Update the assigned lecturers state
+        setCourseAssignedLecturers([]);
+        
+        // Refetch courses to update the UI with the latest assignments
+        const refetchResult = await getCourses();
+        if(refetchResult.success) {
+          setCourses(refetchResult.courses);
+        }
+      } else {
+        toast.error(safeResult.error || "Failed to unassign course.");
+      }
+      
+      setIsUnassigningCourse(false);
+      return safeResult;
+    } catch (error) {
+      console.error("Error unassigning course:", error);
+      const errorMessage = error.message || "Unknown error";
+      toast.error(`Error unassigning course: ${errorMessage}`);
+      setIsUnassigningCourse(false);
       return { success: false, error: errorMessage };
     }
   };
@@ -1447,7 +1495,14 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" 
                                           onClick={() => { 
                                             console.log("Course to delete:", course);
-                                            setDeletingCourse(course); 
+                                            setDeletingCourse(course);
+                                            setCourseAssignedLecturers([]);
+                                            
+                                            // Check if course has assigned lecturers
+                                            if (course.assignedLecturers && course.assignedLecturers.length > 0) {
+                                              setCourseAssignedLecturers(course.assignedLecturers);
+                                            }
+                                            
                                             setIsDeleteCourseDialogOpen(true); 
                                           }}>
                                             <Trash2 className="h-4 w-4" />
@@ -1560,13 +1615,44 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
       </Dialog>
 
       {/* Delete Course Confirmation Dialog */}
-      <Dialog open={isDeleteCourseDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setDeletingCourse(null); } setIsDeleteCourseDialogOpen(open); }}>
+      <Dialog open={isDeleteCourseDialogOpen} onOpenChange={(open) => { 
+          if (!open && !isLoadingForm) { 
+            setDeletingCourse(null); 
+            setCourseAssignedLecturers([]);
+          } 
+          setIsDeleteCourseDialogOpen(open); 
+        }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-700"><Trash2 className="h-5 w-5" /> Delete Course</DialogTitle>
             <DialogDescription>Are you sure you want to delete the course: <strong>{deletingCourse?.courseTitle}</strong> ({deletingCourse?.courseCode})?</DialogDescription>
           </DialogHeader>
           <div className="py-4">
+            {/* Show assigned lecturers if any */}
+            {courseAssignedLecturers.length > 0 && (
+              <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-md text-sm mb-4">
+                <div className="font-medium mb-1 flex items-center gap-2">
+                  <User className="h-4 w-4" /> This course is currently assigned to lecturers:
+                </div>
+                <ul className="list-disc pl-5 space-y-1 mb-3">
+                  {courseAssignedLecturers.map((lecturer, index) => (
+                    <li key={index}>{lecturer.name}</li>
+                  ))}
+                </ul>
+                <div className="flex justify-end mt-2">
+                  <Button 
+                    onClick={handleUnassignCourse} 
+                    disabled={isUnassigningCourse || isLoadingForm} 
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    {isUnassigningCourse ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <UserPlus className="mr-2 h-3 w-3"/>}
+                    {isUnassigningCourse ? "Unassigning..." : "Unassign All Lecturers"}
+                  </Button>
+                </div>
+              </div>
+            )}
+            
             <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md text-sm flex items-start gap-2 mb-4">
               <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
@@ -1576,7 +1662,7 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsDeleteCourseDialogOpen(false)} disabled={isLoadingForm} className="border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100">
+            <Button variant="outline" onClick={() => setIsDeleteCourseDialogOpen(false)} disabled={isLoadingForm || isUnassigningCourse} className="border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100">
               Cancel
             </Button>
             <Button 
@@ -1588,6 +1674,13 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                     toast.error("Cannot delete: Missing course ID");
                     return;
                   }
+                  
+                  // Check if we need to unassign first
+                  if (courseAssignedLecturers.length > 0) {
+                    toast.error("Please unassign all lecturers before deleting this course");
+                    return;
+                  }
+                  
                   setIsLoadingForm(true);
                   await handleDeleteCourse();
                 } catch (error) {
@@ -1597,7 +1690,7 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                   setIsLoadingForm(false);
                 }
               }} 
-              disabled={isLoadingForm} 
+              disabled={isLoadingForm || isUnassigningCourse || courseAssignedLecturers.length > 0} 
               className="bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold"
             >
               {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}

@@ -229,6 +229,28 @@ export default function SubmitClaimPage() {
         if (session?.userId && (session?.role === 'LECTURER' || session?.role === 'COORDINATOR')) {
           setCurrentUser(session);
           
+          // Fetch user's bank details and contact information
+          try {
+            const response = await fetch(`/api/users/${session.userId}/details`);
+            if (response.ok) {
+              const userData = await response.json();
+              if (userData) {
+                // Update the user data with bank and contact details
+                setCurrentUser(prevUser => ({
+                  ...prevUser,
+                  bankName: userData.bankName,
+                  bankBranch: userData.bankBranch,
+                  accountName: userData.accountName,
+                  accountNumber: userData.accountNumber,
+                  phoneNumber: userData.phoneNumber
+                }));
+              }
+            }
+          } catch (userDataError) {
+            console.error("Error fetching user details:", userDataError);
+            // We don't show an error toast here as it's not critical for the form
+          }
+          
           setIsCoursesLoading(true);
           const courseResult = await getAssignedCoursesForLecturer(session.userId);
           if (courseResult.success) {
@@ -403,8 +425,71 @@ export default function SubmitClaimPage() {
                 {watchClaimType === "THESIS_PROJECT" && ( <div className="space-y-5 p-5 border border-purple-200 dark:border-purple-800/60 rounded-xl bg-purple-50/30 dark:bg-slate-800/40 shadow"> <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-2.5 border-b border-purple-200 dark:border-purple-700 pb-3 mb-5"> <FileText className="h-5 w-5"/> Thesis/Project Details </h3> {/* ... Thesis/Project fields using FieldWrapper ... */} </div> )}
               </div>
             )}
+
+            {watchClaimType && currentUser && (
+              <div className="space-y-5 pt-6 mt-6 border-t border-slate-200 dark:border-slate-700">
+                <div className="space-y-5 p-5 border border-amber-200 dark:border-amber-800/60 rounded-xl bg-amber-50/30 dark:bg-slate-800/40 shadow-sm">
+                  <h3 className="text-lg font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2.5 border-b border-amber-200 dark:border-amber-700 pb-3 mb-5">
+                    <DollarSign className="h-5 w-5"/> Payment Information
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-amber-600 dark:text-amber-400 text-sm flex items-center gap-1.5">
+                        <User className="h-4 w-4"/> Your Bank Details
+                      </h4>
+                      <div className="bg-amber-50 dark:bg-slate-800/80 p-4 rounded-md border border-amber-200 dark:border-amber-800/40 space-y-3">
+                        <div className="grid grid-cols-[120px_1fr] gap-2 text-sm">
+                          <div className="text-slate-600 dark:text-slate-400 font-medium">Bank Name:</div>
+                          <div className="text-slate-900 dark:text-slate-200 font-medium">{currentUser.bankName || "Not provided"}</div>
+                        </div>
+                        <div className="grid grid-cols-[120px_1fr] gap-2 text-sm">
+                          <div className="text-slate-600 dark:text-slate-400 font-medium">Bank Branch:</div>
+                          <div className="text-slate-900 dark:text-slate-200 font-medium">{currentUser.bankBranch || "Not provided"}</div>
+                        </div>
+                        <div className="grid grid-cols-[120px_1fr] gap-2 text-sm">
+                          <div className="text-slate-600 dark:text-slate-400 font-medium">Account Name:</div>
+                          <div className="text-slate-900 dark:text-slate-200 font-medium">{currentUser.accountName || "Not provided"}</div>
+                        </div>
+                        <div className="grid grid-cols-[120px_1fr] gap-2 text-sm">
+                          <div className="text-slate-600 dark:text-slate-400 font-medium">Account Number:</div>
+                          <div className="text-slate-900 dark:text-slate-200 font-medium">{currentUser.accountNumber || "Not provided"}</div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-amber-600 dark:text-amber-400 text-sm flex items-center gap-1.5">
+                        <Info className="h-4 w-4"/> Contact Information
+                      </h4>
+                      <div className="bg-amber-50 dark:bg-slate-800/80 p-4 rounded-md border border-amber-200 dark:border-amber-800/40 space-y-3">
+                        <div className="grid grid-cols-[120px_1fr] gap-2 text-sm">
+                          <div className="text-slate-600 dark:text-slate-400 font-medium">Phone Number:</div>
+                          <div className="text-slate-900 dark:text-slate-200 font-medium">{currentUser.phoneNumber || "Not provided"}</div>
+                        </div>
+                        {!currentUser.bankName || !currentUser.accountNumber || !currentUser.phoneNumber ? (
+                          <div className="mt-3 p-2 bg-amber-100 dark:bg-amber-900/30 rounded border border-amber-300 dark:border-amber-700/50 text-xs text-amber-800 dark:text-amber-300">
+                            Some of your payment or contact details are missing. Please update your profile for faster claim processing.
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
-          <CardFooter className="flex justify-end p-5 sm:p-6 border-t border-slate-200 dark:border-slate-700/70 rounded-b-xl bg-slate-50/70 dark:bg-slate-800/60">
+          <CardFooter className="flex justify-between p-5 sm:p-6 border-t border-slate-200 dark:border-slate-700/70 rounded-b-xl bg-slate-50/70 dark:bg-slate-800/60">
+            {currentUser?.role === 'COORDINATOR' && (
+              <Button 
+                type="button"
+                onClick={() => router.push(`/coordinator/${centerId}`)}
+                variant="outline"
+                className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:ring-slate-500"
+              >
+                Return to Coordinator Dashboard
+              </Button>
+            )}
             <Button type="submit" disabled={isLoading || isSessionLoading} className={`bg-violet-700 text-white hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 focus-visible:ring-violet-500 px-8 py-3 text-base font-semibold ${focusRingClass} flex items-center gap-2.5 shadow-md hover:shadow-lg transition-shadow`}>
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
               {isLoading ? "Submitting..." : "Submit Claim"}
