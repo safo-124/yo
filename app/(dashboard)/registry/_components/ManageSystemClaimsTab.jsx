@@ -262,7 +262,307 @@ export default function ManageSystemClaimsTab({
                 specificsHtml += `<p><strong>Exam Date:</strong> ${claim.thesisExamDate ? new Date(claim.thesisExamDate).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</p>`; 
             } 
         }
-        const printHtml = `<html><head><title>Claim Details Report - ${claim.id}</title><style>body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;margin:0;padding:0;color:${textColor};background-color:#fff;font-size:12px;}.print-container{width:100%;max-width:800px;margin:15px auto;padding:20px;background-color:#fff;}.header{text-align:center;margin-bottom:20px;padding-bottom:15px;border-bottom:2px solid ${universityBlue};}.logo{max-width:100px;margin-bottom:8px;}.university-name{font-size:20px;font-weight:700;color:${universityBlue};margin-bottom:2px;}.college-name{font-size:14px;font-weight:500;color:${universityBlue};margin-bottom:5px;}.document-title{font-size:16px;font-weight:600;color:${universityRed};margin-top:8px;text-transform:uppercase;}.section{margin-bottom:15px;padding:12px;border:1px solid ${lightGrayBorder};border-radius:5px;background-color:#f8f9fa;}.section-title{font-size:14px;font-weight:600;color:${headingColor};margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid ${universityBlue}33;}.details-grid{display:grid;grid-template-columns:150px 1fr;gap:6px 10px;font-size:12px;}.details-grid strong{font-weight:600;color:${headingColor};}.details-grid span{word-break:break-word;overflow-wrap:break-word;}.status-badge{padding:2px 7px;border-radius:10px;font-weight:500;font-size:0.7em;color:white;text-transform:uppercase;display:inline-block;}.status-PENDING{background-color:#F59E0B;}.status-APPROVED{background-color:#10B981;}.status-REJECTED{background-color:${universityRed};}.claim-specifics-content p{margin:0 0 7px 0;font-size:12px;line-height:1.5;overflow-wrap:break-word;word-break:break-word;}.claim-specifics-content ul{margin:4px 0 7px 20px;padding:0;}.claim-specifics-content li{margin-bottom:3px;overflow-wrap:break-word;word-break:break-word;}.footer{text-align:center;margin-top:25px;font-size:10px;color:#555;border-top:1px solid ${lightGrayBorder};padding-top:10px;}.signature-section{margin-top:30px;padding-top:15px;border-top:1px dashed ${lightGrayBorder};}.signature-grid{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:20px;}.signature-box{text-align:center;}.signature-line{border-bottom:1px solid ${textColor};width:70%;margin:30px auto 5px auto;}.signature-label{font-size:11px;color:${headingColor};}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:10pt;}.print-container{width:100%;margin:0 auto;padding:8mm;box-shadow:none;border:none;}.status-badge{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body><div class="print-container"><div class="header"><img src="/uew.png" alt="University Logo" class="logo" /><div class="university-name">UNIVERSITY OF EDUCATION, WINNEBA</div><div class="college-name">COLLEGE OF DISTANCE AND e-LEARNING (CODeL)</div><div class="document-title">Claim Details Report</div></div><div class="section"><div class="section-title">General Information</div><div class="details-grid"><strong>Claim ID:</strong> <span>${claim.id}</span><strong>Submitted By:</strong> <span>${submittedByName} (${submittedByEmail}) ${submitterDesignationText}</span><strong>Center:</strong> <span>${claim.centerName||claim.center?.name||'N/A'}</span><strong>Claim Type:</strong> <span style="text-transform:capitalize;">${claim.claimType.toLowerCase().replace('_', ' ')}</span><strong>Submitted At:</strong> <span>${submittedAtPrint}</span><strong>Status:</strong> <span><span class="status-badge status-${claim.status}">${claim.status}</span></span></div></div>${claim.processedAt?`<div class="section section-alt"><div class="section-title">Processing Information</div><div class="details-grid"><strong>Processed By:</strong> <span>${processedByName} (${processedByEmail}) ${processorDesignationText}</span><strong>Processed At:</strong> <span>${processedAtPrint}</span></div></div>`:''}<div class="section"><div class="section-title">Claim Specifics</div><div class="claim-specifics-content">${specificsHtml}</div></div><div class="signature-section"><div class="signature-grid"><div class="signature-box"><div class="signature-line"></div><div class="signature-label">Claimant's Signature</div></div><div class="signature-box"><div class="signature-line"></div><div class="signature-label">Authorizing Officer's Signature</div></div></div></div><div class="footer">Printed on: ${new Date().toLocaleString('en-US', dateTimeLocaleStringOptions)} by Registry.</div></div></body></html>`;
+        const printHtml = `<html><head><title>Claim Details Report - ${claim.id}</title><meta charset="UTF-8"><style>
+        /* Reset and Base Styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            line-height: 1.5; 
+            color: #2d3748; 
+            background: white;
+            font-size: 11pt;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        /* Print Container */
+        .print-container { 
+            max-width: 210mm; 
+            margin: 0 auto; 
+            padding: 15mm 20mm; 
+            background: white;
+            min-height: 297mm;
+        }
+        
+        /* Header Section */
+        .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            padding-bottom: 20px; 
+            border-bottom: 3px solid ${universityBlue};
+            page-break-inside: avoid;
+        }
+        .logo { 
+            height: 80px; 
+            width: auto;
+            margin-bottom: 15px;
+        }
+        .university-name { 
+            font-size: 22pt; 
+            font-weight: 700; 
+            color: ${universityBlue}; 
+            margin-bottom: 5px;
+            letter-spacing: 0.5px;
+        }
+        .college-name { 
+            font-size: 14pt; 
+            font-weight: 500; 
+            color: ${universityBlue}; 
+            margin-bottom: 10px;
+        }
+        .document-title { 
+            font-size: 18pt; 
+            font-weight: 600; 
+            color: ${universityRed}; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 15px;
+        }
+        
+        /* Section Styles */
+        .section { 
+            margin-bottom: 25px; 
+            padding: 18px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            background: #fafafa;
+            page-break-inside: avoid;
+        }
+        .section-alt {
+            background: #f0f9ff;
+            border-color: #bae6fd;
+        }
+        .section-title { 
+            font-size: 14pt; 
+            font-weight: 600; 
+            color: ${headingColor}; 
+            margin-bottom: 15px; 
+            padding-bottom: 10px; 
+            border-bottom: 2px solid ${universityBlue}40;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Details Grid */
+        .details-grid { 
+            display: grid; 
+            grid-template-columns: 160px 1fr; 
+            gap: 15px 20px; 
+            font-size: 11pt;
+            line-height: 1.4;
+        }
+        .details-grid strong { 
+            font-weight: 600; 
+            color: ${headingColor};
+            display: block;
+        }
+        .details-grid span { 
+            word-break: break-word; 
+            overflow-wrap: break-word;
+        }
+        
+        /* Status Badges */
+        .status-badge { 
+            padding: 6px 12px; 
+            border-radius: 15px; 
+            font-weight: 600; 
+            font-size: 9pt; 
+            color: white; 
+            text-transform: uppercase; 
+            display: inline-block;
+            letter-spacing: 0.5px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .status-PENDING { background: linear-gradient(135deg, #F59E0B, #D97706); }
+        .status-APPROVED { background: linear-gradient(135deg, #10B981, #059669); }
+        .status-REJECTED { background: linear-gradient(135deg, ${universityRed}, #B91C1C); }
+        
+        /* Claim Specifics */
+        .claim-specifics-content { 
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .claim-specifics-content p { 
+            margin: 0 0 10px 0; 
+            font-size: 11pt; 
+            line-height: 1.5; 
+            overflow-wrap: break-word; 
+            word-break: break-word;
+        }
+        .claim-specifics-content ul { 
+            margin: 8px 0 10px 25px; 
+            padding: 0;
+        }
+        .claim-specifics-content li { 
+            margin-bottom: 5px; 
+            overflow-wrap: break-word; 
+            word-break: break-word;
+            line-height: 1.4;
+        }
+        .claim-specifics-content strong {
+            color: ${headingColor};
+            font-weight: 600;
+        }
+        
+        /* Signature Section */
+        .signature-section { 
+            margin-top: 50px; 
+            padding-top: 25px; 
+            border-top: 2px dashed #cbd5e0;
+            page-break-inside: avoid;
+        }
+        .signature-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 40px; 
+            margin-top: 30px;
+        }
+        .signature-box { 
+            text-align: center;
+            min-height: 100px;
+        }
+        .signature-line { 
+            border-bottom: 2px solid ${textColor}; 
+            width: 80%; 
+            margin: 40px auto 10px auto;
+            height: 50px;
+            position: relative;
+        }
+        .signature-line::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #cbd5e0;
+        }
+        .signature-label { 
+            font-size: 11pt; 
+            font-weight: 600;
+            color: ${headingColor};
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Footer */
+        .footer { 
+            text-align: center; 
+            margin-top: 40px; 
+            padding-top: 20px; 
+            border-top: 1px solid #e2e8f0; 
+            font-size: 9pt; 
+            color: #718096;
+            font-style: italic;
+            font-weight: 500;
+        }
+        
+        /* Print Specific Styles */
+        @media print { 
+            body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                font-size: 10pt;
+                margin: 0;
+                padding: 0;
+            }
+            .print-container { 
+                width: 100%; 
+                margin: 0; 
+                padding: 12mm 15mm;
+                box-shadow: none; 
+                border: none;
+                min-height: auto;
+            }
+            .section {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                margin-bottom: 20px;
+                padding: 15px;
+            }
+            .signature-section {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .status-badge { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+            }
+            .logo {
+                height: 70px;
+            }
+            .university-name {
+                font-size: 20pt;
+            }
+            .document-title {
+                font-size: 16pt;
+            }
+        }
+        
+        @page {
+            margin: 15mm;
+            size: A4;
+        }
+        </style></head><body>
+        <div class="print-container">
+            <div class="header">
+                <img src="/uew.png" alt="University Logo" class="logo" />
+                <div class="university-name">UNIVERSITY OF EDUCATION, WINNEBA</div>
+                <div class="college-name">COLLEGE OF DISTANCE AND e-LEARNING (CODeL)</div>
+                <div class="document-title">Claim Details Report</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">General Information</div>
+                <div class="details-grid">
+                    <strong>Claim ID:</strong> 
+                    <span style="font-family: monospace; font-size: 10pt; color: #6b7280;">${claim.id}</span>
+                    <strong>Submitted By:</strong> 
+                    <span><strong>${submittedByName}</strong> (${submittedByEmail}) ${submitterDesignationText}</span>
+                    <strong>Center:</strong> 
+                    <span>${claim.centerName||claim.center?.name||'N/A'}</span>
+                    <strong>Claim Type:</strong> 
+                    <span style="text-transform:capitalize; font-weight: 600; color: ${universityRed};">${claim.claimType.toLowerCase().replace('_', ' ')}</span>
+                    <strong>Submitted At:</strong> 
+                    <span>${submittedAtPrint}</span>
+                    <strong>Status:</strong> 
+                    <span><span class="status-badge status-${claim.status}">${claim.status}</span></span>
+                </div>
+            </div>
+            
+            ${claim.processedAt?`<div class="section section-alt">
+                <div class="section-title">Processing Information</div>
+                <div class="details-grid">
+                    <strong>Processed By:</strong> 
+                    <span><strong>${processedByName}</strong> (${processedByEmail}) ${processorDesignationText}</span>
+                    <strong>Processed At:</strong> 
+                    <span>${processedAtPrint}</span>
+                </div>
+            </div>`:''}
+            
+            <div class="section">
+                <div class="section-title">Claim Details & Specifics</div>
+                <div class="claim-specifics-content">${specificsHtml}</div>
+            </div>
+            
+            <div class="signature-section">
+                <div class="signature-grid">
+                    <div class="signature-box">
+                        <div class="signature-line"></div>
+                        <div class="signature-label">Claimant's Signature</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line"></div>
+                        <div class="signature-label">Authorizing Officer's Signature</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer">Printed on: ${new Date().toLocaleString('en-US', dateTimeLocaleStringOptions)} by UEW Claims Management System</div>
+        </div>
+        </body></html>`;
         printWindow.document.write(printHtml);printWindow.document.close();printWindow.focus();setTimeout(()=>{try{printWindow.print();}catch(e){console.error("Print error:",e); printWindow.close();toast.error("Printing failed.");}},600);
       } else {toast.error("Could not open print window. Please check pop-up blocker.");}
   };

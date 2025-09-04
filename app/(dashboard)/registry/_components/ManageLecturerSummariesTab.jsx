@@ -160,62 +160,350 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
             otherClaimsHtml = ''; // Hide "Other Claims" if no other claims and teaching claims were filtered out.
         }
 
-        const printHtml = `<html><head><title>Lecturer Claim Summary - ${summaryData.lecturerName} - ${summaryData.month} ${summaryData.year}</title><style>
-                body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;margin:0;padding:0;color:${textColor};background-color:#fff;font-size:11px;}
-                .print-container{width:100%;max-width:900px;margin:15px auto;padding:20px;}
-                .header{
-                    display: flex; /* Use flexbox */
-                    align-items: flex-start; /* Align items to the start (top) */
-                    justify-content: space-between; /* Push left and right parts apart */
-                    margin-bottom: 20px;
-                    padding-bottom: 15px;
-                    border-bottom: 2px solid ${uewDeepBlue};
-                    gap: 20px; /* Space between logo and text */
+        const printHtml = `<html><head><title>Lecturer Claim Summary - ${summaryData.lecturerName} - ${summaryData.month} ${summaryData.year}</title><meta charset="UTF-8"><style>
+                /* Reset and Base Styles */
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+                    line-height: 1.5; 
+                    color: #2d3748; 
+                    background: white;
+                    font-size: 11pt;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
                 }
-                .header-left {
-                    flex-shrink: 0; /* Don't let it shrink */
+                
+                /* Print Container */
+                .print-container { 
+                    max-width: 210mm; 
+                    margin: 0 auto; 
+                    padding: 15mm 20mm; 
+                    background: white;
+                    min-height: 297mm;
+                }
+                
+                /* Header Section */
+                .header { 
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: 25px;
+                    padding-bottom: 20px;
+                    border-bottom: 3px solid ${uewDeepBlue};
+                    page-break-inside: avoid;
+                    gap: 25px;
+                }
+                .header-left { 
+                    flex-shrink: 0;
                 }
                 .header-right {
-                    flex-grow: 1; /* Allow it to take remaining space */
-                    text-align: center; /* Keep text centered within its flexible column */
+                    flex-grow: 1;
+                    text-align: center;
                 }
-                .logo{max-width:90px;height:auto;display:block;}
-                .university-name{font-size:18px;font-weight:700;color:${uewDeepBlue};margin-bottom:2px;}
-                .college-name{font-size:13px;font-weight:500;color:${uewDeepBlue};margin-bottom:5px;}
-                .document-title{font-size:15px;font-weight:600;color:${uewDeepRed};margin-top:8px;text-transform:uppercase;}
-                .section{margin-bottom:15px;padding:10px;border:1px solid ${lightGrayBorder};border-radius:5px;}
-                .section-title{font-size:13px;font-weight:600;color:${headingColor};margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid ${uewDeepBlue}33;}
-                .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px;}
-                .summary-item{padding:8px;border-radius:4px;text-align:center;border:1px solid ${lightGrayBorder};}
-                .summary-item strong{display:block;font-size:16px;margin-bottom:2px;}
-                .summary-item span{font-size:10px;color:#4A5568;}
-                .total{background-color:${uewDeepBlue}1A;color:${uewDeepBlue};}
-                .pending{background-color:#FFF8E1;color:#E65100;}
-                .approved{background-color:#E8F5E9;color:#1B5E20;}
-                .rejected{background-color:#FFEBEE;color:#C62828;}
-                .footer{text-align:center;margin-top:30px;font-size:10px;color:#555;border-top:1px solid ${lightGrayBorder};padding-top:15px;}
-                .claims-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:10px;table-layout:auto;}
-                .claims-table th,.claims-table td{border:1px solid ${lightGrayBorder};padding:4px 6px;text-align:left;vertical-align:top;word-break:break-word;}
-                .claims-table th{background-color:#eef2f7;font-weight:600;}
-                .status-badge{padding:2px 6px;border-radius:10px;font-weight:500;font-size:0.65em;color:white;text-transform:uppercase;display:inline-block;}
-                .status-PENDING{background-color:#FF8F00;}
-                .status-APPROVED{background-color:#2E7D32;}
-                .status-REJECTED{background-color:${uewDeepRed};}
-                .signature-section{margin-top:40px;padding-top:20px;border-top:1px dashed ${lightGrayBorder};}
-                .signature-area{
-                    display:flex;
-                    justify-content:space-around; /* Distribute space evenly */
-                    flex-wrap: wrap; /* Allow wrapping on smaller print sizes */
-                    gap: 25px; /* Space between signature blocks */
-                    margin-top:25px;
+                .logo { 
+                    height: 80px; 
+                    width: auto;
+                    display: block;
                 }
-                .signature-block{text-align:center;width:22%; min-width: 150px;} /* Adjusted width for 4 blocks */
-                .signature-line{border-bottom:1px solid #333;height:40px;margin-bottom:5px;}
-                .signature-label{font-size:10px; font-weight: 500;}
-                @media print{
-                    body{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:9pt;}
-                    .print-container{width:100%;margin:0 auto;padding:10mm;box-shadow:none;border:none;}
-                    .status-badge,.summary-item{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+                .university-name { 
+                    font-size: 22pt; 
+                    font-weight: 700; 
+                    color: ${uewDeepBlue}; 
+                    margin-bottom: 5px;
+                    letter-spacing: 0.5px;
+                }
+                .college-name { 
+                    font-size: 14pt; 
+                    font-weight: 500; 
+                    color: ${uewDeepBlue}; 
+                    margin-bottom: 10px;
+                }
+                .document-title { 
+                    font-size: 18pt; 
+                    font-weight: 600; 
+                    color: ${uewDeepRed}; 
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    margin-top: 15px;
+                }
+                
+                /* Section Styles */
+                .section { 
+                    margin-bottom: 20px; 
+                    padding: 18px; 
+                    border: 1px solid #e2e8f0; 
+                    border-radius: 8px; 
+                    background: #fafafa;
+                    page-break-inside: avoid;
+                }
+                .section-title { 
+                    font-size: 14pt; 
+                    font-weight: 600; 
+                    color: ${headingColor}; 
+                    margin-bottom: 15px; 
+                    padding-bottom: 10px; 
+                    border-bottom: 2px solid ${uewDeepBlue}40;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+                
+                /* Information Layout */
+                .info-row {
+                    display: flex;
+                    margin-bottom: 10px;
+                    align-items: flex-start;
+                    line-height: 1.4;
+                }
+                .info-label {
+                    font-weight: 600;
+                    color: ${headingColor};
+                    min-width: 140px;
+                    margin-right: 15px;
+                    flex-shrink: 0;
+                }
+                .info-value {
+                    flex: 1;
+                    word-break: break-word;
+                }
+                
+                /* Summary Grid */
+                .summary-grid { 
+                    display: grid; 
+                    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+                    gap: 15px; 
+                    margin: 20px 0;
+                }
+                .summary-item { 
+                    padding: 18px 15px; 
+                    text-align: center; 
+                    border: 2px solid #e2e8f0; 
+                    border-radius: 12px; 
+                    background: white;
+                    transition: none;
+                }
+                .summary-item.total { 
+                    border-color: ${uewDeepBlue}; 
+                    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+                    color: ${uewDeepBlue};
+                }
+                .summary-item.pending { 
+                    border-color: #f59e0b; 
+                    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+                    color: #d97706;
+                }
+                .summary-item.approved { 
+                    border-color: #10b981; 
+                    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+                    color: #047857;
+                }
+                .summary-item.rejected { 
+                    border-color: ${uewDeepRed}; 
+                    background: linear-gradient(135deg, #fef2f2, #fecaca);
+                    color: ${uewDeepRed};
+                }
+                
+                .summary-item b { 
+                    display: block; 
+                    font-size: 28pt; 
+                    font-weight: 700; 
+                    margin-bottom: 8px;
+                    line-height: 1;
+                }
+                .summary-item span { 
+                    font-size: 10pt; 
+                    font-weight: 600; 
+                    text-transform: uppercase; 
+                    letter-spacing: 0.8px;
+                }
+                
+                /* Tables */
+                .claims-table { 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin: 15px 0; 
+                    font-size: 10pt;
+                    background: white;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                }
+                .claims-table th, .claims-table td { 
+                    border: 1px solid #cbd5e0; 
+                    padding: 12px 8px; 
+                    text-align: left; 
+                    vertical-align: top;
+                    word-break: break-word;
+                }
+                .claims-table th { 
+                    background: linear-gradient(135deg, #f7fafc, #edf2f7); 
+                    font-weight: 600; 
+                    font-size: 9pt;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    color: ${headingColor};
+                    border-bottom: 2px solid ${uewDeepBlue}40;
+                }
+                .claims-table tbody tr:nth-child(even) {
+                    background: #f8f9fa;
+                }
+                .claims-table tbody tr:hover {
+                    background: #e6f3ff;
+                }
+                
+                /* Status Badges */
+                .status-badge { 
+                    padding: 6px 10px; 
+                    border-radius: 15px; 
+                    font-weight: 600; 
+                    font-size: 8pt; 
+                    color: white; 
+                    text-transform: uppercase; 
+                    display: inline-block;
+                    letter-spacing: 0.5px;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                }
+                .status-PENDING { background: linear-gradient(135deg, #f59e0b, #d97706); }
+                .status-APPROVED { background: linear-gradient(135deg, #10b981, #059669); }
+                .status-REJECTED { background: linear-gradient(135deg, ${uewDeepRed}, #b91c1c); }
+                
+                /* Highlight Boxes */
+                .highlight-box {
+                    margin-top: 15px;
+                    padding: 15px;
+                    border-radius: 8px;
+                    border-left: 4px solid;
+                }
+                .highlight-teaching {
+                    background: #ecfdf5;
+                    border-color: #10b981;
+                    color: #047857;
+                }
+                .highlight-transport {
+                    background: #fffbeb;
+                    border-color: #f59e0b;
+                    color: #92400e;
+                }
+                
+                /* Signature Section */
+                .signature-section { 
+                    margin-top: 50px; 
+                    padding-top: 25px; 
+                    border-top: 2px dashed #cbd5e0;
+                    page-break-inside: avoid;
+                }
+                .signature-title {
+                    font-size: 14pt;
+                    font-weight: 600;
+                    text-align: center;
+                    margin-bottom: 25px;
+                    color: ${headingColor};
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                }
+                .signature-area { 
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                    gap: 30px;
+                    margin-top: 30px;
+                }
+                .signature-block { 
+                    text-align: center;
+                    min-height: 90px;
+                }
+                .signature-line { 
+                    border-bottom: 2px solid #2d3748; 
+                    height: 50px; 
+                    margin-bottom: 10px;
+                    position: relative;
+                    border-radius: 2px;
+                }
+                .signature-line::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -1px;
+                    left: 0;
+                    right: 0;
+                    height: 1px;
+                    background: #cbd5e0;
+                }
+                .signature-label { 
+                    font-size: 10pt; 
+                    font-weight: 600;
+                    color: ${headingColor};
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin-top: 5px;
+                }
+                
+                /* Footer */
+                .footer { 
+                    text-align: center; 
+                    margin-top: 40px; 
+                    padding-top: 20px; 
+                    border-top: 1px solid #e2e8f0; 
+                    font-size: 9pt; 
+                    color: #718096;
+                    font-style: italic;
+                    font-weight: 500;
+                }
+                
+                /* Print Specific Styles */
+                @media print {
+                    body { 
+                        -webkit-print-color-adjust: exact; 
+                        print-color-adjust: exact; 
+                        font-size: 10pt;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .print-container { 
+                        width: 100%; 
+                        margin: 0; 
+                        padding: 12mm 15mm;
+                        box-shadow: none; 
+                        border: none;
+                        min-height: auto;
+                    }
+                    .section {
+                        break-inside: avoid;
+                        page-break-inside: avoid;
+                        margin-bottom: 15px;
+                        padding: 15px;
+                    }
+                    .signature-section {
+                        break-inside: avoid;
+                        page-break-inside: avoid;
+                    }
+                    .claims-table {
+                        page-break-inside: auto;
+                    }
+                    .claims-table thead {
+                        display: table-header-group;
+                    }
+                    .claims-table tr {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+                    .status-badge, .summary-item, .highlight-box { 
+                        -webkit-print-color-adjust: exact; 
+                        print-color-adjust: exact;
+                    }
+                    .header {
+                        align-items: center;
+                        gap: 20px;
+                    }
+                    .logo {
+                        height: 70px;
+                    }
+                    .university-name {
+                        font-size: 20pt;
+                    }
+                    .document-title {
+                        font-size: 16pt;
+                    }
+                }
+                
+                @page {
+                    margin: 15mm;
+                    size: A4;
                 }
                 </style></head><body>
                 <div class="print-container">
@@ -229,19 +517,38 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
                             <div class="document-title">Lecturer Monthly Claim Summary</div>
                         </div>
                     </div>
+                    
                     <div class="section">
-                        <div class="section-title">Summary For</div>
-                        <p><strong>Lecturer:</strong> ${summaryData.lecturerName} (${summaryData.lecturerEmail || 'N/A'}) ${summaryData.lecturerDesignation ? '- ' + summaryData.lecturerDesignation.replace(/_/g, " ") : ''}</p>
-                        <p><strong>Period:</strong> ${summaryData.month}, ${summaryData.year}</p>
-                        ${selectedClaimType !== "ALL" ? `<p><strong>Filtered by Claim Type:</strong> <span style="text-transform:capitalize;">${selectedClaimType.toLowerCase().replace("_"," ")}</span></p>` : ''}
+                        <div class="section-title">Summary Information</div>
+                        <div class="info-row">
+                            <span class="info-label">Lecturer:</span>
+                            <span class="info-value"><strong>${summaryData.lecturerName}</strong> (${summaryData.lecturerEmail || 'N/A'}) ${summaryData.lecturerDesignation ? '- ' + summaryData.lecturerDesignation.replace(/_/g, " ") : ''}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Period:</span>
+                            <span class="info-value"><strong>${summaryData.month}, ${summaryData.year}</strong></span>
+                        </div>
+                        ${selectedClaimType !== "ALL" ? `<div class="info-row"><span class="info-label">Claim Type Filter:</span><span class="info-value" style="text-transform:capitalize; font-weight: 600; color: ${uewDeepRed};">${selectedClaimType.toLowerCase().replace("_"," ")}</span></div>` : ''}
                     </div>
 
                     <div class="section">
                         <div class="section-title">Payment Information</div>
-                        <p style="margin: 2px 0;"><strong>Bank Name:</strong> ${summaryData.lecturerBankName || 'N/A'}</p>
-                        <p style="margin: 2px 0;"><strong>Bank Branch:</strong> ${summaryData.lecturerBankBranch || 'N/A'}</p>
-                        <p style="margin: 2px 0;"><strong>Account Name:</strong> ${summaryData.lecturerAccountName || 'N/A'}</p>
-                        <p style="margin: 2px 0;"><strong>Account Number:</strong> ${summaryData.lecturerAccountNumber || 'N/A'}</p>
+                        <div class="info-row">
+                            <span class="info-label">Bank Name:</span>
+                            <span class="info-value">${summaryData.lecturerBankName || 'N/A'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Bank Branch:</span>
+                            <span class="info-value">${summaryData.lecturerBankBranch || 'N/A'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Account Name:</span>
+                            <span class="info-value">${summaryData.lecturerAccountName || 'N/A'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Account Number:</span>
+                            <span class="info-value"><strong>${summaryData.lecturerAccountNumber || 'N/A'}</strong></span>
+                        </div>
                     </div>
 
                     <div class="section">
@@ -252,21 +559,36 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
                             <div class="summary-item approved"><b>${summaryData.approved}</b><span>Approved</span></div>
                             <div class="summary-item rejected"><b>${summaryData.rejected}</b><span>Rejected</span></div>
                         </div>
-                        ${summaryData.totalTeachingHours > 0 ? `<p><b>Total Approved Teaching Hours:</b> ${summaryData.totalTeachingHours.toFixed(1)} hrs</p>` : ''}
-                        ${summaryData.totalTransportAmount > 0 ? `<p><b>Total Approved Transport Amount:</b> GHS ${summaryData.totalTransportAmount.toFixed(2)}</p>` : ''}
+                        ${summaryData.totalTeachingHours > 0 ? `<div class="highlight-box highlight-teaching"><strong>Total Approved Teaching Hours:</strong> ${summaryData.totalTeachingHours.toFixed(1)} hours</div>` : ''}
+                        ${summaryData.totalTransportAmount > 0 ? `<div class="highlight-box highlight-transport"><strong>Total Approved Transport Amount:</strong> GHS ${summaryData.totalTransportAmount.toFixed(2)}</div>` : ''}
                     </div>
                     ${teachingDetailsTableHtml ? `<div class="section">${teachingDetailsTableHtml}</div>` : ''}
                     ${teachingTransportTableHtml ? `<div class="section">${teachingTransportTableHtml}</div>` : ''}
                     ${otherClaimsHtml ? `<div class="section">${otherClaimsHtml}</div>` : ''}
+                    
                     <div class="signature-section">
+                        <div class="signature-title">Authorization Signatures</div>
                         <div class="signature-area">
-                            <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Prepared by</p></div>
-                            <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Center Coordinator</p></div>
-                            <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Head of Department</p></div>
-                            <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Duty Registrar</p></div>
+                            <div class="signature-block">
+                                <div class="signature-line"></div>
+                                <p class="signature-label">Prepared by</p>
+                            </div>
+                            <div class="signature-block">
+                                <div class="signature-line"></div>
+                                <p class="signature-label">Center Coordinator</p>
+                            </div>
+                            <div class="signature-block">
+                                <div class="signature-line"></div>
+                                <p class="signature-label">Head of Department</p>
+                            </div>
+                            <div class="signature-block">
+                                <div class="signature-line"></div>
+                                <p class="signature-label">Duty Registrar</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="footer">Generated on: ${new Date().toLocaleString('en-US', dateTimeLocaleStringOptions)} by System.</div>
+                    
+                    <div class="footer">Generated on: ${new Date().toLocaleString('en-US', dateTimeLocaleStringOptions)} by UEW Claims Management System</div>
                 </div>
                 </body></html>`;
         printWindow.document.write(printHtml); printWindow.document.close(); printWindow.focus();

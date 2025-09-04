@@ -117,9 +117,316 @@ export default function StaffRegistrySummariesView({ staffRegistryUserId, assign
     let printContentHtml = "";
     const uewDeepBlue = '#0D2C54'; const uewDeepRed = '#8C181F'; 
     const textColor = "#1A202C"; const headingColor = uewDeepBlue; const lightGrayBorder = "#CBD5E0";
-    const baseStyles = `<style>body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;margin:0;padding:0;color:${textColor};background-color:#fff;font-size:11px;}.print-container{width:100%;max-width:900px;margin:15px auto;padding:20px;}.header{text-align:center;margin-bottom:20px;padding-bottom:15px;border-bottom:2px solid ${uewDeepBlue};}.logo{max-width:90px;margin-bottom:8px;}.university-name{font-size:18px;font-weight:700;color:${uewDeepBlue};margin-bottom:2px;}.college-name{font-size:13px;font-weight:500;color:${uewDeepBlue};margin-bottom:5px;}.document-title{font-size:15px;font-weight:600;color:${uewDeepRed};margin-top:8px;text-transform:uppercase;}.section{margin-bottom:15px;padding:10px;border:1px solid ${lightGrayBorder};border-radius:5px;}.section-title{font-size:13px;font-weight:600;color:${headingColor};margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid ${uewDeepBlue}33;}.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px;}.summary-item{padding:8px;border-radius:4px;text-align:center;border:1px solid ${lightGrayBorder};}.summary-item strong{display:block;font-size:16px;margin-bottom:2px;}.summary-item span{font-size:10px;color:#4A5568;}.footer{text-align:center;margin-top:30px;font-size:10px;color:#555;border-top:1px solid ${lightGrayBorder};padding-top:15px;}.claims-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:10px;table-layout:auto;}.claims-table th,.claims-table td{border:1px solid ${lightGrayBorder};padding:4px 6px;text-align:left;vertical-align:top;word-break:break-word;}.claims-table th{background-color:#eef2f7;font-weight:600;}.status-badge{padding:2px 6px;border-radius:10px;font-weight:500;font-size:0.65em;color:white;text-transform:uppercase;display:inline-block;}.status-PENDING{background-color:#FF8F00;}.status-APPROVED{background-color:#2E7D32;}.status-REJECTED{background-color:${uewDeepRed};}.signature-section{margin-top:40px;padding-top:20px;border-top:1px dashed ${lightGrayBorder};page-break-inside:avoid;}.signature-area{display:flex;justify-content:space-around;margin-top:25px;}.signature-block{text-align:center;width:30%;}.signature-line{border-bottom:1px solid #333;height:40px;margin-bottom:5px;}.signature-label{font-size:10px;}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:9pt;}.print-container{width:100%;margin:0 auto;padding:10mm;box-shadow:none;border:none;}.status-badge,.summary-item{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>`;
-    const printHeader = `<div class="header"><img src="/uew.png" alt="University Logo" class="logo" /><div class="university-name">UNIVERSITY OF EDUCATION, WINNEBA</div><div class="college-name">COLLEGE OF DISTANCE AND e-LEARNING (CODeL)</div>`;
-    const printFooter = `<div class="signature-section"><div class="signature-area"><div class="signature-block"><div class="signature-line"></div><p class="signature-label">Prepared by</p></div><div class="signature-block"><div class="signature-line"></div><p class="signature-label">Authorized by</p></div><div class="signature-block"><div class="signature-line"></div><p class="signature-label">Approved by</p></div></div></div><div class="footer">Generated on: ${new Date().toLocaleString('en-US', dateTimeLocaleStringOptions)} by System.</div></div>`;
+    const baseStyles = `<style>
+        /* Reset and Base Styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            line-height: 1.5; 
+            color: #2d3748; 
+            background: white;
+            font-size: 11pt;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        /* Print Container */
+        .print-container { 
+            max-width: 210mm; 
+            margin: 0 auto; 
+            padding: 15mm 20mm; 
+            background: white;
+            min-height: 297mm;
+        }
+        
+        /* Header Section */
+        .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            padding-bottom: 20px; 
+            border-bottom: 3px solid ${uewDeepBlue};
+            page-break-inside: avoid;
+        }
+        .logo { 
+            height: 80px; 
+            width: auto;
+            margin-bottom: 15px;
+        }
+        .university-name { 
+            font-size: 22pt; 
+            font-weight: 700; 
+            color: ${uewDeepBlue}; 
+            margin-bottom: 5px;
+            letter-spacing: 0.5px;
+        }
+        .college-name { 
+            font-size: 14pt; 
+            font-weight: 500; 
+            color: ${uewDeepBlue}; 
+            margin-bottom: 10px;
+        }
+        .document-title { 
+            font-size: 18pt; 
+            font-weight: 600; 
+            color: ${uewDeepRed}; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 15px;
+        }
+        
+        /* Section Styles */
+        .section { 
+            margin-bottom: 25px; 
+            padding: 18px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            background: #fafafa;
+            page-break-inside: avoid;
+        }
+        .section-title { 
+            font-size: 14pt; 
+            font-weight: 600; 
+            color: ${headingColor}; 
+            margin-bottom: 15px; 
+            padding-bottom: 10px; 
+            border-bottom: 2px solid ${uewDeepBlue}40;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Summary Grid */
+        .summary-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+            gap: 15px; 
+            margin: 20px 0;
+        }
+        .summary-item { 
+            padding: 18px 15px; 
+            text-align: center; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 12px; 
+            background: white;
+        }
+        .summary-item strong { 
+            display: block; 
+            font-size: 24pt; 
+            font-weight: 700; 
+            margin-bottom: 8px;
+            line-height: 1;
+        }
+        .summary-item span { 
+            font-size: 10pt; 
+            font-weight: 600; 
+            text-transform: uppercase; 
+            letter-spacing: 0.8px;
+            color: #4a5568;
+        }
+        
+        /* Tables */
+        .claims-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 15px 0; 
+            font-size: 10pt;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .claims-table th, .claims-table td { 
+            border: 1px solid #cbd5e0; 
+            padding: 12px 8px; 
+            text-align: left; 
+            vertical-align: top;
+            word-break: break-word;
+        }
+        .claims-table th { 
+            background: linear-gradient(135deg, #f7fafc, #edf2f7); 
+            font-weight: 600; 
+            font-size: 9pt;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: ${headingColor};
+            border-bottom: 2px solid ${uewDeepBlue}40;
+        }
+        .claims-table tbody tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        /* Status Badges */
+        .status-badge { 
+            padding: 6px 10px; 
+            border-radius: 15px; 
+            font-weight: 600; 
+            font-size: 8pt; 
+            color: white; 
+            text-transform: uppercase; 
+            display: inline-block;
+            letter-spacing: 0.5px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .status-PENDING { background: linear-gradient(135deg, #FF8F00, #E65100); }
+        .status-APPROVED { background: linear-gradient(135deg, #2E7D32, #1B5E20); }
+        .status-REJECTED { background: linear-gradient(135deg, ${uewDeepRed}, #B71C1C); }
+        
+        /* Information Layout */
+        .info-row {
+            display: flex;
+            margin-bottom: 10px;
+            align-items: flex-start;
+            line-height: 1.4;
+        }
+        .info-label {
+            font-weight: 600;
+            color: ${headingColor};
+            min-width: 140px;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        .info-value {
+            flex: 1;
+            word-break: break-word;
+        }
+        
+        /* Signature Section */
+        .signature-section { 
+            margin-top: 50px; 
+            padding-top: 25px; 
+            border-top: 2px dashed #cbd5e0;
+            page-break-inside: avoid;
+        }
+        .signature-title {
+            font-size: 14pt;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 25px;
+            color: ${headingColor};
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .signature-area { 
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .signature-block { 
+            text-align: center;
+            min-height: 90px;
+        }
+        .signature-line { 
+            border-bottom: 2px solid #2d3748; 
+            height: 50px; 
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .signature-line::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #cbd5e0;
+        }
+        .signature-label { 
+            font-size: 10pt; 
+            font-weight: 600;
+            color: ${headingColor};
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Footer */
+        .footer { 
+            text-align: center; 
+            margin-top: 40px; 
+            padding-top: 20px; 
+            border-top: 1px solid #e2e8f0; 
+            font-size: 9pt; 
+            color: #718096;
+            font-style: italic;
+            font-weight: 500;
+        }
+        
+        /* Print Specific Styles */
+        @media print { 
+            body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                font-size: 10pt;
+                margin: 0;
+                padding: 0;
+            }
+            .print-container { 
+                width: 100%; 
+                margin: 0; 
+                padding: 12mm 15mm;
+                box-shadow: none; 
+                border: none;
+                min-height: auto;
+            }
+            .section {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                margin-bottom: 20px;
+                padding: 15px;
+            }
+            .signature-section {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .claims-table {
+                page-break-inside: auto;
+            }
+            .claims-table thead {
+                display: table-header-group;
+            }
+            .claims-table tr {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            .status-badge, .summary-item { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+            }
+            .logo {
+                height: 70px;
+            }
+            .university-name {
+                font-size: 20pt;
+            }
+            .document-title {
+                font-size: 16pt;
+            }
+        }
+        
+        @page {
+            margin: 15mm;
+            size: A4;
+        }
+    </style>`;
+    const printHeader = `<div class="header">
+        <img src="/uew.png" alt="University Logo" class="logo" />
+        <div class="university-name">UNIVERSITY OF EDUCATION, WINNEBA</div>
+        <div class="college-name">COLLEGE OF DISTANCE AND e-LEARNING (CODeL)</div>`;
+    const printFooter = `<div class="signature-section">
+        <div class="signature-title">Authorization Signatures</div>
+        <div class="signature-area">
+            <div class="signature-block">
+                <div class="signature-line"></div>
+                <p class="signature-label">Prepared by</p>
+            </div>
+            <div class="signature-block">
+                <div class="signature-line"></div>
+                <p class="signature-label">Authorized by</p>
+            </div>
+            <div class="signature-block">
+                <div class="signature-line"></div>
+                <p class="signature-label">Approved by</p>
+            </div>
+        </div>
+    </div>
+    <div class="footer">Generated on: ${new Date().toLocaleString('en-US', dateTimeLocaleStringOptions)} by UEW Claims Management System</div></div>`;
 
     const tempPrintWindow = window.open('', '_blank', 'height=800,width=1000,scrollbars=yes,resizable=yes');
     if (!tempPrintWindow) { toast.error("Could not open print window. Please check your browser's pop-up settings."); return; }
