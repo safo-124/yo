@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 // Zod Schema for Profile Details Update (Name, Designation, Phone, Bank Info)
 const profileDetailsSchema = z.object({
   name: z.string().min(1, "Name cannot be empty.").max(100, "Name is too long (max 100 characters)."),
-  designation: z.string().optional(),
+  designation: z.string(), // Now required but can be "NONE"
   phoneNumber: z.string().optional(),
   bankName: z.string().optional(),
   bankBranch: z.string().optional(),
@@ -52,7 +52,7 @@ export default function ProfileUpdateForm({ initialProfile }) {
     resolver: zodResolver(profileDetailsSchema),
     defaultValues: {
       name: initialProfile?.name || "",
-      designation: initialProfile?.designation || "",
+      designation: initialProfile?.designation || "NONE",
       phoneNumber: initialProfile?.phoneNumber || "",
       bankName: initialProfile?.bankName || "",
       bankBranch: initialProfile?.bankBranch || "",
@@ -83,8 +83,17 @@ export default function ProfileUpdateForm({ initialProfile }) {
   const handleProfileUpdate = async (data) => {
     setIsProfileLoading(true);
     profileDetailsForm.clearErrors("root.serverError"); // Clear previous server errors
-
-    console.log("Client: Submitting profile update with data:", data); // DEBUG LOG
+    
+    // Add debug information to help troubleshoot
+    console.log("Client: Submitting profile update with data:", {
+      name: data.name,
+      designation: data.designation,
+      phoneNumber: data.phoneNumber || "(empty)",
+      bankName: data.bankName || "(empty)",
+      bankBranch: data.bankBranch || "(empty)",
+      accountName: data.accountName || "(empty)",
+      accountNumber: data.accountNumber || "(empty)"
+    }); 
 
     // Client-side validation specific to Lecturer and Coordinator roles
     if (initialProfile?.role === 'LECTURER' || initialProfile?.role === 'COORDINATOR') {
@@ -97,19 +106,22 @@ export default function ProfileUpdateForm({ initialProfile }) {
       ];
 
       for (const { field, message } of requiredFields) {
-        if (!data[field]?.trim()) {
+        if (!data[field] || !data[field].trim()) {
           profileDetailsForm.setError(field, { type: "manual", message });
           toast.error(message);
           setIsProfileLoading(false);
           return;
         }
       }
-      if (data.phoneNumber && !/^\+?\d{10,15}$/.test(data.phoneNumber.trim())) {
-        profileDetailsForm.setError('phoneNumber', { type: "manual", message: "Invalid phone number format." });
-        toast.error("Invalid phone number format.");
+      // More forgiving phone number validation - just make sure it contains digits
+      if (data.phoneNumber && !/\d{9,}/.test(data.phoneNumber.replace(/\D/g, ''))) {
+        profileDetailsForm.setError('phoneNumber', { type: "manual", message: "Phone number should contain at least 9 digits." });
+        toast.error("Invalid phone number format. Please enter a valid phone number.");
         setIsProfileLoading(false);
         return;
       }
+      
+      // Account number validation
       if (data.accountNumber && !/^\d+$/.test(data.accountNumber.trim())) {
         profileDetailsForm.setError('accountNumber', { type: "manual", message: "Account number must be numeric." });
         toast.error("Account number must be numeric.");
@@ -120,7 +132,7 @@ export default function ProfileUpdateForm({ initialProfile }) {
 
     const result = await updateCurrentUserProfile({
       newName: data.name,
-      newDesignation: data.designation,
+      newDesignation: data.designation === "NONE" ? null : data.designation,
       newPhoneNumber: data.phoneNumber,
       newBankName: data.bankName,
       newBankBranch: data.bankBranch, 
@@ -229,14 +241,14 @@ export default function ProfileUpdateForm({ initialProfile }) {
                   <Label htmlFor="designation" className="text-slate-700 dark:text-slate-200">Designation</Label>
                   <Select
                     disabled={isProfileLoading}
-                    defaultValue={profileDetailsForm.getValues("designation") || ""}
-                    onValueChange={(value) => profileDetailsForm.setValue("designation", value)}
+                    defaultValue={profileDetailsForm.getValues("designation") || "NONE"}
+                    onValueChange={(value) => profileDetailsForm.setValue("designation", value === "NONE" ? null : value)}
                   >
                     <SelectTrigger id="designation" className={getInputClasses(profileDetailsForm, "designation")}>
                       <SelectValue placeholder="Select your designation" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Designation</SelectItem>
+                      <SelectItem value="NONE">No Designation</SelectItem>
                       <SelectItem value="ASSISTANT_LECTURER">Assistant Lecturer</SelectItem>
                       <SelectItem value="LECTURER">Lecturer</SelectItem>
                       <SelectItem value="SENIOR_LECTURER">Senior Lecturer</SelectItem>
@@ -276,6 +288,7 @@ export default function ProfileUpdateForm({ initialProfile }) {
                         disabled={isProfileLoading}
                         className={getInputClasses(profileDetailsForm, "phoneNumber")}
                         placeholder="e.g., +233241234567"
+                        required
                       />
                       {profileDetailsForm.formState.errors.phoneNumber && (
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.phoneNumber.message}</p>
@@ -293,6 +306,7 @@ export default function ProfileUpdateForm({ initialProfile }) {
                         disabled={isProfileLoading}
                         className={getInputClasses(profileDetailsForm, "bankName")}
                         placeholder="e.g., GCB Bank"
+                        required
                       />
                       {profileDetailsForm.formState.errors.bankName && (
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.bankName.message}</p>
@@ -310,6 +324,7 @@ export default function ProfileUpdateForm({ initialProfile }) {
                         disabled={isProfileLoading}
                         className={getInputClasses(profileDetailsForm, "bankBranch")}
                         placeholder="e.g., Winneba Branch"
+                        required
                       />
                       {profileDetailsForm.formState.errors.bankBranch && (
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.bankBranch.message}</p>
@@ -327,6 +342,7 @@ export default function ProfileUpdateForm({ initialProfile }) {
                         disabled={isProfileLoading}
                         className={getInputClasses(profileDetailsForm, "accountName")}
                         placeholder="Name on account"
+                        required
                       />
                       {profileDetailsForm.formState.errors.accountName && (
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.accountName.message}</p>
@@ -344,6 +360,7 @@ export default function ProfileUpdateForm({ initialProfile }) {
                         disabled={isProfileLoading}
                         className={getInputClasses(profileDetailsForm, "accountNumber")}
                         placeholder="e.g., 1234567890"
+                        required
                       />
                       {profileDetailsForm.formState.errors.accountNumber && (
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.accountNumber.message}</p>
