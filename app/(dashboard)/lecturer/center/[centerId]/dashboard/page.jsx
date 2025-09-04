@@ -20,7 +20,7 @@ import { Toaster } from '@/components/ui/sonner';
 
 export default async function LecturerCenterDashboardPage({ params }) {
   const session = await getSession();
-  const { centerId } = params;
+  const { centerId } = await params;
 
   if (!session || session.role !== 'LECTURER') {
     redirect('/login');
@@ -50,6 +50,8 @@ export default async function LecturerCenterDashboardPage({ params }) {
   }
 
   const { profile, center, department, claims } = result.data;
+
+  console.log(`[DASHBOARD] Center validation - URL centerId: ${centerId}, Data center.id: ${center?.id}`);
 
   if (center?.id !== centerId) {
     console.warn(`Data mismatch: Lecturer ${session.userId} in center ${center?.id} accessed URL for center ${centerId}.`);

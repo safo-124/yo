@@ -12,27 +12,47 @@ const inter = Inter({ subsets: ['latin'] });
 
 export default async function LecturerCenterLayout({ children, params }) {
   const session = await getSession();
-  const { centerId } = params;
+  const { centerId } = await params;
 
   if (!session?.userId) redirect('/login');
   if (session.role !== 'LECTURER' && session.role !== 'COORDINATOR') redirect('/unauthorized');
 
   const currentUser = await prisma.user.findUnique({
     where: { id: session.userId },
-    // Select necessary fields for UserProfileDropdown if it needs more than session
     select: { 
         lecturerCenterId: true,
-        // Add other fields like name, email, image if UserProfileDropdown uses them directly from currentUser
-        // name: true, 
-        // email: true,
+        lecturerCourseAssignments: {
+          include: {
+            course: {
+              include: {
+                program: {
+                  include: {
+                    department: {
+                      select: { centerId: true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
     }
   });
 
   // For lecturers, verify they're accessing their assigned center
-  if (session.role === 'LECTURER' && currentUser?.lecturerCenterId !== centerId) {
-    currentUser?.lecturerCenterId 
-      ? redirect(`/lecturer/center/${currentUser.lecturerCenterId}/dashboard`)
-      : redirect('/lecturer/assignment-pending');
+  if (session.role === 'LECTURER') {
+    let assignedCenterId = currentUser?.lecturerCenterId;
+    
+    // If no direct center assignment, check course assignments
+    if (!assignedCenterId && currentUser?.lecturerCourseAssignments?.length > 0) {
+      assignedCenterId = currentUser.lecturerCourseAssignments[0].course.program.department.centerId;
+    }
+    
+    if (assignedCenterId && assignedCenterId !== centerId) {
+      redirect(`/lecturer/center/${assignedCenterId}/dashboard`);
+    } else if (!assignedCenterId) {
+      redirect('/lecturer/assignment-pending');
+    }
   }
   
   // For coordinators, verify if this center is their assigned center

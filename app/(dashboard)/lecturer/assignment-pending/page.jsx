@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { AlertTriangle } from 'lucide-react';
+import prisma from '@/lib/prisma';
 // No full layout needed here, or a very simple one.
 // For now, let's assume it might fall under a generic (dashboard) layout if one exists,
 // or it can be a standalone page. If using the main dashboard layout, UserProfileDropdown would be available.

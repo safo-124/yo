@@ -85,6 +85,8 @@ export async function middleware(request) {
 
     // Lecturer path protection
     if (pathname.startsWith('/lecturer')) {
+      console.log(`[MIDDLEWARE] Lecturer path access: ${pathname}, Role: ${session.role}, DashboardPath: ${session.dashboardPath}`);
+      
       // VVVV THIS IS THE LINE WE ARE FIXING VVVV
       if (session.role !== 'LECTURER' && session.role !== 'REGISTRY' && session.role !== 'COORDINATOR') {
         console.warn(`Middleware: Unauthorized role access attempt to ${pathname} by role ${session.role}. Expected LECTURER, REGISTRY, or COORDINATOR.`);
@@ -105,6 +107,9 @@ export async function middleware(request) {
                     lecturerActualCenterId = sessionPathParts[3];
                 }
             }
+            
+            console.log(`[MIDDLEWARE] Center ID validation - URL: ${centerIdFromUrl}, Session: ${lecturerActualCenterId}`);
+            
             if (centerIdFromUrl && 
                 lecturerActualCenterId && 
                 centerIdFromUrl !== lecturerActualCenterId) {
