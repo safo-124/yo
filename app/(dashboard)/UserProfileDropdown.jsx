@@ -25,7 +25,7 @@ const getInitials = (name) => {
   return initials.toUpperCase();
 };
 
-export default function UserProfileDropdown({ session }) {
+export default function UserProfileDropdown({ session, userTheme = "light" }) {
   const router = useRouter();
 
   if (!session) return null;
@@ -34,46 +34,78 @@ export default function UserProfileDropdown({ session }) {
     router.push(path);
   };
 
+  // Style adjustments based on theme
+  const isDark = userTheme === "dark";
+  const triggerClasses = isDark 
+    ? "relative h-12 w-12 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition-all duration-200 backdrop-blur-sm"
+    : "relative h-10 w-10 rounded-full";
+    
+  const avatarClasses = isDark ? "h-8 w-8" : "h-10 w-10";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10">
+        <Button variant="ghost" className={triggerClasses}>
+          <Avatar className={avatarClasses}>
             {/* Example for AvatarImage if you have user avatars
             {session.avatarUrl && <AvatarImage src={session.avatarUrl} alt={session.name || session.email} />}
             */}
-            <AvatarFallback>{getInitials(session.name)}</AvatarFallback>
+            <AvatarFallback className={isDark ? "bg-blue-500/80 text-white font-semibold" : undefined}>
+              {getInitials(session.name)}
+            </AvatarFallback>
           </Avatar>
+          {isDark && (
+            <div className="absolute -top-1 -right-1 h-4 w-4 bg-green-500 rounded-full border-2 border-white/20 animate-pulse"></div>
+          )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{session.name || "User"}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {session.email}
-            </p>
+      <DropdownMenuContent className="w-64 p-2" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal p-3">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-12 w-12">
+              <AvatarFallback className="bg-blue-500 text-white font-bold text-lg">
+                {getInitials(session.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-semibold leading-none">{session.name || "User"}</p>
+              <p className="text-xs text-muted-foreground leading-none">
+                {session.email}
+              </p>
+              <div className="flex items-center gap-1 mt-1">
+                <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                <span className="text-xs text-green-600 font-medium">Online</span>
+              </div>
+            </div>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => handleNavigation('/profile')}>
-          <UserCircle className="mr-2 h-4 w-4" />
-          <span>Profile</span>
+        <DropdownMenuSeparator className="my-2" />
+        <DropdownMenuItem onSelect={() => handleNavigation('/profile')} className="p-3 cursor-pointer rounded-lg">
+          <UserCircle className="mr-3 h-5 w-5 text-blue-600" />
+          <div className="flex flex-col">
+            <span className="font-medium">My Profile</span>
+            <span className="text-xs text-muted-foreground">View and edit profile</span>
+          </div>
         </DropdownMenuItem>
-        {/* The "Settings" link now also points to /profile as it serves as the settings page */}
-        <DropdownMenuItem onSelect={() => handleNavigation('/profile')}>
-          <SettingsIcon className="mr-2 h-4 w-4" />
-          <span>Settings</span>
+        <DropdownMenuItem onSelect={() => handleNavigation('/profile')} className="p-3 cursor-pointer rounded-lg">
+          <SettingsIcon className="mr-3 h-5 w-5 text-slate-600" />
+          <div className="flex flex-col">
+            <span className="font-medium">Settings</span>
+            <span className="text-xs text-muted-foreground">Account preferences</span>
+          </div>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator className="my-2" />
         <DropdownMenuItem asChild>
           <form action={logoutUser} className="w-full">
             <button
               type="submit"
-              className="w-full text-left relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+              className="w-full text-left relative flex cursor-pointer select-none items-center rounded-lg px-3 py-3 text-sm outline-none transition-colors hover:bg-red-50 hover:text-red-600 focus:bg-red-50 focus:text-red-600 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
             >
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
+              <LogOut className="mr-3 h-5 w-5" />
+              <div className="flex flex-col">
+                <span className="font-medium">Sign Out</span>
+                <span className="text-xs text-muted-foreground">End current session</span>
+              </div>
             </button>
           </form>
         </DropdownMenuItem>
