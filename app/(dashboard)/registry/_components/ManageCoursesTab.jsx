@@ -16,7 +16,8 @@ import {
   createProgram, getPrograms, createCourse, getCourses, getDepartments, getLecturersForAssignment, bulkUploadCourses, assignCoursesToLecturers, createDepartment,
   updateProgram, updateCourse, updateDepartment, // Import update actions
   deleteCourse, deleteProgram, deleteDepartment, // Import delete actions
-  unassignCourseFromLecturers // Import unassign action
+  unassignCourseFromLecturers, // Import unassign action
+  unassignCoursesFromLecturer // Import new unassign specific courses from lecturer action
 } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
 import {
@@ -133,6 +134,12 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
   // Assign Courses states
   const [selectedCoursesForAssignment, setSelectedCoursesForAssignment] = useState([]);
   const [selectedLecturerForAssignment, setSelectedLecturerForAssignment] = useState('');
+
+  // Unassign Courses states
+  const [isUnassignCoursesDialogOpen, setIsUnassignCoursesDialogOpen] = useState(false);
+  const [selectedLecturerForUnassignment, setSelectedLecturerForUnassignment] = useState('');
+  const [selectedCoursesForUnassignment, setSelectedCoursesForUnassignment] = useState([]);
+  const [lecturerAssignedCourses, setLecturerAssignedCourses] = useState([]);
 
   // Filter programs for display
   const filteredPrograms = useMemo(() => {
@@ -734,6 +741,54 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
       }
     };
 
+    // Handler for unassigning courses from lecturers
+    const handleUnassignCourses = async (event) => {
+      event.preventDefault();
+      setFormError('');
+      if (selectedCoursesForUnassignment.length === 0 || !selectedLecturerForUnassignment) {
+        setFormError("Please select at least one course and a lecturer for unassignment."); return;
+      }
+      setIsLoadingForm(true);
+      const result = await unassignCoursesFromLecturer({
+        courseIds: selectedCoursesForUnassignment,
+        lecturerId: selectedLecturerForUnassignment,
+      });
+      setIsLoadingForm(false);
+
+      if (result.success) {
+        toast.success(result.message || "Courses unassigned successfully!");
+        const refetchResult = await getCourses();
+        if(refetchResult.success) {
+         setCourses(refetchResult.courses);
+        } else {
+         toast.error("Failed to re-fetch courses after unassignment.");
+        }
+        setIsUnassignCoursesDialogOpen(false);
+        setSelectedCoursesForUnassignment([]);
+        setSelectedLecturerForUnassignment('');
+        setLecturerAssignedCourses([]);
+      } else {
+        setFormError(result.error || "Failed to unassign courses.");
+        toast.error(result.error || "Failed to unassign courses.");
+      }
+    };
+
+    // Handler to fetch lecturer's assigned courses when lecturer is selected for unassignment
+    const handleLecturerSelectionForUnassignment = async (lecturerId) => {
+      setSelectedLecturerForUnassignment(lecturerId);
+      setSelectedCoursesForUnassignment([]);
+      
+      if (lecturerId) {
+        // Filter courses to show only those assigned to the selected lecturer
+        const assignedCourses = courses.filter(course => 
+          course.assignedLecturers && course.assignedLecturers.some(lecturer => lecturer.id === lecturerId)
+        );
+        setLecturerAssignedCourses(assignedCourses);
+      } else {
+        setLecturerAssignedCourses([]);
+      }
+    };
+
     const clearSearch = () => setSearchQuery('');
 
     return (
@@ -1026,6 +1081,71 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                   <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
                     <Button type="submit" disabled={isLoadingForm || selectedCoursesForAssignment.length === 0 || !selectedLecturerForAssignment}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Assign Courses</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* Unassign Courses Dialog/Button */}
+            <Dialog open={isUnassignCoursesDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setSelectedCoursesForUnassignment([]); setSelectedLecturerForUnassignment(''); setLecturerAssignedCourses([]); setFormError(''); } setIsUnassignCoursesDialogOpen(open); }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="text-red-700 border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-700/30 font-medium h-10 px-5 text-sm rounded-lg shadow-md"><User className="mr-2 h-4 w-4" />Unassign Courses</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><User className="h-5 w-5 text-red-700" /> Unassign Courses from Lecturer</DialogTitle>
+                  <DialogDescription>Select a lecturer and the courses to unassign from them.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleUnassignCourses}>
+                  <div className="grid gap-4 py-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="selectLecturerForUnassignment" className={dialogLabelClass}>Select Lecturer <span className="text-red-700">*</span></Label>
+                      <Select value={selectedLecturerForUnassignment} onValueChange={handleLecturerSelectionForUnassignment} disabled={isLoadingForm || lecturers.length === 0}>
+                        <SelectTrigger id="selectLecturerForUnassignment" className={dialogSelectTriggerClass}><SelectValue placeholder="Select lecturer" /></SelectTrigger>
+                        <SelectContent className={dialogSelectContentClass}>
+                          {lecturers.length > 0 ? lecturers.map(lecturer => (
+                            <SelectItem key={lecturer.id} value={lecturer.id}>{lecturer.name} ({lecturer.email})</SelectItem>
+                          )) : <div className="px-3 py-2 text-sm text-slate-500">No lecturers found.</div>}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {selectedLecturerForUnassignment && (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="selectCoursesForUnassignment" className={dialogLabelClass}>Assigned Courses to Unassign <span className="text-red-700">*</span></Label>
+                        <ScrollArea className="h-32 border rounded-md p-2 bg-slate-50 dark:bg-slate-700/30">
+                          {lecturerAssignedCourses.length > 0 ? (
+                              <ul className="list-none space-y-1">
+                                {lecturerAssignedCourses.map(course => (
+                                    <li key={course.id} className={`flex items-center justify-between p-1 rounded-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 ${selectedCoursesForUnassignment.includes(course.id) ? 'bg-red-100 dark:bg-red-900/30 font-semibold' : ''}`}
+                                      onClick={() => {
+                                        setSelectedCoursesForUnassignment(prev => prev.includes(course.id)
+                                            ? prev.filter(id => id !== course.id)
+                                            : [...prev, course.id]
+                                        );
+                                      }}>
+                                      <span className="text-sm">{course.courseCode} - {course.courseTitle}</span>
+                                      {selectedCoursesForUnassignment.includes(course.id) && <CheckSquare className="h-4 w-4 text-red-600" />}
+                                    </li>
+                                ))}
+                              </ul>
+                          ) : (
+                              <p className="text-sm italic text-slate-500 text-center py-6">This lecturer has no assigned courses to unassign.</p>
+                          )}
+                        </ScrollArea>
+                        {selectedCoursesForUnassignment.length > 0 && (
+                            <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
+                                Selected for unassignment: {selectedCoursesForUnassignment.length} course(s).
+                            </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
+                    <Button type="submit" variant="destructive" disabled={isLoadingForm || selectedCoursesForUnassignment.length === 0 || !selectedLecturerForUnassignment}>{isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Unassign Courses</Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
