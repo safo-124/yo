@@ -206,11 +206,12 @@ export default function SubmitClaimPage() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({ control: form.control, name: "supervisedStudents" });
+  const { fields: supervisedStudentsFields, append: appendStudent, remove: removeStudent } = useFieldArray({ control: form.control, name: "supervisedStudents" });
   const { watch, setValue, getValues, register, control, handleSubmit, formState: { errors } } = form;
 
   const watchClaimType = watch("claimType");
   const watchThesisType = watch("thesisType");
+  const watchTransportType = watch("transportType");
   const watchTeachingDate = watch("teachingDate");
   const watchTeachingStartTime = watch("teachingStartTime");
   const watchTeachingEndTime = watch("teachingEndTime");
@@ -582,10 +583,135 @@ export default function SubmitClaimPage() {
                           Transportation Details
                         </h3>
                       </div>
-                      {/* Transportation fields would go here - keeping original structure for now */}
-                      <div className="space-y-4 text-center py-8">
-                        <Car className="h-12 w-12 text-green-600 mx-auto" />
-                        <p className="text-green-700 dark:text-green-300">Transportation form section needs to be implemented</p>
+                      {/* Transportation Form Fields */}
+                      <div className="grid gap-6 md:gap-8">
+                        {/* Transport Type */}
+                        <FieldWrapper 
+                          label="Transport Type" 
+                          htmlFor="transportType" 
+                          required 
+                          error={errors.transportType} 
+                          icon={Car}
+                          description="Select whether you used public or private transportation"
+                        >
+                          <Controller
+                            name="transportType"
+                            control={control}
+                            render={({ field }) => (
+                              <Select 
+                                onValueChange={field.onChange} 
+                                value={field.value || ""}
+                              >
+                                <SelectTrigger 
+                                  id="transportType"
+                                  className={`${inputBaseClass} ${focusRingClass} ${errors.transportType ? errorBorderClass : normalBorderClass}`}
+                                >
+                                  <SelectValue placeholder="Select transport type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="PUBLIC">Public Transport</SelectItem>
+                                  <SelectItem value="PRIVATE">Private Vehicle</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        </FieldWrapper>
+
+                        {/* Origin and Destination */}
+                        <div className="grid gap-6 md:grid-cols-2">
+                          <FieldWrapper 
+                            label="Origin (From)" 
+                            htmlFor="transportDestinationFrom" 
+                            required 
+                            error={errors.transportDestinationFrom} 
+                            icon={MapPin}
+                            description="Starting location of your journey"
+                          >
+                            <Input
+                              id="transportDestinationFrom"
+                              placeholder="e.g., UEW Main Campus"
+                              {...register("transportDestinationFrom")}
+                              className={`${inputBaseClass} ${focusRingClass} ${errors.transportDestinationFrom ? errorBorderClass : normalBorderClass}`}
+                            />
+                          </FieldWrapper>
+
+                          <FieldWrapper 
+                            label="Destination (To)" 
+                            htmlFor="transportDestinationTo" 
+                            required 
+                            error={errors.transportDestinationTo} 
+                            icon={MapPin}
+                            description="Final destination of your journey"
+                          >
+                            <Input
+                              id="transportDestinationTo"
+                              placeholder="e.g., Kumasi Study Center"
+                              {...register("transportDestinationTo")}
+                              className={`${inputBaseClass} ${focusRingClass} ${errors.transportDestinationTo ? errorBorderClass : normalBorderClass}`}
+                            />
+                          </FieldWrapper>
+                        </div>
+
+                        {/* Private Vehicle Fields */}
+                        {watchTransportType === "PRIVATE" && (
+                          <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/50">
+                            <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                              <Car className="h-4 w-4 text-green-600" />
+                              Private Vehicle Details
+                            </h4>
+                            <div className="grid gap-6 md:grid-cols-2">
+                              <FieldWrapper 
+                                label="Vehicle Registration Number" 
+                                htmlFor="transportRegNumber" 
+                                required 
+                                error={errors.transportRegNumber} 
+                                icon={Hash}
+                                description="License plate number of the vehicle"
+                              >
+                                <Input
+                                  id="transportRegNumber"
+                                  placeholder="e.g., GR-1234-20"
+                                  {...register("transportRegNumber")}
+                                  className={`${inputBaseClass} ${focusRingClass} ${errors.transportRegNumber ? errorBorderClass : normalBorderClass}`}
+                                />
+                              </FieldWrapper>
+
+                              <FieldWrapper 
+                                label="Engine Cubic Capacity (cc)" 
+                                htmlFor="transportCubicCapacity" 
+                                error={errors.transportCubicCapacity} 
+                                icon={Users}
+                                description="Engine size in cubic centimeters"
+                              >
+                                <Input
+                                  id="transportCubicCapacity"
+                                  type="number"
+                                  placeholder="e.g., 1500"
+                                  {...register("transportCubicCapacity")}
+                                  className={`${inputBaseClass} ${focusRingClass} ${errors.transportCubicCapacity ? errorBorderClass : normalBorderClass}`}
+                                />
+                              </FieldWrapper>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Amount Claimed */}
+                        <FieldWrapper 
+                          label="Amount Claimed (GHS)" 
+                          htmlFor="transportAmount" 
+                          error={errors.transportAmount} 
+                          icon={DollarSign}
+                          description="Total amount being claimed for this transportation"
+                        >
+                          <Input
+                            id="transportAmount"
+                            type="number"
+                            step="0.01"
+                            placeholder="e.g., 150.00"
+                            {...register("transportAmount")}
+                            className={`${inputBaseClass} ${focusRingClass} ${errors.transportAmount ? errorBorderClass : normalBorderClass}`}
+                          />
+                        </FieldWrapper>
                       </div>
                     </div> 
                   )}
@@ -600,10 +726,200 @@ export default function SubmitClaimPage() {
                           Thesis/Project Details
                         </h3>
                       </div>
-                      {/* Thesis/Project fields would go here - keeping original structure for now */}
-                      <div className="space-y-4 text-center py-8">
-                        <FileText className="h-12 w-12 text-purple-600 mx-auto" />
-                        <p className="text-purple-700 dark:text-purple-300">Thesis/Project form section needs to be implemented</p>
+                      {/* Thesis/Project Form Fields */}
+                      <div className="grid gap-6 md:gap-8">
+                        {/* Thesis Type */}
+                        <FieldWrapper 
+                          label="Thesis/Project Type" 
+                          htmlFor="thesisType" 
+                          required 
+                          error={errors.thesisType} 
+                          icon={FileText}
+                          description="Select whether this is for supervision or examination"
+                        >
+                          <Controller
+                            name="thesisType"
+                            control={control}
+                            render={({ field }) => (
+                              <Select 
+                                onValueChange={field.onChange} 
+                                value={field.value || ""}
+                              >
+                                <SelectTrigger 
+                                  id="thesisType"
+                                  className={`${inputBaseClass} ${focusRingClass} ${errors.thesisType ? errorBorderClass : normalBorderClass}`}
+                                >
+                                  <SelectValue placeholder="Select thesis/project type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="SUPERVISION">Thesis Supervision</SelectItem>
+                                  <SelectItem value="EXAMINATION">Thesis Examination</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        </FieldWrapper>
+
+                        {/* Supervision Fields */}
+                        {watchThesisType === "SUPERVISION" && (
+                          <div className="space-y-6">
+                            {/* Supervision Rank */}
+                            <FieldWrapper 
+                              label="Academic Level" 
+                              htmlFor="thesisSupervisionRank" 
+                              required 
+                              error={errors.thesisSupervisionRank} 
+                              icon={Users}
+                              description="Select the academic level of the thesis/project"
+                            >
+                              <Controller
+                                name="thesisSupervisionRank"
+                                control={control}
+                                render={({ field }) => (
+                                  <Select 
+                                    onValueChange={field.onChange} 
+                                    value={field.value || ""}
+                                  >
+                                    <SelectTrigger 
+                                      id="thesisSupervisionRank"
+                                      className={`${inputBaseClass} ${focusRingClass} ${errors.thesisSupervisionRank ? errorBorderClass : normalBorderClass}`}
+                                    >
+                                      <SelectValue placeholder="Select academic level" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="PHD">PhD</SelectItem>
+                                      <SelectItem value="MPHIL">MPhil</SelectItem>
+                                      <SelectItem value="MA">MA</SelectItem>
+                                      <SelectItem value="MSC">MSc</SelectItem>
+                                      <SelectItem value="BED">BEd</SelectItem>
+                                      <SelectItem value="BSC">BSc</SelectItem>
+                                      <SelectItem value="BA">BA</SelectItem>
+                                      <SelectItem value="ED">Ed</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              />
+                            </FieldWrapper>
+
+                            {/* Supervised Students */}
+                            <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/50">
+                              <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                  <Users className="h-4 w-4 text-purple-600" />
+                                  Supervised Students
+                                </h4>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => appendStudent({ studentName: "", thesisTitle: "" })}
+                                  className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                                >
+                                  <PlusCircle className="h-4 w-4 mr-1" />
+                                  Add Student
+                                </Button>
+                              </div>
+                              
+                              {supervisedStudentsFields.length === 0 && (
+                                <p className="text-sm text-slate-600 dark:text-slate-400 text-center py-4">
+                                  No students added yet. Click "Add Student" to get started.
+                                </p>
+                              )}
+
+                              {supervisedStudentsFields.map((field, index) => (
+                                <div key={field.id} className="bg-white dark:bg-slate-700 rounded-lg p-4 mb-4 border border-slate-200 dark:border-slate-600">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h5 className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                      Student {index + 1}
+                                    </h5>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeStudent(index)}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  
+                                  <div className="grid gap-4 md:grid-cols-2">
+                                    <FieldWrapper 
+                                      label="Student Name" 
+                                      htmlFor={`supervisedStudents.${index}.studentName`}
+                                      error={errors.supervisedStudents?.[index]?.studentName} 
+                                      icon={User}
+                                    >
+                                      <Input
+                                        id={`supervisedStudents.${index}.studentName`}
+                                        placeholder="Enter student's full name"
+                                        {...register(`supervisedStudents.${index}.studentName`)}
+                                        className={`${inputBaseClass} ${focusRingClass} ${errors.supervisedStudents?.[index]?.studentName ? errorBorderClass : normalBorderClass}`}
+                                      />
+                                    </FieldWrapper>
+
+                                    <FieldWrapper 
+                                      label="Thesis Title" 
+                                      htmlFor={`supervisedStudents.${index}.thesisTitle`}
+                                      error={errors.supervisedStudents?.[index]?.thesisTitle} 
+                                      icon={BookText}
+                                    >
+                                      <Input
+                                        id={`supervisedStudents.${index}.thesisTitle`}
+                                        placeholder="Enter thesis/project title"
+                                        {...register(`supervisedStudents.${index}.thesisTitle`)}
+                                        className={`${inputBaseClass} ${focusRingClass} ${errors.supervisedStudents?.[index]?.thesisTitle ? errorBorderClass : normalBorderClass}`}
+                                      />
+                                    </FieldWrapper>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Examination Fields */}
+                        {watchThesisType === "EXAMINATION" && (
+                          <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/50 space-y-4">
+                            <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                              <BookText className="h-4 w-4 text-purple-600" />
+                              Examination Details
+                            </h4>
+                            
+                            <div className="grid gap-6 md:grid-cols-2">
+                              <FieldWrapper 
+                                label="Course Code" 
+                                htmlFor="thesisExamCourseCode" 
+                                required 
+                                error={errors.thesisExamCourseCode} 
+                                icon={Hash}
+                                description="Enter the course code for the examination"
+                              >
+                                <Input
+                                  id="thesisExamCourseCode"
+                                  placeholder="e.g., EDUC 650"
+                                  {...register("thesisExamCourseCode")}
+                                  className={`${inputBaseClass} ${focusRingClass} ${errors.thesisExamCourseCode ? errorBorderClass : normalBorderClass}`}
+                                />
+                              </FieldWrapper>
+
+                              <FieldWrapper 
+                                label="Examination Date" 
+                                htmlFor="thesisExamDate" 
+                                error={errors.thesisExamDate} 
+                                icon={CalendarDays}
+                                description="Date when the examination took place"
+                              >
+                                <Input
+                                  id="thesisExamDate"
+                                  type="date"
+                                  {...register("thesisExamDate")}
+                                  className={`${inputBaseClass} ${focusRingClass} ${errors.thesisExamDate ? errorBorderClass : normalBorderClass}`}
+                                />
+                              </FieldWrapper>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div> 
                   )}

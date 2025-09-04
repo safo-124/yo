@@ -6,7 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { FileWarning, UserCircle, Building, Briefcase, FilePlus, ListChecks, Activity } from "lucide-react"; // Added ListChecks, Activity
+import { 
+  Activity, 
+  Building, 
+  Briefcase, 
+  UserCircle, 
+  FilePlus, 
+  ListChecks,
+  BarChart3,
+  PieChart
+} from 'lucide-react'; // Added ListChecks, Activity
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -49,7 +58,7 @@ export default async function LecturerCenterDashboardPage({ params }) {
     );
   }
 
-  const { profile, center, department, claims } = result.data;
+  const { profile, center, department, claims, courseAssignments } = result.data;
 
   console.log(`[DASHBOARD] Center validation - URL centerId: ${centerId}, Data center.id: ${center?.id}`);
 
@@ -57,6 +66,17 @@ export default async function LecturerCenterDashboardPage({ params }) {
     console.warn(`Data mismatch: Lecturer ${session.userId} in center ${center?.id} accessed URL for center ${centerId}.`);
     redirect('/lecturer/assignment-pending');
   }
+
+  // Calculate claim statistics
+  const claimStats = {
+    total: claims.length,
+    teaching: claims.filter(c => c.claimType === 'TEACHING').length,
+    transportation: claims.filter(c => c.claimType === 'TRANSPORTATION').length,
+    thesis: claims.filter(c => c.claimType === 'THESIS_PROJECT').length,
+    pending: claims.filter(c => c.status === 'PENDING').length,
+    approved: claims.filter(c => c.status === 'APPROVED').length,
+    rejected: claims.filter(c => c.status === 'REJECTED').length,
+  };
 
   const getStatusBadgeClasses = (status) => {
     switch (status) {
@@ -68,6 +88,32 @@ export default async function LecturerCenterDashboardPage({ params }) {
         return 'border-red-600 text-red-800 bg-red-100 dark:border-red-700 dark:text-red-300 dark:bg-red-800/30 hover:bg-red-100/80';
       default: 
         return 'border-gray-400 text-gray-600 bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:bg-gray-700/30 hover:bg-gray-100/80';
+    }
+  };
+
+  const getClaimTypeDisplay = (claimType) => {
+    switch (claimType) {
+      case 'TEACHING':
+        return 'Teaching';
+      case 'TRANSPORTATION':
+        return 'Transportation';
+      case 'THESIS_PROJECT':
+        return 'Thesis/Project';
+      default:
+        return claimType.replace(/_/g, ' ');
+    }
+  };
+
+  const getClaimTypeColor = (claimType) => {
+    switch (claimType) {
+      case 'TEACHING':
+        return 'text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-800/30';
+      case 'TRANSPORTATION':
+        return 'text-blue-700 bg-blue-100 dark:text-blue-300 dark:bg-blue-800/30';
+      case 'THESIS_PROJECT':
+        return 'text-purple-700 bg-purple-100 dark:text-purple-300 dark:bg-purple-800/30';
+      default:
+        return 'text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-gray-800/30';
     }
   };
   
@@ -147,6 +193,85 @@ export default async function LecturerCenterDashboardPage({ params }) {
         ))}
       </div>
 
+      {/* Claims Overview */}
+      <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
+        <Card className="border-slate-200 dark:border-slate-700 shadow-lg">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+              <BarChart3 className="mr-2 h-5 w-5" />
+              Claims Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
+              <span className="text-sm font-medium">Total Claims</span>
+              <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                {claimStats.total}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="text-center p-2 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
+                <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{claimStats.pending}</div>
+                <div className="text-xs text-yellow-600 dark:text-yellow-500">Pending</div>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-green-50 dark:bg-green-900/20">
+                <div className="text-lg font-bold text-green-600 dark:text-green-400">{claimStats.approved}</div>
+                <div className="text-xs text-green-600 dark:text-green-500">Approved</div>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-red-50 dark:bg-red-900/20">
+                <div className="text-lg font-bold text-red-600 dark:text-red-400">{claimStats.rejected}</div>
+                <div className="text-xs text-red-600 dark:text-red-500">Rejected</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 dark:border-slate-700 shadow-lg">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+              <PieChart className="mr-2 h-5 w-5" />
+              Claims by Type
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500 mr-2"></div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Teaching</span>
+                </div>
+                <Badge variant="outline" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">
+                  {claimStats.teaching}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Transportation</span>
+                </div>
+                <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                  {claimStats.transportation}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Thesis/Project</span>
+                </div>
+                <Badge variant="outline" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+                  {claimStats.thesis}
+                </Badge>
+              </div>
+            </div>
+            {claimStats.total === 0 && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">
+                No claims submitted yet
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Recent Claims Card */}
       <Card className="border-slate-200 dark:border-slate-700 shadow-lg w-full">
         <CardHeader className="bg-blue-800 text-white rounded-t-lg p-4 sm:p-5">
@@ -175,7 +300,14 @@ export default async function LecturerCenterDashboardPage({ params }) {
                 {claims.slice(0, 5).map((claim) => (
                   <TableRow key={claim.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/70 transition-colors">
                     <TableCell className="font-mono text-[11px] sm:text-xs px-3 py-2.5 sm:px-4 whitespace-nowrap text-gray-600 dark:text-gray-400">{claim.id.substring(0, 12)}...</TableCell>
-                    <TableCell className="text-xs sm:text-sm px-3 py-2.5 sm:px-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{claim.claimType.replace("_", " ")}</TableCell>
+                    <TableCell className="px-3 py-2.5 sm:px-4 whitespace-nowrap">
+                      <Badge 
+                        variant="outline"
+                        className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${getClaimTypeColor(claim.claimType)}`}
+                      >
+                        {getClaimTypeDisplay(claim.claimType)}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-xs sm:text-sm px-3 py-2.5 sm:px-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{new Date(claim.submittedAt).toLocaleDateString()}</TableCell>
                     <TableCell className="px-3 py-2.5 sm:px-4 whitespace-nowrap">
                       <Badge 
