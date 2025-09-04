@@ -17,12 +17,15 @@ import {
 } from "@/components/ui/card";
 import { updateCurrentUserProfile, updateCurrentUserPassword } from '@/lib/actions/user.actions';
 import { toast } from "sonner";
-import { KeyRound, Edit, Save, User, Phone, Banknote, Building, Landmark, Info, Lock } from 'lucide-react';
+import { KeyRound, Edit, Save, User, Phone, Banknote, Building, Landmark, Info, Lock, UserCheck, BadgeHelp } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
-// Zod Schema for Profile Details Update (Name, Phone, Bank Info)
+// Zod Schema for Profile Details Update (Name, Designation, Phone, Bank Info)
 const profileDetailsSchema = z.object({
   name: z.string().min(1, "Name cannot be empty.").max(100, "Name is too long (max 100 characters)."),
+  designation: z.string().optional(),
   phoneNumber: z.string().optional(),
   bankName: z.string().optional(),
   bankBranch: z.string().optional(),
@@ -49,6 +52,7 @@ export default function ProfileUpdateForm({ initialProfile }) {
     resolver: zodResolver(profileDetailsSchema),
     defaultValues: {
       name: initialProfile?.name || "",
+      designation: initialProfile?.designation || "",
       phoneNumber: initialProfile?.phoneNumber || "",
       bankName: initialProfile?.bankName || "",
       bankBranch: initialProfile?.bankBranch || "",
@@ -82,9 +86,9 @@ export default function ProfileUpdateForm({ initialProfile }) {
 
     console.log("Client: Submitting profile update with data:", data); // DEBUG LOG
 
-    // Client-side validation specific to Lecturer role
-    if (initialProfile?.role === 'LECTURER') {
-      const lecturerFields = [
+    // Client-side validation specific to Lecturer and Coordinator roles
+    if (initialProfile?.role === 'LECTURER' || initialProfile?.role === 'COORDINATOR') {
+      const requiredFields = [
         { field: 'phoneNumber', message: "Phone number is required." },
         { field: 'bankName', message: "Bank name is required." },
         { field: 'bankBranch', message: "Bank branch is required." },
@@ -92,7 +96,7 @@ export default function ProfileUpdateForm({ initialProfile }) {
         { field: 'accountNumber', message: "Account number is required." },
       ];
 
-      for (const { field, message } of lecturerFields) {
+      for (const { field, message } of requiredFields) {
         if (!data[field]?.trim()) {
           profileDetailsForm.setError(field, { type: "manual", message });
           toast.error(message);
@@ -116,11 +120,12 @@ export default function ProfileUpdateForm({ initialProfile }) {
 
     const result = await updateCurrentUserProfile({
       newName: data.name,
-      phoneNumber: data.phoneNumber,
-      bankName: data.bankName,
-      bankBranch: data.bankBranch,
-      accountName: data.accountName,
-      accountNumber: data.accountNumber,
+      newDesignation: data.designation,
+      newPhoneNumber: data.phoneNumber,
+      newBankName: data.bankName,
+      newBankBranch: data.bankBranch, 
+      newAccountName: data.accountName,
+      newAccountNumber: data.accountNumber,
     });
     setIsProfileLoading(false);
 
@@ -177,46 +182,93 @@ export default function ProfileUpdateForm({ initialProfile }) {
       {/* Update Profile Details Card */}
       <Card className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
         <CardHeader className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/20">
-              <User className="h-6 w-6 text-blue-700 dark:text-blue-300" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/20">
+                <User className="h-6 w-6 text-blue-700 dark:text-blue-300" />
+              </div>
+              <div>
+                <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100">Personal Information</CardTitle>
+                <CardDescription className="text-slate-600 dark:text-slate-400 mt-1">
+                  Update your profile details
+                </CardDescription>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100">Personal Information</CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-400 mt-1">
-                Update your name and essential contact details.
-              </CardDescription>
-            </div>
+            {initialProfile?.role && (
+              <Badge className={`${
+                initialProfile.role === 'LECTURER' ? 'bg-green-100 text-green-800 border-green-300' :
+                initialProfile.role === 'COORDINATOR' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                initialProfile.role === 'REGISTRY' ? 'bg-purple-100 text-purple-800 border-purple-300' :
+                'bg-gray-100 text-gray-800 border-gray-300'
+              } px-3 py-1 font-medium rounded-full border shadow-sm`}>
+                <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                {initialProfile.role}
+              </Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-5 sm:p-6">
           <form onSubmit={profileDetailsForm.handleSubmit(handleProfileUpdate)} className="space-y-6">
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name" className="text-slate-700 dark:text-slate-200">Full Name</Label>
-                <Input
-                  id="name"
-                  {...profileDetailsForm.register("name")}
-                  disabled={isProfileLoading}
-                  className={getInputClasses(profileDetailsForm, "name")}
-                  placeholder="Enter your full name"
-                />
-                {profileDetailsForm.formState.errors.name && (
-                  <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.name.message}</p>
-                )}
+            <div className="grid gap-6">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name" className="text-slate-700 dark:text-slate-200">Full Name</Label>
+                  <Input
+                    id="name"
+                    {...profileDetailsForm.register("name")}
+                    disabled={isProfileLoading}
+                    className={getInputClasses(profileDetailsForm, "name")}
+                    placeholder="Enter your full name"
+                  />
+                  {profileDetailsForm.formState.errors.name && (
+                    <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.name.message}</p>
+                  )}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="designation" className="text-slate-700 dark:text-slate-200">Designation</Label>
+                  <Select
+                    disabled={isProfileLoading}
+                    defaultValue={profileDetailsForm.getValues("designation") || ""}
+                    onValueChange={(value) => profileDetailsForm.setValue("designation", value)}
+                  >
+                    <SelectTrigger id="designation" className={getInputClasses(profileDetailsForm, "designation")}>
+                      <SelectValue placeholder="Select your designation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Designation</SelectItem>
+                      <SelectItem value="ASSISTANT_LECTURER">Assistant Lecturer</SelectItem>
+                      <SelectItem value="LECTURER">Lecturer</SelectItem>
+                      <SelectItem value="SENIOR_LECTURER">Senior Lecturer</SelectItem>
+                      <SelectItem value="PROFESSOR">Professor</SelectItem>
+                      <SelectItem value="ADMINISTRATIVE_STAFF">Administrative Staff</SelectItem>
+                      <SelectItem value="TECHNICAL_STAFF">Technical Staff</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {profileDetailsForm.formState.errors.designation && (
+                    <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.designation.message}</p>
+                  )}
+                </div>
               </div>
 
-              {initialProfile?.role === 'LECTURER' && ( // Conditionally render for lecturers
+              {(initialProfile?.role === 'LECTURER' || initialProfile?.role === 'COORDINATOR') && (
                 <div className="space-y-6 pt-4 border-t border-slate-200 dark:border-slate-700">
-                  <h4 className="text-lg font-semibold text-violet-700 dark:text-violet-400 flex items-center gap-2">
-                    <Banknote className="h-5 w-5" /> Bank & Contact Details
-                  </h4>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 -mt-2">
-                    These details are required for processing your claims.
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-lg font-semibold text-violet-700 dark:text-violet-400 flex items-center gap-2">
+                      <Banknote className="h-5 w-5" /> Payment & Contact Details
+                    </h4>
+                    <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-950/20">Required</Badge>
+                  </div>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    These details are required for processing payments and communication.
                   </p>
-                  <div className="grid gap-4">
+                  
+                  <div className="grid md:grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="phoneNumber" className="text-slate-700 dark:text-slate-200">Phone Number</Label>
+                      <Label htmlFor="phoneNumber" className="text-slate-700 dark:text-slate-200 flex items-center">
+                        <Phone className="h-4 w-4 mr-1.5 text-violet-600" /> 
+                        Phone Number
+                      </Label>
                       <Input
                         id="phoneNumber"
                         type="tel"
@@ -229,8 +281,12 @@ export default function ProfileUpdateForm({ initialProfile }) {
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.phoneNumber.message}</p>
                       )}
                     </div>
+                    
                     <div className="grid gap-2">
-                      <Label htmlFor="bankName">Bank Name</Label>
+                      <Label htmlFor="bankName" className="text-slate-700 dark:text-slate-200 flex items-center">
+                        <Building className="h-4 w-4 mr-1.5 text-violet-600" />
+                        Bank Name
+                      </Label>
                       <Input
                         id="bankName"
                         {...profileDetailsForm.register("bankName")}
@@ -242,8 +298,12 @@ export default function ProfileUpdateForm({ initialProfile }) {
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.bankName.message}</p>
                       )}
                     </div>
+                    
                     <div className="grid gap-2">
-                      <Label htmlFor="bankBranch">Bank Branch</Label>
+                      <Label htmlFor="bankBranch" className="text-slate-700 dark:text-slate-200 flex items-center">
+                        <Landmark className="h-4 w-4 mr-1.5 text-violet-600" />
+                        Bank Branch
+                      </Label>
                       <Input
                         id="bankBranch"
                         {...profileDetailsForm.register("bankBranch")}
@@ -255,8 +315,12 @@ export default function ProfileUpdateForm({ initialProfile }) {
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.bankBranch.message}</p>
                       )}
                     </div>
+                    
                     <div className="grid gap-2">
-                      <Label htmlFor="accountName">Account Name</Label>
+                      <Label htmlFor="accountName" className="text-slate-700 dark:text-slate-200 flex items-center">
+                        <User className="h-4 w-4 mr-1.5 text-violet-600" />
+                        Account Name
+                      </Label>
                       <Input
                         id="accountName"
                         {...profileDetailsForm.register("accountName")}
@@ -268,8 +332,12 @@ export default function ProfileUpdateForm({ initialProfile }) {
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{profileDetailsForm.formState.errors.accountName.message}</p>
                       )}
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="accountNumber">Account Number</Label>
+                    
+                    <div className="grid gap-2 md:col-span-2">
+                      <Label htmlFor="accountNumber" className="text-slate-700 dark:text-slate-200 flex items-center">
+                        <BadgeHelp className="h-4 w-4 mr-1.5 text-violet-600" />
+                        Account Number
+                      </Label>
                       <Input
                         id="accountNumber"
                         {...profileDetailsForm.register("accountNumber")}
@@ -313,9 +381,12 @@ export default function ProfileUpdateForm({ initialProfile }) {
         </CardHeader>
         <CardContent className="p-5 sm:p-6">
           <form onSubmit={passwordForm.handleSubmit(handlePasswordUpdate)} className="space-y-6">
-            <div className="grid gap-4">
+            <div className="grid md:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="currentPassword" className="text-slate-700 dark:text-slate-200">Current Password</Label>
+                <Label htmlFor="currentPassword" className="text-slate-700 dark:text-slate-200 flex items-center">
+                  <KeyRound className="h-4 w-4 mr-1.5 text-violet-600" />
+                  Current Password
+                </Label>
                 <Input
                   id="currentPassword"
                   type="password"
@@ -330,7 +401,10 @@ export default function ProfileUpdateForm({ initialProfile }) {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="newPassword" className="text-slate-700 dark:text-slate-200">New Password</Label>
+                <Label htmlFor="newPassword" className="text-slate-700 dark:text-slate-200 flex items-center">
+                  <Lock className="h-4 w-4 mr-1.5 text-violet-600" />
+                  New Password
+                </Label>
                 <Input
                   id="newPassword"
                   type="password"
@@ -342,10 +416,16 @@ export default function ProfileUpdateForm({ initialProfile }) {
                 {passwordForm.formState.errors.newPassword && (
                   <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><Info className="h-3.5 w-3.5"/>{passwordForm.formState.errors.newPassword.message}</p>
                 )}
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Use at least 6 characters with a mix of letters, numbers & symbols
+                </p>
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
+              <div className="grid gap-2 md:col-span-2">
+                <Label htmlFor="confirmNewPassword" className="text-slate-700 dark:text-slate-200 flex items-center">
+                  <Lock className="h-4 w-4 mr-1.5 text-violet-600" />
+                  Confirm New Password
+                </Label>
                 <Input
                   id="confirmNewPassword"
                   type="password"
@@ -359,13 +439,24 @@ export default function ProfileUpdateForm({ initialProfile }) {
                 )}
               </div>
             </div>
+            
             {passwordForm.formState.errors.root?.serverError && (
               <p className="text-sm text-red-600 dark:text-red-400 mt-1">{passwordForm.formState.errors.root.serverError.message}</p>
             )}
-            <Button type="submit" disabled={isPasswordLoading} className="w-full sm:w-auto bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium shadow-md transition-all duration-200 ease-in-out">
-              <Save className="mr-2 h-4 w-4" />
-              {isPasswordLoading ? "Updating..." : "Update Password"}
-            </Button>
+            
+            <div className="flex flex-col xs:flex-row gap-4 items-center">
+              <Button 
+                type="submit" 
+                disabled={isPasswordLoading} 
+                className="w-full xs:w-auto bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium shadow-md transition-all duration-200 ease-in-out"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {isPasswordLoading ? "Updating..." : "Update Password"}
+              </Button>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Last password change: {initialProfile?.updatedAt ? new Date(initialProfile.updatedAt).toLocaleDateString() : 'Never'}
+              </p>
+            </div>
           </form>
         </CardContent>
       </Card>
