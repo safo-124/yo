@@ -121,7 +121,7 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
         const textColor = "#1A202C"; const headingColor = uewDeepBlue; const lightGrayBorder = "#CBD5E0";
 
         let teachingDetailsTableHtml = ''; let teachingTransportTableHtml = '';
-        let otherClaimsHtml = `<div class="section-title">Other Claim Types (${selectedClaimType === 'ALL' ? 'Transportation & Thesis/Project' : selectedClaimType.replace("_", " ")})</div><table class="claims-table"><thead><tr><th>ID</th><th>Type</th><th>Details</th><th>Status</th><th>Submitted</th><th>Center</th></tr></thead><tbody>`;
+        let otherClaimsHtml = `<div class="section-title">Other Claim Types (${selectedClaimType === 'ALL' ? 'Transportation & Thesis/Project' : selectedClaimType.replace("_", " ")})</div><table class="claims-table"><thead><tr><th>ID</th><th>Type</th><th>Details</th><th>Student Name</th><th>Thesis/Project Topic</th><th>Status</th><th>Submitted</th></tr></thead><tbody>`;
         let hasOtherClaims = false;
 
         const teachingClaims = claimsToPrint.filter(c => c.claimType === 'TEACHING');
@@ -147,13 +147,45 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
         }
 
         claimsToPrint.filter(c => c.claimType !== 'TEACHING').forEach(claim => {
-            hasOtherClaims = true; let detailsCellContent = 'N/A';
-            if (claim.claimType === 'TRANSPORTATION') { detailsCellContent = `Type: ${claim.transportType || 'N/A'}<br/>From: ${claim.transportDestinationFrom || 'N/A'}<br/>To: ${claim.transportDestinationTo || 'N/A'}<br/>Amount: ${claim.transportAmount != null ? `GHS ${Number(claim.transportAmount).toFixed(2)}` : 'N/A'}`; }
-            else if (claim.claimType === 'THESIS_PROJECT') { detailsCellContent = `Type: ${claim.thesisType || 'N/A'}<br/>`; if (claim.thesisType === 'SUPERVISION') { detailsCellContent += `Rank: ${claim.thesisSupervisionRank || 'N/A'}`; } else if (claim.thesisType === 'EXAMINATION') { detailsCellContent += `Course: ${claim.thesisExamCourseCode || 'N/A'}`; } }
-            otherClaimsHtml += `<tr><td>${claim.id ? claim.id.substring(0,8) + '...' : 'N/A'}</td><td style="text-transform:capitalize;">${claim.claimType?.toLowerCase().replace("_", " ") || 'N/A'}</td><td>${detailsCellContent}</td><td><span class="status-badge status-${claim.status || 'UNKNOWN'}">${claim.status || 'N/A'}</span></td><td>${claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</td><td>${claim.centerName || 'N/A'}</td></tr>`;
+            hasOtherClaims = true; 
+            let detailsCellContent = 'N/A';
+            let studentNameContent = 'N/A';
+            let thesisTopicContent = 'N/A';
+            
+            if (claim.claimType === 'TRANSPORTATION') { 
+                detailsCellContent = `Type: ${claim.transportType || 'N/A'}<br/>From: ${claim.transportDestinationFrom || 'N/A'}<br/>To: ${claim.transportDestinationTo || 'N/A'}<br/>Amount: ${claim.transportAmount != null ? `GHS ${Number(claim.transportAmount).toFixed(2)}` : 'N/A'}`; 
+                studentNameContent = '-';
+                thesisTopicContent = '-';
+            }
+            else if (claim.claimType === 'THESIS_PROJECT') { 
+                detailsCellContent = `Type: ${claim.thesisType || 'N/A'}<br/>`;
+                if (claim.thesisType === 'SUPERVISION') { 
+                    detailsCellContent += `Rank: ${claim.thesisSupervisionRank || 'N/A'}<br/>`; 
+                    // Handle multiple students for supervision
+                    if (claim.supervisedStudents && claim.supervisedStudents.length > 0) {
+                        const studentsInfo = claim.supervisedStudents.filter(s => s.studentName || s.thesisTitle);
+                        if (studentsInfo.length > 0) {
+                            studentNameContent = studentsInfo.map(s => s.studentName || 'N/A').join('<br/>');
+                            thesisTopicContent = studentsInfo.map(s => s.thesisTitle || 'N/A').join('<br/>');
+                        } else {
+                            studentNameContent = 'No students listed';
+                            thesisTopicContent = 'No topics listed';
+                        }
+                    } else {
+                        studentNameContent = 'No students listed';
+                        thesisTopicContent = 'No topics listed';
+                    }
+                } else if (claim.thesisType === 'EXAMINATION') { 
+                    detailsCellContent += `Course: ${claim.thesisExamCourseCode || 'N/A'}<br/>Date: ${claim.thesisExamDate ? new Date(claim.thesisExamDate).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}`; 
+                    studentNameContent = '-';
+                    thesisTopicContent = '-';
+                }
+            }
+            
+            otherClaimsHtml += `<tr><td>${claim.id ? claim.id.substring(0,8) + '...' : 'N/A'}</td><td style="text-transform:capitalize;">${claim.claimType?.toLowerCase().replace("_", " ") || 'N/A'}</td><td>${detailsCellContent}</td><td>${studentNameContent}</td><td style="font-style: italic;">${thesisTopicContent}</td><td><span class="status-badge status-${claim.status || 'UNKNOWN'}">${claim.status || 'N/A'}</span></td><td>${claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</td></tr>`;
         });
         if (!hasOtherClaims && (selectedClaimType === "ALL" || selectedClaimType === "TRANSPORTATION" || selectedClaimType === "THESIS_PROJECT")) {
-            otherClaimsHtml += '<tr><td colspan="6" style="text-align:center;">No claims of this specific type for the period.</td></tr>';
+            otherClaimsHtml += '<tr><td colspan="7" style="text-align:center;">No claims of this specific type for the period.</td></tr>';
         } else if (!hasOtherClaims && selectedClaimType === "ALL" && teachingClaims.length === 0) { // If "ALL" selected and no claims AT ALL (other than teaching which is handled separately)
             otherClaimsHtml = `<div class="section-title">Other Claim Types</div><p>No other claim types (Transportation, Thesis/Project) found for this period.</p>`;
         } else if (!hasOtherClaims) {
@@ -180,6 +212,12 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
                     padding: 15mm 20mm; 
                     background: white;
                     min-height: 297mm;
+                    display: flex;
+                    flex-direction: column;
+                }
+                
+                .content-area {
+                    flex-grow: 1;
                 }
                 
                 /* Header Section */
@@ -384,10 +422,12 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
                 
                 /* Signature Section */
                 .signature-section { 
-                    margin-top: 50px; 
-                    padding-top: 25px; 
-                    border-top: 2px dashed #cbd5e0;
+                    margin-top: auto; 
+                    padding-top: 30px; 
+                    border-top: 3px solid #cbd5e0;
                     page-break-inside: avoid;
+                    min-height: 150px;
+                    position: relative;
                 }
                 .signature-title {
                     font-size: 14pt;
@@ -507,64 +547,66 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
                 }
                 </style></head><body>
                 <div class="print-container">
-                    <div class="header">
-                        <div class="header-left">
-                            <img src="/uew.png" alt="University Logo" class="logo" />
+                    <div class="content-area">
+                        <div class="header">
+                            <div class="header-left">
+                                <img src="/uew.png" alt="University Logo" class="logo" />
+                            </div>
+                            <div class="header-right">
+                                <div class="university-name">UNIVERSITY OF EDUCATION, WINNEBA</div>
+                                <div class="college-name">COLLEGE OF DISTANCE AND e-LEARNING (CODeL)</div>
+                                <div class="document-title">Lecturer Monthly Claim Summary</div>
+                            </div>
                         </div>
-                        <div class="header-right">
-                            <div class="university-name">UNIVERSITY OF EDUCATION, WINNEBA</div>
-                            <div class="college-name">COLLEGE OF DISTANCE AND e-LEARNING (CODeL)</div>
-                            <div class="document-title">Lecturer Monthly Claim Summary</div>
+                        
+                        <div class="section">
+                            <div class="section-title">Summary Information</div>
+                            <div class="info-row">
+                                <span class="info-label">Lecturer:</span>
+                                <span class="info-value"><strong>${summaryData.lecturerName}</strong> (${summaryData.lecturerEmail || 'N/A'}) ${summaryData.lecturerDesignation ? '- ' + summaryData.lecturerDesignation.replace(/_/g, " ") : ''}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Period:</span>
+                                <span class="info-value"><strong>${summaryData.month}, ${summaryData.year}</strong></span>
+                            </div>
+                            ${selectedClaimType !== "ALL" ? `<div class="info-row"><span class="info-label">Claim Type Filter:</span><span class="info-value" style="text-transform:capitalize; font-weight: 600; color: ${uewDeepRed};">${selectedClaimType.toLowerCase().replace("_"," ")}</span></div>` : ''}
                         </div>
-                    </div>
-                    
-                    <div class="section">
-                        <div class="section-title">Summary Information</div>
-                        <div class="info-row">
-                            <span class="info-label">Lecturer:</span>
-                            <span class="info-value"><strong>${summaryData.lecturerName}</strong> (${summaryData.lecturerEmail || 'N/A'}) ${summaryData.lecturerDesignation ? '- ' + summaryData.lecturerDesignation.replace(/_/g, " ") : ''}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Period:</span>
-                            <span class="info-value"><strong>${summaryData.month}, ${summaryData.year}</strong></span>
-                        </div>
-                        ${selectedClaimType !== "ALL" ? `<div class="info-row"><span class="info-label">Claim Type Filter:</span><span class="info-value" style="text-transform:capitalize; font-weight: 600; color: ${uewDeepRed};">${selectedClaimType.toLowerCase().replace("_"," ")}</span></div>` : ''}
-                    </div>
 
-                    <div class="section">
-                        <div class="section-title">Payment Information</div>
-                        <div class="info-row">
-                            <span class="info-label">Bank Name:</span>
-                            <span class="info-value">${summaryData.lecturerBankName || 'N/A'}</span>
+                        <div class="section">
+                            <div class="section-title">Payment Information</div>
+                            <div class="info-row">
+                                <span class="info-label">Bank Name:</span>
+                                <span class="info-value">${summaryData.lecturerBankName || 'N/A'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Bank Branch:</span>
+                                <span class="info-value">${summaryData.lecturerBankBranch || 'N/A'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Account Name:</span>
+                                <span class="info-value">${summaryData.lecturerAccountName || 'N/A'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Account Number:</span>
+                                <span class="info-value"><strong>${summaryData.lecturerAccountNumber || 'N/A'}</strong></span>
+                            </div>
                         </div>
-                        <div class="info-row">
-                            <span class="info-label">Bank Branch:</span>
-                            <span class="info-value">${summaryData.lecturerBankBranch || 'N/A'}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Account Name:</span>
-                            <span class="info-value">${summaryData.lecturerAccountName || 'N/A'}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Account Number:</span>
-                            <span class="info-value"><strong>${summaryData.lecturerAccountNumber || 'N/A'}</strong></span>
-                        </div>
-                    </div>
 
-                    <div class="section">
-                        <div class="section-title">Overall Statistics for Period</div>
-                        <div class="summary-grid">
-                            <div class="summary-item total"><b>${summaryData.totalClaims}</b><span>Total Claims</span></div>
-                            <div class="summary-item pending"><b>${summaryData.pending}</b><span>Pending</span></div>
-                            <div class="summary-item approved"><b>${summaryData.approved}</b><span>Approved</span></div>
-                            <div class="summary-item rejected"><b>${summaryData.rejected}</b><span>Rejected</span></div>
+                        <div class="section">
+                            <div class="section-title">Overall Statistics for Period</div>
+                            <div class="summary-grid">
+                                <div class="summary-item total"><b>${summaryData.totalClaims}</b><span>Total Claims</span></div>
+                                <div class="summary-item pending"><b>${summaryData.pending}</b><span>Pending</span></div>
+                                <div class="summary-item approved"><b>${summaryData.approved}</b><span>Approved</span></div>
+                                <div class="summary-item rejected"><b>${summaryData.rejected}</b><span>Rejected</span></div>
+                            </div>
+                            ${summaryData.totalTeachingHours > 0 ? `<div class="highlight-box highlight-teaching"><strong>Total Approved Teaching Hours:</strong> ${summaryData.totalTeachingHours.toFixed(1)} hours</div>` : ''}
+                            ${summaryData.totalTransportAmount > 0 ? `<div class="highlight-box highlight-transport"><strong>Total Approved Transport Amount:</strong> GHS ${summaryData.totalTransportAmount.toFixed(2)}</div>` : ''}
                         </div>
-                        ${summaryData.totalTeachingHours > 0 ? `<div class="highlight-box highlight-teaching"><strong>Total Approved Teaching Hours:</strong> ${summaryData.totalTeachingHours.toFixed(1)} hours</div>` : ''}
-                        ${summaryData.totalTransportAmount > 0 ? `<div class="highlight-box highlight-transport"><strong>Total Approved Transport Amount:</strong> GHS ${summaryData.totalTransportAmount.toFixed(2)}</div>` : ''}
+                        ${teachingDetailsTableHtml ? `<div class="section">${teachingDetailsTableHtml}</div>` : ''}
+                        ${teachingTransportTableHtml ? `<div class="section">${teachingTransportTableHtml}</div>` : ''}
+                        ${otherClaimsHtml ? `<div class="section">${otherClaimsHtml}</div>` : ''}
                     </div>
-                    ${teachingDetailsTableHtml ? `<div class="section">${teachingDetailsTableHtml}</div>` : ''}
-                    ${teachingTransportTableHtml ? `<div class="section">${teachingTransportTableHtml}</div>` : ''}
-                    ${otherClaimsHtml ? `<div class="section">${otherClaimsHtml}</div>` : ''}
                     
                     <div class="signature-section">
                         <div class="signature-title">Authorization Signatures</div>
