@@ -49,7 +49,7 @@ export default function RegistryLayoutClient({ session, children }) {
       label: 'System Management', 
       items: [
         { name: 'Centers', href: '/registry/centers', icon: Building, description: 'Manage study centers' },
-        { name: 'Courses', href: '/registry/courses', icon: BookOpen, description: 'Course management' },
+        { name: 'Courses & Departments', href: '/registry/courses', icon: BookOpen, description: 'Course and department management' },
         { name: 'Claims & Requests', href: '/registry/claims', icon: FileText, description: 'Handle system claims' },
       ]
     },

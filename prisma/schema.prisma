@@ -173,10 +173,26 @@ model Center {
   coordinator                         User            @relation("CenterCoordinator", fields: [coordinatorId], references: [id])
   
   lecturers                           User[]          @relation("CenterLecturers") 
-  departments                         Department[]    @relation("CenterDepartments")
+  // Many-to-many with departments through junction table
+  departmentAssignments               DepartmentCenterAssignment[] @relation("CenterDepartmentAssignments")
   claims                              Claim[]         @relation("CenterClaims")
 
   staffRegistryAssignments            StaffRegistryCenterAssignment[] @relation("CenterToStaffAssignments")
+}
+
+// EXPLICIT JOIN TABLE for Department and Center Assignments (Many-to-Many)
+model DepartmentCenterAssignment {
+  id            String     @id @default(cuid())
+  departmentId  String
+  centerId      String
+  assignedAt    DateTime   @default(now())
+  
+  department    Department @relation("DepartmentCenterAssignments", fields: [departmentId], references: [id], onDelete: Cascade)
+  center        Center     @relation("CenterDepartmentAssignments", fields: [centerId], references: [id], onDelete: Cascade)
+  
+  @@unique([departmentId, centerId])
+  @@index([departmentId])
+  @@index([centerId])
 }
 
 // EXPLICIT JOIN TABLE for StaffRegistry User and Center Assignments
@@ -195,30 +211,45 @@ model StaffRegistryCenterAssignment {
 }
 
 model Department {
-  id          String     @id @default(cuid())
-  name        String
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  centerId    String
-  center      Center     @relation("CenterDepartments", fields: [centerId], references: [id], onDelete: Cascade)
-  lecturers   User[]     @relation("DepartmentLecturers")
-  programs    Program[] @relation("DepartmentPrograms")
+  id                String                        @id @default(cuid())
+  name              String
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
+  
+  lecturers         User[]                        @relation("DepartmentLecturers")
+  // Many-to-many with programs through junction table
+  programAssignments ProgramDepartmentAssignment[] @relation("DepartmentProgramAssignments")
+  // Many-to-many with centers through junction table
+  centerAssignments DepartmentCenterAssignment[]  @relation("DepartmentCenterAssignments")
+}
+
+// EXPLICIT JOIN TABLE for Program and Department Assignments (Many-to-Many)
+model ProgramDepartmentAssignment {
+  id            String     @id @default(cuid())
+  programId     String
+  departmentId  String
+  assignedAt    DateTime   @default(now())
+  
+  program       Program    @relation("ProgramDepartmentAssignments", fields: [programId], references: [id], onDelete: Cascade)
+  department    Department @relation("DepartmentProgramAssignments", fields: [departmentId], references: [id], onDelete: Cascade)
+  
+  @@unique([programId, departmentId])
+  @@index([programId])
+  @@index([departmentId])
 }
 
 model Program {
-  id              String          @id @default(cuid())
-  programCode     String          @unique // e.g., "BSc-CS", "MA-EDUC"
-  programTitle    String
-  programCategory ProgramCategory
-  departmentId    String
-  department      Department      @relation("DepartmentPrograms", fields: [departmentId], references: [id], onDelete: Cascade)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id                    String                        @id @default(cuid())
+  programCode           String                        @unique // e.g., "BSc-CS", "MA-EDUC"
+  programTitle          String
+  programCategory       ProgramCategory
+  createdAt             DateTime                      @default(now())
+  updatedAt             DateTime                      @updatedAt
 
-  courses         Course[]        @relation("ProgramCourses")
+  // Many-to-many with departments through junction table
+  departmentAssignments ProgramDepartmentAssignment[] @relation("ProgramDepartmentAssignments")
+  courses               Course[]                      @relation("ProgramCourses")
 
-  @@unique([programCode, departmentId])
-  @@index([departmentId])
   @@index([programCategory])
 }
 

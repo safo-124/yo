@@ -30,9 +30,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { createCenter, deleteCenterByRegistry } from '@/lib/actions/registry.actions.js';
+import { createCenter, deleteCenterByRegistry, getAvailableDepartments, assignDepartmentsToCenter } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
-import { PlusCircle, Building2, UserRound, Mail, CalendarDays, AlertTriangle, Loader2, Trash2, MoreHorizontal, Edit3, Search, XCircle, Users, Briefcase, ShieldCheck, Star } from "lucide-react";
+import { PlusCircle, Building2, UserRound, Mail, CalendarDays, AlertTriangle, Loader2, Trash2, MoreHorizontal, Edit3, Search, XCircle, Users, Briefcase, ShieldCheck, Star, Plus, Minus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -45,6 +45,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Define DESIGNATIONS locally or import if shared, to display coordinator's designation
 const DESIGNATIONS_DISPLAY_MAP = {
@@ -74,6 +75,13 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
   const [isLoadingDelete, setIsLoadingDelete] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Department assignment states
+  const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
+  const [selectedCenter, setSelectedCenter] = useState(null);
+  const [availableDepartments, setAvailableDepartments] = useState([]);
+  const [selectedDepartments, setSelectedDepartments] = useState([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
 
   useEffect(() => {
     const validInitialCenters = Array.isArray(initialCenters) ? initialCenters : [];
@@ -126,6 +134,61 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
       toast.error(result.error || "Failed to delete center.");
     }
     setIsLoadingDelete(false);
+  };
+
+  const openDepartmentDialog = async (center) => {
+    setSelectedCenter(center);
+    setSelectedDepartments([]);
+    setIsDepartmentDialogOpen(true);
+    setIsLoadingDepartments(true);
+    
+    try {
+      const result = await getAvailableDepartments();
+      if (result.success) {
+        setAvailableDepartments(result.departments || []);
+      } else {
+        toast.error(result.error || 'Failed to fetch departments');
+      }
+    } catch (error) {
+      toast.error('Error fetching departments');
+    }
+    setIsLoadingDepartments(false);
+  };
+
+  const handleAssignDepartments = async () => {
+    if (!selectedCenter || selectedDepartments.length === 0) {
+      toast.error('Please select departments to assign');
+      return;
+    }
+
+    setIsLoadingDepartments(true);
+    try {
+      const result = await assignDepartmentsToCenter(selectedCenter.id, selectedDepartments);
+      if (result.success) {
+        toast.success(`${selectedDepartments.length} department(s) assigned successfully`);
+        setIsDepartmentDialogOpen(false);
+        setSelectedDepartments([]);
+        setSelectedCenter(null);
+        
+        // Refresh centers to show updated department counts
+        const validInitialCenters = Array.isArray(initialCenters) ? initialCenters : [];
+        const sortedInitialCenters = [...validInitialCenters].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        setAllCenters(sortedInitialCenters);
+      } else {
+        toast.error(result.error || 'Failed to assign departments');
+      }
+    } catch (error) {
+      toast.error('Error assigning departments');
+    }
+    setIsLoadingDepartments(false);
+  };
+
+  const toggleDepartmentSelection = (departmentId) => {
+    setSelectedDepartments(prev => 
+      prev.includes(departmentId) 
+        ? prev.filter(id => id !== departmentId)
+        : [...prev, departmentId]
+    );
   };
 
   const focusRingClass = "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-700 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900";
@@ -232,6 +295,7 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
                               <DropdownMenuContent align="end" className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg">
                                 <DropdownMenuLabel className="text-xs px-2 py-1.5 text-slate-500 dark:text-slate-400">Actions</DropdownMenuLabel><DropdownMenuSeparator className="bg-slate-100 dark:bg-slate-700/50"/>
                                 <DropdownMenuItem className={`text-slate-700 dark:text-slate-200 hover:!bg-slate-100 dark:hover:!bg-slate-700/50 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => { toast.info("Edit Center (Details) coming soon!")}}><Edit3 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /> Edit Details</DropdownMenuItem>
+                                <DropdownMenuItem className={`text-slate-700 dark:text-slate-200 hover:!bg-slate-100 dark:hover:!bg-slate-700/50 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => openDepartmentDialog(center)}><Plus className="h-3.5 w-3.5 text-green-600 dark:text-green-400" /> Assign Departments</DropdownMenuItem>
                                 <DropdownMenuItem className={`text-red-600 dark:text-red-400 hover:!bg-red-50 dark:hover:!bg-red-700/20 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => openDeleteDialog(center)} disabled={isLoadingDelete && centerToDelete?.id === center.id}>{isLoadingDelete && centerToDelete?.id === center.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Trash2 className="h-3.5 w-3.5" />} Delete Center</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -250,7 +314,7 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
                 <Card key={center.id} className="bg-white dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 shadow-lg rounded-xl overflow-hidden">
                    <CardHeader className="p-4 flex flex-row justify-between items-start bg-slate-50/50 dark:bg-slate-700/30 border-b dark:border-slate-700/50">
                      <div className="flex items-center gap-3"><div className="p-2.5 rounded-lg bg-violet-100 dark:bg-violet-800/40"><Building2 className="h-5 w-5 text-violet-700 dark:text-violet-400"/></div><CardTitle className="text-md font-semibold text-blue-800 dark:text-blue-300 leading-tight">{center.name}</CardTitle></div>
-                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className={`h-8 w-8 p-0 data-[state=open]:bg-slate-200 dark:data-[state=open]:bg-slate-600 ${focusRingClass}`}><MoreHorizontal className="h-4.5 w-4.5"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-white dark:bg-slate-800 ..."><DropdownMenuItem onSelect={() => {toast.info("Edit Center (Details) coming soon!")}}>Edit Details</DropdownMenuItem><DropdownMenuItem onSelect={() => openDeleteDialog(center)} disabled={isLoadingDelete && centerToDelete?.id === center.id}>Delete Center</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className={`h-8 w-8 p-0 data-[state=open]:bg-slate-200 dark:data-[state=open]:bg-slate-600 ${focusRingClass}`}><MoreHorizontal className="h-4.5 w-4.5"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-white dark:bg-slate-800 ..."><DropdownMenuItem onSelect={() => {toast.info("Edit Center (Details) coming soon!")}}>Edit Details</DropdownMenuItem><DropdownMenuItem onSelect={() => openDepartmentDialog(center)}>Assign Departments</DropdownMenuItem><DropdownMenuItem onSelect={() => openDeleteDialog(center)} disabled={isLoadingDelete && centerToDelete?.id === center.id}>Delete Center</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
                    </CardHeader>
                    <CardContent className="p-4 space-y-3 text-xs">
                     <div className="flex items-start gap-2.5"><UserRound className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Coordinator</p>{center.coordinator ? ( <> <p className="font-medium text-slate-700 dark:text-slate-200">{center.coordinator.name}</p> {center.coordinator.designation && <Badge variant="outline" className="mt-0.5 text-[10px] px-1.5 py-0.5 border-green-400 text-green-700 bg-green-50 dark:border-green-600 dark:text-green-300 dark:bg-green-900/30 font-normal tracking-normal">{getDesignationDisplay(center.coordinator.designation)}</Badge>} </> ) : <p className="italic text-slate-400 dark:text-slate-500">Not Assigned</p>}</div></div>
@@ -264,6 +328,75 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
           </div>
         )}
       </div>
+
+      {/* Assign Departments Dialog */}
+      <Dialog open={isDepartmentDialogOpen} onOpenChange={setIsDepartmentDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Departments to Center</DialogTitle>
+            <p className="text-sm text-gray-600">
+              Select departments to assign to <strong>{selectedCenter?.name}</strong>
+            </p>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {isLoadingDepartments ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600">Loading departments...</span>
+              </div>
+            ) : availableDepartments.length > 0 ? (
+              <ScrollArea className="h-64 border rounded-md p-3">
+                <div className="space-y-2">
+                  {availableDepartments.map(department => (
+                    <div key={department.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`dept-${department.id}`}
+                        checked={selectedDepartments.includes(department.id)}
+                        onCheckedChange={() => toggleDepartmentSelection(department.id)}
+                      />
+                      <label
+                        htmlFor={`dept-${department.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer"
+                      >
+                        <div className="flex flex-col">
+                          <span>{department.name}</span>
+                          <span className="text-xs text-gray-500">
+                            {department._count?.programs || 0} programs
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                <Building2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No unassigned departments available</p>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDepartmentDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssignDepartments}
+              disabled={selectedDepartments.length === 0 || isLoadingDepartments}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isLoadingDepartments ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              Assign {selectedDepartments.length} Department(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-md bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-2xl rounded-xl">

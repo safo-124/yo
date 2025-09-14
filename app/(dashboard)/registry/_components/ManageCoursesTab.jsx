@@ -30,6 +30,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from "@/components/ui/checkbox";
+import ManageDepartmentsTab from './ManageDepartmentsTab';
 
 const focusRingClass = "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 dark:focus-visible:ring-blue-400 focus-visible:ring-offset-background dark:focus-visible:ring-offset-slate-900";
 const dialogInputClass = `h-9 sm:h-10 text-sm bg-white dark:bg-slate-700/80 border-slate-300 dark:border-slate-600 focus-visible:ring-blue-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-md ${focusRingClass}`;
@@ -61,7 +63,7 @@ const ACADEMIC_SEMESTERS = [
 ];
 
 export default function ManageCoursesTab({ initialPrograms = [], initialDepartments = [], initialCourses = [], initialLecturers = [], initialCenters = [] }) {
-  const [activeTab, setActiveTab] = useState("programs");
+  const [activeTab, setActiveTab] = useState("departments");
   // State variables are initialized directly from props.
   // These states will receive fresh values from the parent (Server Component) on re-renders caused by revalidatePath.
   const [departments, setDepartments] = useState(initialDepartments);
@@ -112,7 +114,7 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
   const [newProgramCode, setNewProgramCode] = useState('');
   const [newProgramTitle, setNewProgramTitle] = useState('');
   const [newProgramCategory, setNewProgramCategory] = useState('');
-  const [newProgramDepartmentId, setNewProgramDepartmentId] = useState('');
+  const [newProgramDepartmentIds, setNewProgramDepartmentIds] = useState([]); // For multiple department assignment
 
   // Form states for Create Course
   const [newCourseCode, setNewCourseCode] = useState('');
@@ -124,7 +126,7 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
 
   // Form state for Create Department
   const [newDepartmentName, setNewDepartmentName] = useState('');
-  const [newDepartmentCenterId, setNewDepartmentCenterId] = useState(''); // For single center assignment
+  const [newDepartmentCenterIds, setNewDepartmentCenterIds] = useState([]); // For multiple center assignment
 
 
   // Bulk Upload states
@@ -185,7 +187,7 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
 
 
   const resetProgramForm = () => {
-    setNewProgramCode(''); setNewProgramTitle(''); setNewProgramCategory(''); setNewProgramDepartmentId('');
+    setNewProgramCode(''); setNewProgramTitle(''); setNewProgramCategory(''); setNewProgramDepartmentIds([]);
     setFormError('');
   };
 
@@ -196,7 +198,7 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
   };
 
   const resetDepartmentForm = () => {
-    setNewDepartmentName(''); setNewDepartmentCenterId('');
+    setNewDepartmentName(''); setNewDepartmentCenterIds([]);
     setFormError('');
   };
 
@@ -222,15 +224,15 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
   const handleCreateProgram = async (event) => {
     event.preventDefault();
     setFormError('');
-    if (!newProgramCode.trim() || !newProgramTitle.trim() || !newProgramCategory || !newProgramDepartmentId) {
-      setFormError("All program fields are required."); return;
+    if (!newProgramCode.trim() || !newProgramTitle.trim() || !newProgramCategory || newProgramDepartmentIds.length === 0) {
+      setFormError("All program fields are required. Please select at least one department."); return;
     }
     setIsLoadingForm(true);
     const result = await createProgram({
       programCode: newProgramCode.trim(),
       programTitle: newProgramTitle.trim(),
       programCategory: newProgramCategory,
-      departmentId: newProgramDepartmentId,
+      departmentIds: newProgramDepartmentIds,
     });
     setIsLoadingForm(false);
     if (result.success) {
@@ -355,14 +357,14 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
   const handleCreateDepartment = async (event) => {
     event.preventDefault();
     setFormError('');
-    if (!newDepartmentName.trim() || !newDepartmentCenterId) { // Re-added newDepartmentCenterId validation
-      setFormError("Department name and Center are required."); return;
+    if (!newDepartmentName.trim() || newDepartmentCenterIds.length === 0) {
+      setFormError("Department name is required and at least one center must be selected."); return;
     }
 
     setIsLoadingForm(true);
     const result = await createDepartment({
       name: newDepartmentName.trim(),
-      centerId: newDepartmentCenterId, // Use the selected center ID
+      centerIds: newDepartmentCenterIds,
     });
     setIsLoadingForm(false);
     if (result.success) {
@@ -821,17 +823,38 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                       <Label htmlFor="departmentName" className={dialogLabelClass}>Department Name <span className="text-red-700">*</span></Label>
                       <Input id="departmentName" value={newDepartmentName} onChange={(e) => setNewDepartmentName(e.target.value)} placeholder="e.g., Department of Computer Science" disabled={isLoadingForm} className={dialogInputClass} />
                     </div>
-                    {/* Re-introduced the 'Assign to Center' dropdown */}
                     <div className="space-y-1.5">
-                      <Label htmlFor="departmentCenterId" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label>
-                      <Select value={newDepartmentCenterId} onValueChange={setNewDepartmentCenterId} disabled={isLoadingForm || centers.length === 0}>
-                        <SelectTrigger id="departmentCenterId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger>
-                        <SelectContent className={dialogSelectContentClass}>
-                          {centers.length > 0 ? centers.map(center => (
-                            <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
-                          )) : <div className="px-3 py-2 text-sm text-slate-500">No centers found.</div>}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="departmentCenters" className={dialogLabelClass}>Assign to Centers <span className="text-red-700">*</span></Label>
+                      <div className="border border-slate-300 dark:border-slate-600 rounded-md p-3 max-h-32 overflow-y-auto bg-white dark:bg-slate-700/80">
+                        {centers.length > 0 ? (
+                          <div className="space-y-2">
+                            {centers.map(center => (
+                              <div key={center.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`center-${center.id}`}
+                                  checked={newDepartmentCenterIds.includes(center.id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setNewDepartmentCenterIds(prev => [...prev, center.id]);
+                                    } else {
+                                      setNewDepartmentCenterIds(prev => prev.filter(id => id !== center.id));
+                                    }
+                                  }}
+                                  disabled={isLoadingForm}
+                                />
+                                <Label htmlFor={`center-${center.id}`} className="text-sm font-normal cursor-pointer">
+                                  {center.name}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-slate-500">No centers found.</div>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Select one or more centers for this department
+                      </p>
                     </div>
                     {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
                   </div>
@@ -875,15 +898,42 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="programDepartmentId" className={dialogLabelClass}>Department <span className="text-red-700">*</span></Label>
-                      <Select value={newProgramDepartmentId} onValueChange={setNewProgramDepartmentId} disabled={isLoadingForm || departments.length === 0}>
-                        <SelectTrigger id="programDepartmentId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select department" /></SelectTrigger>
-                        <SelectContent className={dialogSelectContentClass}>
-                          {departments.length > 0 ? departments.map(dept => (
-                            <SelectItem key={dept.id} value={dept.id}>{dept.name} ({dept.centerName})</SelectItem>
-                          )) : <div className="px-3 py-2 text-sm text-slate-500">No departments found.</div>}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="programDepartments" className={dialogLabelClass}>Assign to Departments <span className="text-red-700">*</span></Label>
+                      <div className="border border-slate-300 dark:border-slate-600 rounded-md p-3 max-h-32 overflow-y-auto bg-white dark:bg-slate-700/80">
+                        {departments.length > 0 ? (
+                          <div className="space-y-2">
+                            {departments.map(dept => (
+                              <div key={dept.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`dept-${dept.id}`}
+                                  checked={newProgramDepartmentIds.includes(dept.id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setNewProgramDepartmentIds(prev => [...prev, dept.id]);
+                                    } else {
+                                      setNewProgramDepartmentIds(prev => prev.filter(id => id !== dept.id));
+                                    }
+                                  }}
+                                  disabled={isLoadingForm}
+                                />
+                                <Label htmlFor={`dept-${dept.id}`} className="text-sm font-normal cursor-pointer">
+                                  {dept.name}
+                                  {dept.centers && dept.centers.length > 0 && (
+                                    <span className="text-xs text-slate-500 ml-1">
+                                      ({dept.centers.map(c => c.name).join(', ')})
+                                    </span>
+                                  )}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-slate-500">No departments found.</div>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Select one or more departments for this program
+                      </p>
                     </div>
                     {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
                   </div>
@@ -1165,121 +1215,7 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
           <div className="flex-1 flex flex-col">
             {/* Departments Tab Content */}
             <TabsContent value="departments" className="h-full mt-0 pt-0 data-[state=inactive]:hidden">
-              {/* Department Edit Dialog */}
-              {editingDepartment && (
-                <Dialog open={isEditDepartmentDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetEditDepartmentForm(); } setIsEditDepartmentDialogOpen(open); }}>
-                    <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2"><Building2 className="h-5 w-5 text-blue-700" /> Edit Department</DialogTitle>
-                            <DialogDescription>Update the details of this department.</DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleUpdateDepartment}>
-                            <div className="grid gap-4 py-4">
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="editDepartmentName" className={dialogLabelClass}>Department Name <span className="text-red-700">*</span></Label>
-                                    <Input id="editDepartmentName" value={editingDepartment.name} onChange={(e) => setEditingDepartment(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g., Department of Computer Science" disabled={isLoadingForm} className={dialogInputClass} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="editDepartmentCenterId" className={dialogLabelClass}>Assign to Center <span className="text-red-700">*</span></Label>
-                                    <Select value={editingDepartment.centerId} onValueChange={(val) => setEditingDepartment(prev => ({ ...prev, centerId: val }))} disabled={isLoadingForm || centers.length === 0}>
-                                        <SelectTrigger id="editDepartmentCenterId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select a center" /></SelectTrigger>
-                                        <SelectContent className={dialogSelectContentClass}>
-                                            {centers.length > 0 ? centers.map(center => (
-                                                <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
-                                            )) : <div className="px-3 py-2 text-sm text-slate-500">No centers found.</div>}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
-                            </div>
-                            <DialogFooter>
-                                <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
-                                <Button type="submit" disabled={isLoadingForm}>
-                                    {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Save Changes
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-              )}
-              
-              {/* FIX: Moved p-4 inside ScrollArea's content div */}
-              <ScrollArea className="h-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg bg-white dark:bg-slate-800/90">
-                <div className="p-4"> {/* Added padding inside ScrollArea's content */}
-                  {isLoadingForm && activeTab === 'departments' && ( // Only show skeleton if form operation is ongoing AND this tab is active
-                    <div className="space-y-4">
-                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                    </div>
-                  )}
-                  {searchQuery && filteredDepartments.length === 0 && (
-                    <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
-                      <Search className="h-10 w-10 mb-3" />
-                      <p className="font-semibold">No departments found for "{searchQuery}".</p>
-                      <Button variant="link" onClick={clearSearch} className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Clear Search</Button>
-                    </div>
-                  )}
-                  {!isLoadingForm && filteredDepartments.length === 0 && !searchQuery && (
-                    <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
-                      <Building2 className="h-10 w-10 mb-3" />
-                      <p className="font-semibold">No departments added yet. Start by creating one.</p>
-                      <Button onClick={() => setIsDepartmentDialogOpen(true)} variant="link" className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Add First Department</Button>
-                    </div>
-                  )}
-                  {!isLoadingForm && filteredDepartments.length > 0 && (
-                    <Table className="w-full">
-                      <TableHeader className="bg-slate-100/90 dark:bg-slate-700/70 sticky top-0 z-10 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
-                        <TableRow>
-                          <TableHead className="w-[35%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Department Name</TableHead>
-                          <TableHead className="w-[30%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Center</TableHead>
-                          <TableHead className="w-[10%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 text-center whitespace-nowrap">Programs</TableHead>
-                          <TableHead className="w-[10%] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 text-center whitespace-nowrap">Lecturers</TableHead>
-                          <TableHead className="w-[15%] text-right text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-2.5 px-4 whitespace-nowrap">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody className="divide-y divide-slate-100 dark:divide-slate-700/80">
-                        {filteredDepartments.map(department => (
-                          <TableRow key={department.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors">
-                            <TableCell className="px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                              <div className="flex items-center gap-2"><Building2 className="h-4 w-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />{department.name}</div>
-                            </TableCell>
-                            <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                              {department.centerName || 'N/A'}
-                            </TableCell>
-                            <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 text-center whitespace-nowrap">
-                              {department.programCount}
-                            </TableCell>
-                            <TableCell className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 text-center whitespace-nowrap">
-                              {department.lecturerCount}
-                            </TableCell>
-                            <TableCell className="text-right px-4 py-2.5 whitespace-nowrap">
-                              <div className="flex justify-end gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingDepartment(department); setIsEditDepartmentDialogOpen(true); }}>
-                                  <Edit2 className="h-4 w-4" />
-                                  <span className="sr-only">Edit Department</span>
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" 
-                                  onClick={() => { setDeletingDepartment(department); setIsDeleteDepartmentDialogOpen(true); }}>
-                                  <Trash2 className="h-4 w-4" />
-                                  <span className="sr-only">Delete Department</span>
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {filteredDepartments.length === 0 && searchQuery && (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center text-slate-500 py-4">
-                                    No departments found for "{searchQuery}".
-                                </TableCell>
-                            </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
-              </ScrollArea>
+              <ManageDepartmentsTab />
             </TabsContent>
 
             {/* Programs Tab Content */}

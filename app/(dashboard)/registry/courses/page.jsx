@@ -71,10 +71,10 @@ export default async function RegistryCoursesPage() {
         <div className="flex-1">
           <h2 className="text-2xl sm:text-3xl font-bold text-blue-800 dark:text-blue-300 flex items-center mb-1">
             <BookOpenCheck className="mr-3 h-6 w-6 sm:h-7 sm:w-7 text-violet-700 dark:text-violet-500 flex-shrink-0" />
-            Course & Program Management
+            Courses & Departments Management
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Manage academic programs and courses offered by departments.
+            Comprehensive management of academic programs, courses, and departments with assignment capabilities.
           </p>
         </div>
       </div>
