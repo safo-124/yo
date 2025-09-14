@@ -70,6 +70,11 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
   const [formError, setFormError] = useState('');
   const [isLoadingCreate, setIsLoadingCreate] = useState(false);
 
+  // Department selection states for create center
+  const [createAvailableDepartments, setCreateAvailableDepartments] = useState([]);
+  const [createSelectedDepartments, setCreateSelectedDepartments] = useState([]);
+  const [isLoadingCreateDepartments, setIsLoadingCreateDepartments] = useState(false);
+
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [centerToDelete, setCenterToDelete] = useState(null);
   const [isLoadingDelete, setIsLoadingDelete] = useState(false);
@@ -115,16 +120,56 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
     if (!newCenterName.trim() || !selectedCoordinatorId) {
       setFormError("Center name and coordinator are required."); setIsLoadingCreate(false); return;
     }
-    const result = await createCenter({ name: newCenterName.trim(), coordinatorId: selectedCoordinatorId });
+    const result = await createCenter({ 
+      name: newCenterName.trim(), 
+      coordinatorId: selectedCoordinatorId,
+      departmentIds: createSelectedDepartments 
+    });
     if (result.success && result.center) {
       toast.success(`Center "${result.center.name}" created successfully!`);
       setAllCenters(prev => [...prev, { ...result.center, staffRegistryCount: result.center.staffRegistryCount || 0, lecturerCount: result.center.lecturerCount || 0, departmentCount: result.center.departmentCount || 0 }].sort((a, b) => a.name.localeCompare(b.name)));
-      setIsCreateDialogOpen(false); setNewCenterName(''); setSelectedCoordinatorId(''); setFormError('');
+      resetCreateForm();
+      setIsCreateDialogOpen(false);
     } else {
       const errorMsg = result.error || "Failed to create center.";
       setFormError(errorMsg); toast.error(errorMsg);
     }
     setIsLoadingCreate(false);
+  };
+
+  const fetchDepartmentsForCreate = async () => {
+    setIsLoadingCreateDepartments(true);
+    try {
+      const result = await getAvailableDepartments();
+      if (result.success) {
+        setCreateAvailableDepartments(result.departments || []);
+      } else {
+        toast.error('Error fetching departments');
+        setCreateAvailableDepartments([]);
+      }
+    } catch (error) {
+      toast.error('Error fetching departments');
+      setCreateAvailableDepartments([]);
+    }
+    setIsLoadingCreateDepartments(false);
+  };
+
+  const resetCreateForm = () => {
+    setNewCenterName('');
+    setSelectedCoordinatorId('');
+    setCreateSelectedDepartments([]);
+    setCreateAvailableDepartments([]);
+    setFormError('');
+  };
+
+  const handleCreateDepartmentToggle = (departmentId) => {
+    setCreateSelectedDepartments(prev => {
+      if (prev.includes(departmentId)) {
+        return prev.filter(id => id !== departmentId);
+      } else {
+        return [...prev, departmentId];
+      }
+    });
   };
 
   const openDeleteDialog = (center) => { setCenterToDelete(center); setIsDeleteDialogOpen(true); };
@@ -339,7 +384,14 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
             Manage academic centers, coordinators, and view staff assignments.
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => { setIsCreateDialogOpen(open); if (!open && !isLoadingCreate) { setNewCenterName(''); setSelectedCoordinatorId(''); setFormError(''); } }}>
+        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => { 
+          setIsCreateDialogOpen(open); 
+          if (!open && !isLoadingCreate) { 
+            resetCreateForm();
+          } else if (open) {
+            fetchDepartmentsForCreate();
+          }
+        }}>
           <DialogTrigger asChild>
             <Button className={`gap-2 shadow-md hover:shadow-lg transition-shadow bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-semibold h-9 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm ${focusRingClass}`}>
               <PlusCircle className="h-4 w-4 sm:h-5 sm:w-5" /><span>New Center</span>
@@ -363,6 +415,69 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
                       {potentialCoordinators.length > 0 ? ( potentialCoordinators.map((user) => ( <SelectItem key={user.id} value={user.id} className={`focus:bg-violet-100 dark:focus:bg-violet-700/30 hover:bg-slate-50 dark:hover:bg-slate-700/70 cursor-pointer ${focusRingClass}`}> <div className="flex items-center gap-3 py-1.5 px-1"><Avatar className="h-9 w-9"><AvatarImage src={user.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium">{user.name ? user.name.match(/\b(\w)/g)?.join('').toUpperCase() : 'U'}</AvatarFallback></Avatar><div><span className="font-medium text-sm text-slate-800 dark:text-slate-100">{user.name}</span><span className="block text-xs text-slate-500 dark:text-slate-400">{user.email} <span className="capitalize font-medium">({user.role?.toLowerCase()})</span> {user.designation && ` - ${getDesignationDisplay(user.designation)}`}</span></div></div></SelectItem> ))) : ( <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">No eligible coordinators found.</div> )}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Department Assignment Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-medium text-slate-700 dark:text-slate-300">Assign Departments (Optional)</Label>
+                    {createAvailableDepartments.length === 0 && !isLoadingCreateDepartments && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={fetchDepartmentsForCreate}
+                        className="text-xs px-2 py-1 h-auto"
+                      >
+                        Load Departments
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {isLoadingCreateDepartments ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                      <span className="ml-2 text-sm text-slate-500">Loading departments...</span>
+                    </div>
+                  ) : createAvailableDepartments.length > 0 ? (
+                    <div className="max-h-32 overflow-y-auto border border-slate-200 dark:border-slate-600 rounded-md p-3 bg-slate-50 dark:bg-slate-700/50">
+                      <div className="space-y-2">
+                        {createAvailableDepartments.map((department) => (
+                          <div key={department.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`create-dept-${department.id}`}
+                              checked={createSelectedDepartments.includes(department.id)}
+                              onCheckedChange={() => handleCreateDepartmentToggle(department.id)}
+                              disabled={isLoadingCreate}
+                              className="border-slate-300 dark:border-slate-500"
+                            />
+                            <label
+                              htmlFor={`create-dept-${department.id}`}
+                              className="flex-1 text-sm cursor-pointer text-slate-700 dark:text-slate-200"
+                            >
+                              {department.name}
+                              {department.isAssigned && (
+                                <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">
+                                  (Already assigned to {department.centers?.length || 0} center{department.centers?.length !== 1 ? 's' : ''})
+                                </span>
+                              )}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center text-slate-500 dark:text-slate-400 py-3 text-sm">
+                      <Building2 className="h-6 w-6 mx-auto mb-1 opacity-50" />
+                      <p>Click "Load Departments" to assign departments to this center</p>
+                    </div>
+                  )}
+                  
+                  {createSelectedDepartments.length > 0 && (
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      {createSelectedDepartments.length} department{createSelectedDepartments.length !== 1 ? 's' : ''} selected
+                    </p>
+                  )}
                 </div>
                 {formError && ( <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700/50 rounded-md"><p className="text-sm text-red-700 dark:text-red-300 flex items-center gap-2"><AlertTriangle className="h-4 w-4 flex-shrink-0"/> {formError}</p></div> )}
               <DialogFooter className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 gap-2 sm:gap-3"><DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingCreate} className={`border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${focusRingClass}`}>Cancel</Button></DialogClose><Button type="submit" disabled={isLoadingCreate} className={`bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-semibold ${focusRingClass}`}>{isLoadingCreate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{isLoadingCreate ? "Creating..." : "Create Center"}</Button></DialogFooter>
