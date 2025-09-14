@@ -17,7 +17,8 @@ import {
   updateProgram, updateCourse, updateDepartment, // Import update actions
   deleteCourse, deleteProgram, deleteDepartment, // Import delete actions
   unassignCourseFromLecturers, // Import unassign action
-  unassignCoursesFromLecturer // Import new unassign specific courses from lecturer action
+  unassignCoursesFromLecturer, // Import new unassign specific courses from lecturer action
+  unassignCentersFromDepartment, unassignDepartmentsFromCenter // Import center unassign actions
 } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
 import {
@@ -142,6 +143,16 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
   const [selectedLecturerForUnassignment, setSelectedLecturerForUnassignment] = useState('');
   const [selectedCoursesForUnassignment, setSelectedCoursesForUnassignment] = useState([]);
   const [lecturerAssignedCourses, setLecturerAssignedCourses] = useState([]);
+
+  // Unassign Centers states
+  const [isUnassignCentersDialogOpen, setIsUnassignCentersDialogOpen] = useState(false);
+  const [departmentForCenterUnassignment, setDepartmentForCenterUnassignment] = useState(null);
+  const [selectedCentersForUnassignment, setSelectedCentersForUnassignment] = useState([]);
+  
+  // Unassign Departments states
+  const [isUnassignDepartmentsDialogOpen, setIsUnassignDepartmentsDialogOpen] = useState(false);
+  const [centerForDepartmentUnassignment, setCenterForDepartmentUnassignment] = useState(null);
+  const [selectedDepartmentsForUnassignment, setSelectedDepartmentsForUnassignment] = useState([]);
 
   // Filter programs for display
   const filteredPrograms = useMemo(() => {
@@ -788,6 +799,64 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
         setLecturerAssignedCourses(assignedCourses);
       } else {
         setLecturerAssignedCourses([]);
+      }
+    };
+
+    // Handler for unassigning centers from departments
+    const handleUnassignCenters = async () => {
+      if (!departmentForCenterUnassignment?.id || selectedCentersForUnassignment.length === 0) {
+        toast.error("Please select centers to unassign");
+        return;
+      }
+
+      setIsLoadingForm(true);
+      const result = await unassignCentersFromDepartment(
+        departmentForCenterUnassignment.id, 
+        selectedCentersForUnassignment
+      );
+      setIsLoadingForm(false);
+
+      if (result.success) {
+        toast.success(result.message || "Centers unassigned successfully!");
+        // Refresh departments data
+        const refetchResult = await getDepartments();
+        if (refetchResult.success) {
+          setDepartments(refetchResult.departments);
+        }
+        setIsUnassignCentersDialogOpen(false);
+        setSelectedCentersForUnassignment([]);
+        setDepartmentForCenterUnassignment(null);
+      } else {
+        toast.error(result.error || "Failed to unassign centers.");
+      }
+    };
+
+    // Handler for unassigning departments from centers
+    const handleUnassignDepartments = async () => {
+      if (!centerForDepartmentUnassignment?.id || selectedDepartmentsForUnassignment.length === 0) {
+        toast.error("Please select departments to unassign");
+        return;
+      }
+
+      setIsLoadingForm(true);
+      const result = await unassignDepartmentsFromCenter(
+        centerForDepartmentUnassignment.id, 
+        selectedDepartmentsForUnassignment
+      );
+      setIsLoadingForm(false);
+
+      if (result.success) {
+        toast.success(result.message || "Departments unassigned successfully!");
+        // Refresh departments data
+        const refetchResult = await getDepartments();
+        if (refetchResult.success) {
+          setDepartments(refetchResult.departments);
+        }
+        setIsUnassignDepartmentsDialogOpen(false);
+        setSelectedDepartmentsForUnassignment([]);
+        setCenterForDepartmentUnassignment(null);
+      } else {
+        toast.error(result.error || "Failed to unassign departments.");
       }
     };
 

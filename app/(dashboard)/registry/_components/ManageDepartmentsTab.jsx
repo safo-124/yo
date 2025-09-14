@@ -19,7 +19,9 @@ import {
   getDepartmentsWithPrograms, 
   getAvailablePrograms, 
   assignProgramsToDepartments,
-  unassignProgramsFromDepartments 
+  unassignProgramsFromDepartments,
+  unassignCentersFromDepartment,
+  getRegistryData // To get centers data
 } from '@/lib/actions/registry.actions';
 
 export default function ManageDepartmentsTab() {
@@ -30,6 +32,11 @@ export default function ManageDepartmentsTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isUnassignDialogOpen, setIsUnassignDialogOpen] = useState(false);
+
+  // Center unassignment states
+  const [isUnassignCentersDialogOpen, setIsUnassignCentersDialogOpen] = useState(false);
+  const [selectedCentersForUnassignment, setSelectedCentersForUnassignment] = useState([]);
+  const [departmentForCenterUnassignment, setDepartmentForCenterUnassignment] = useState(null);
 
   useEffect(() => {
     fetchDepartments();
@@ -112,6 +119,33 @@ export default function ManageDepartmentsTab() {
     setIsLoading(false);
   };
 
+  const handleUnassignCenters = async () => {
+    if (!departmentForCenterUnassignment || selectedCentersForUnassignment.length === 0) {
+      toast.error('Please select centers to unassign');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await unassignCentersFromDepartment(
+        departmentForCenterUnassignment.id, 
+        selectedCentersForUnassignment
+      );
+      if (result.success) {
+        toast.success(`${selectedCentersForUnassignment.length} center(s) unassigned successfully`);
+        setIsUnassignCentersDialogOpen(false);
+        setSelectedCentersForUnassignment([]);
+        setDepartmentForCenterUnassignment(null);
+        fetchDepartments();
+      } else {
+        toast.error(result.error || 'Failed to unassign centers');
+      }
+    } catch (error) {
+      toast.error('Error unassigning centers');
+    }
+    setIsLoading(false);
+  };
+
   const openAssignDialog = (department) => {
     setSelectedDepartment(department);
     setSelectedPrograms([]);
@@ -124,11 +158,25 @@ export default function ManageDepartmentsTab() {
     setIsUnassignDialogOpen(true);
   };
 
+  const openUnassignCentersDialog = (department) => {
+    setDepartmentForCenterUnassignment(department);
+    setSelectedCentersForUnassignment([]);
+    setIsUnassignCentersDialogOpen(true);
+  };
+
   const toggleProgramSelection = (programId) => {
     setSelectedPrograms(prev => 
       prev.includes(programId) 
         ? prev.filter(id => id !== programId)
         : [...prev, programId]
+    );
+  };
+
+  const toggleCenterSelection = (centerId) => {
+    setSelectedCentersForUnassignment(prev => 
+      prev.includes(centerId) 
+        ? prev.filter(id => id !== centerId)
+        : [...prev, centerId]
     );
   };
 
@@ -240,6 +288,17 @@ export default function ManageDepartmentsTab() {
                         title="Unassign programs from this department"
                       >
                         <Minus className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {department.centers?.length > 1 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openUnassignCentersDialog(department)}
+                        className="h-7 px-2 text-orange-600 hover:text-orange-700"
+                        title="Unassign centers from this department"
+                      >
+                        <Building className="h-3 w-3" />
                       </Button>
                     )}
                   </div>
@@ -437,6 +496,83 @@ export default function ManageDepartmentsTab() {
                 <Minus className="h-4 w-4 mr-2" />
               )}
               Unassign {selectedPrograms.length} Program(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unassign Centers Dialog */}
+      <Dialog 
+        open={isUnassignCentersDialogOpen} 
+        onOpenChange={setIsUnassignCentersDialogOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Unassign Centers from Department</DialogTitle>
+          </DialogHeader>
+          
+          {departmentForCenterUnassignment && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100">
+                  {departmentForCenterUnassignment.name}
+                </h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Select centers to unassign from this department
+                </p>
+              </div>
+
+              {departmentForCenterUnassignment.centers?.length > 0 ? (
+                <ScrollArea className="h-48 border rounded-md p-2">
+                  <div className="space-y-2">
+                    {departmentForCenterUnassignment.centers.map(center => (
+                      <div key={center.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`center-${center.id}`}
+                          checked={selectedCentersForUnassignment.includes(center.id)}
+                          onCheckedChange={() => toggleCenterSelection(center.id)}
+                        />
+                        <label
+                          htmlFor={`center-${center.id}`}
+                          className="flex-1 text-sm cursor-pointer"
+                        >
+                          <div className="flex flex-col">
+                            <span>{center.name}</span>
+                            <span className="text-xs text-gray-500">{center.location}</span>
+                          </div>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center text-gray-500 py-8">
+                  <Building className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>No centers assigned to this department</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsUnassignCentersDialogOpen(false)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUnassignCenters}
+              disabled={isLoading || selectedCentersForUnassignment.length === 0}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Building className="h-4 w-4 mr-2" />
+              )}
+              Unassign {selectedCentersForUnassignment.length} Center(s)
             </Button>
           </DialogFooter>
         </DialogContent>
