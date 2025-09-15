@@ -213,9 +213,10 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
       @page { size: A4; margin: 15mm; }
 
       .print-container { width: auto; margin: 0; padding: 0; }
-      .page { padding: 12mm 15mm; break-after: page; page-break-after: always; -webkit-break-after: page; }
+      /* Explicit page box size (A4 minus margins) to enable bottom anchoring */
+      .page { height: calc(297mm - 2 * 15mm); padding: 12mm 15mm; box-sizing: border-box; break-after: page; page-break-after: always; -webkit-break-after: page; }
       .page:last-child { break-after: auto; page-break-after: auto; -webkit-break-after: auto; }
-      .signature-page { min-height: calc(297mm - 2 * 15mm); display: flex; flex-direction: column; justify-content: flex-end; }
+      .signature-page { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
 
       .header { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 3px solid ${uewDeepBlue}; page-break-inside: avoid; }
       .logo { height: 80px; width: auto; display: block; }
