@@ -156,6 +156,12 @@ export default function ManageCoordinatorLecturersTab({
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Lecturer</DialogTitle>
+            <DialogDescription>
+              Create a new lecturer account for this center.
+            </DialogDescription>
+          </DialogHeader>
            {/* Create Lecturer Dialog Content remains the same */}
         </DialogContent>
       </Dialog>
@@ -163,6 +169,12 @@ export default function ManageCoordinatorLecturersTab({
       {selectedLecturerToAssign && (
         <Dialog open={isAssignDialogOpen} onOpenChange={(isOpen) => { setIsAssignDialogOpen(isOpen); if (!isOpen) resetAssignForm(); }}>
           <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Assign Department to Lecturer</DialogTitle>
+              <DialogDescription>
+                Assign or reassign this lecturer to a department.
+              </DialogDescription>
+            </DialogHeader>
             {/* Assign Department Dialog Content remains the same */}
           </DialogContent>
         </Dialog>
