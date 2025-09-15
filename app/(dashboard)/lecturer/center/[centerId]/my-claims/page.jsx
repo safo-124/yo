@@ -26,7 +26,7 @@ import { Toaster } from '@/components/ui/sonner';
 
 export default async function MyClaimsPage({ params }) {
   const session = await getSession();
-  const { centerId } = params;
+  const { centerId } = await params;
 
   if (!session || session.role !== 'LECTURER') {
     redirect('/login');

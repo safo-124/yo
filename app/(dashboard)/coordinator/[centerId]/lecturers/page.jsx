@@ -11,7 +11,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 export default async function CoordinatorLecturersPage({ params }) {
   const session = await getSession();
-  const { centerId } = params;
+  const { centerId } = await params;
 
   if (!session || session.role !== 'COORDINATOR') {
     // This should ideally be caught by the layout, but good for direct access attempts

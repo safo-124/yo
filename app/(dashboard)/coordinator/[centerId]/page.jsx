@@ -11,7 +11,7 @@ import CoordinatorTabsWrapper from './_components/CoordinatorTabsWrapper';
 
 export default async function CoordinatorDashboardPage({ params }) {
   const session = await getSession();
-  const { centerId } = params;
+  const { centerId } = await params;
 
   if (!session || session.role !== 'COORDINATOR') {
     redirect('/login');

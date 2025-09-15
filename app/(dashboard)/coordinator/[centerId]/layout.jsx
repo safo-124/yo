@@ -13,7 +13,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export default async function CoordinatorLayout({ children, params }) {
   const session = await getSession();
-  const { centerId } = params;
+  const { centerId } = await params;
 
   if (!session?.userId) {
     redirect('/login');

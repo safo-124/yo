@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const userId = params.userId;
+  const userId = (await params).userId;
   
   // Ensure the user is requesting their own data or has appropriate role
   if (session.userId !== userId && !['REGISTRY', 'STAFF_REGISTRY'].includes(session.role)) {

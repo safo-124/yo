@@ -27,8 +27,20 @@ export default async function LecturerCenterLayout({ children, params }) {
               include: {
                 program: {
                   include: {
-                    department: {
-                      select: { centerId: true }
+                    departmentAssignments: {
+                      include: {
+                        department: {
+                          include: {
+                            centerAssignments: {
+                              include: {
+                                center: {
+                                  select: { id: true }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -45,7 +57,15 @@ export default async function LecturerCenterLayout({ children, params }) {
     
     // If no direct center assignment, check course assignments
     if (!assignedCenterId && currentUser?.lecturerCourseAssignments?.length > 0) {
-      assignedCenterId = currentUser.lecturerCourseAssignments[0].course.program.department.centerId;
+      const firstAssignment = currentUser.lecturerCourseAssignments[0];
+      const departmentAssignments = firstAssignment.course.program.departmentAssignments;
+      
+      if (departmentAssignments?.length > 0) {
+        const centerAssignments = departmentAssignments[0].department.centerAssignments;
+        if (centerAssignments?.length > 0) {
+          assignedCenterId = centerAssignments[0].center.id;
+        }
+      }
     }
     
     if (assignedCenterId && assignedCenterId !== centerId) {

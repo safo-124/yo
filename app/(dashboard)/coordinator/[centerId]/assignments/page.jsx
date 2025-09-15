@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { AlertTriangle, BookUser } from "lucide-react";
 
 export default async function AssignmentPage({ params }) {
-  const { centerId } = params;
+  const { centerId } = await params;
   const session = await getSession();
 
   if (!session?.userId) {
