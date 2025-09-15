@@ -1,6 +1,5 @@
 // app/(dashboard)/registry/_components/ManageLecturerSummariesTab.jsx
 "use client";
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -108,534 +107,231 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
     if (!summaryData) { toast.info("No summary data to print."); return; }
     const claimsToPrintSource = summaryData.claims || [];
     const claimsToPrint = selectedClaimType === "ALL"
-        ? claimsToPrintSource
-        : claimsToPrintSource.filter(claim => claim.claimType === selectedClaimType);
+      ? claimsToPrintSource
+      : claimsToPrintSource.filter(claim => claim.claimType === selectedClaimType);
 
     if (claimsToPrint.length === 0 && selectedClaimType !== "ALL" && summaryData.totalClaims > 0) {
-        toast.info(`No claims of type '${selectedClaimType.toLowerCase().replace("_"," ")}' to print. The printout will show overall summary statistics.`, {duration: 6000});
+      toast.info(`No claims of type '${selectedClaimType.toLowerCase().replace("_", " ")}' to print. The printout will show overall summary statistics.`, { duration: 6000 });
     }
 
     const printWindow = window.open('', '_blank', 'height=800,width=1000,scrollbars=yes,resizable=yes');
-    if (printWindow) {
-        const uewDeepBlue = '#0D2C54'; const uewDeepRed = '#8C181F';
-        const textColor = "#1A202C"; const headingColor = uewDeepBlue; const lightGrayBorder = "#CBD5E0";
+    if (!printWindow) { toast.error("Could not open print window."); return; }
 
-        let teachingDetailsTableHtml = ''; let teachingTransportTableHtml = '';
-        let otherClaimsHtml = `<div class="section-title">Other Claim Types (${selectedClaimType === 'ALL' ? 'Transportation & Thesis/Project' : selectedClaimType.replace("_", " ")})</div><table class="claims-table"><thead><tr><th>ID</th><th>Type</th><th>Details</th><th>Student Name</th><th>Thesis/Project Topic</th><th>Status</th><th>Submitted</th></tr></thead><tbody>`;
-        let hasOtherClaims = false;
+    const uewDeepBlue = '#0D2C54';
+    const uewDeepRed = '#8C181F';
+    const headingColor = uewDeepBlue;
 
-        const teachingClaims = claimsToPrint.filter(c => c.claimType === 'TEACHING');
-        const teachingClaimsWithTransport = teachingClaims.filter(c =>
-            c.claimType === 'TEACHING' &&
-            [c.transportToTeachingInDate, c.transportToTeachingFrom, c.transportToTeachingTo, c.transportToTeachingOutDate, c.transportToTeachingReturnFrom, c.transportToTeachingReturnTo, c.transportToTeachingDistanceKM].some(Boolean)
-        );
+    let teachingDetailsTableHtml = '';
+    let teachingTransportTableHtml = '';
+    let otherClaimsHtml = `<div class="section-title">Other Claim Types (${selectedClaimType === 'ALL' ? 'Transportation & Thesis/Project' : selectedClaimType.replace("_", " ")})</div><table class="claims-table"><thead><tr><th>ID</th><th>Type</th><th>Details</th><th>Student Name</th><th>Thesis/Project Topic</th><th>Status</th><th>Submitted</th></tr></thead><tbody>`;
+    let hasOtherClaims = false;
 
-        if (teachingClaims.length > 0 && (selectedClaimType === "ALL" || selectedClaimType === "TEACHING")) {
-            teachingDetailsTableHtml = `<div class="section-title">Teaching Claim Details</div><table class="claims-table"><thead><tr><th>Course ID</th><th>Course Title</th><th>Hours Taught</th><th>Status</th></tr></thead><tbody>`;
-            teachingClaims.forEach(claim => {
-                teachingDetailsTableHtml += `<tr><td>${claim.courseCode || 'N/A'}</td><td>${claim.courseTitle || 'N/A'}</td><td>${claim.teachingHours ?? 'N/A'}</td><td><span class="status-badge status-${claim.status || 'UNKNOWN'}">${claim.status || 'N/A'}</span></td></tr>`;
-            });
-            teachingDetailsTableHtml += '</tbody></table>';
+    const teachingClaims = claimsToPrint.filter(c => c.claimType === 'TEACHING');
+    const teachingClaimsWithTransport = teachingClaims.filter(c => [
+      c.transportToTeachingInDate,
+      c.transportToTeachingFrom,
+      c.transportToTeachingTo,
+      c.transportToTeachingOutDate,
+      c.transportToTeachingReturnFrom,
+      c.transportToTeachingReturnTo,
+      c.transportToTeachingDistanceKM,
+    ].some(Boolean));
 
-            if (teachingClaimsWithTransport.length > 0) {
-                teachingTransportTableHtml = `<br/><div class="section-title">Optional Transportation for Teaching Sessions</div><table class="claims-table"><thead><tr><th>In-Date</th><th>From (To Venue)</th><th>To (To Venue)</th><th>Out-Date</th><th>From (Return)</th><th>To (Return)</th><th>Distance (KM)</th></tr></thead><tbody>`;
-                teachingClaimsWithTransport.forEach(claim => {
-                    teachingTransportTableHtml += `<tr><td>${claim.transportToTeachingInDate ? new Date(claim.transportToTeachingInDate).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</td><td>${claim.transportToTeachingFrom || 'N/A'}</td><td>${claim.transportToTeachingTo || 'N/A'}</td><td>${claim.transportToTeachingOutDate ? new Date(claim.transportToTeachingOutDate).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</td><td>${claim.transportToTeachingReturnFrom || 'N/A'}</td><td>${claim.transportToTeachingReturnTo || 'N/A'}</td><td>${claim.transportToTeachingDistanceKM ?? 'N/A'}</td></tr>`;
-                });
-                teachingTransportTableHtml += '</tbody></table>';
-            }
-        }
+    if (teachingClaims.length > 0 && (selectedClaimType === 'ALL' || selectedClaimType === 'TEACHING')) {
+      teachingDetailsTableHtml = `<div class="section-title">Teaching Claim Details</div><table class="claims-table"><thead><tr><th>Course ID</th><th>Course Title</th><th>Hours Taught</th><th>Status</th></tr></thead><tbody>`;
+      teachingClaims.forEach(claim => {
+        teachingDetailsTableHtml += `<tr><td>${claim.courseCode || 'N/A'}</td><td>${claim.courseTitle || 'N/A'}</td><td>${claim.teachingHours ?? 'N/A'}</td><td><span class="status-badge status-${claim.status || 'UNKNOWN'}">${claim.status || 'N/A'}</span></td></tr>`;
+      });
+      teachingDetailsTableHtml += '</tbody></table>';
 
-        claimsToPrint.filter(c => c.claimType !== 'TEACHING').forEach(claim => {
-            hasOtherClaims = true; 
-            let detailsCellContent = 'N/A';
-            let studentNameContent = 'N/A';
-            let thesisTopicContent = 'N/A';
-            
-            if (claim.claimType === 'TRANSPORTATION') { 
-                detailsCellContent = `Type: ${claim.transportType || 'N/A'}<br/>From: ${claim.transportDestinationFrom || 'N/A'}<br/>To: ${claim.transportDestinationTo || 'N/A'}<br/>Amount: ${claim.transportAmount != null ? `GHS ${Number(claim.transportAmount).toFixed(2)}` : 'N/A'}`; 
-                studentNameContent = '-';
-                thesisTopicContent = '-';
-            }
-            else if (claim.claimType === 'THESIS_PROJECT') { 
-                detailsCellContent = `Type: ${claim.thesisType || 'N/A'}<br/>`;
-                if (claim.thesisType === 'SUPERVISION') { 
-                    detailsCellContent += `Rank: ${claim.thesisSupervisionRank || 'N/A'}<br/>`; 
-                    // Handle multiple students for supervision
-                    if (claim.supervisedStudents && claim.supervisedStudents.length > 0) {
-                        const studentsInfo = claim.supervisedStudents.filter(s => s.studentName || s.thesisTitle);
-                        if (studentsInfo.length > 0) {
-                            studentNameContent = studentsInfo.map(s => s.studentName || 'N/A').join('<br/>');
-                            thesisTopicContent = studentsInfo.map(s => s.thesisTitle || 'N/A').join('<br/>');
-                        } else {
-                            studentNameContent = 'No students listed';
-                            thesisTopicContent = 'No topics listed';
-                        }
-                    } else {
-                        studentNameContent = 'No students listed';
-                        thesisTopicContent = 'No topics listed';
-                    }
-                } else if (claim.thesisType === 'EXAMINATION') { 
-                    detailsCellContent += `Course: ${claim.thesisExamCourseCode || 'N/A'}<br/>Date: ${claim.thesisExamDate ? new Date(claim.thesisExamDate).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}`; 
-                    studentNameContent = '-';
-                    thesisTopicContent = '-';
-                }
-            }
-            
-            otherClaimsHtml += `<tr><td>${claim.id ? claim.id.substring(0,8) + '...' : 'N/A'}</td><td style="text-transform:capitalize;">${claim.claimType?.toLowerCase().replace("_", " ") || 'N/A'}</td><td>${detailsCellContent}</td><td>${studentNameContent}</td><td style="font-style: italic;">${thesisTopicContent}</td><td><span class="status-badge status-${claim.status || 'UNKNOWN'}">${claim.status || 'N/A'}</span></td><td>${claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</td></tr>`;
+      if (teachingClaimsWithTransport.length > 0) {
+        teachingTransportTableHtml = `<br/><div class="section-title">Optional Transportation for Teaching Sessions</div><table class="claims-table"><thead><tr><th>In-Date</th><th>From (To Venue)</th><th>To (To Venue)</th><th>Out-Date</th><th>From (Return)</th><th>To (Return)</th><th>Distance (KM)</th></tr></thead><tbody>`;
+        teachingClaimsWithTransport.forEach(claim => {
+          teachingTransportTableHtml += `<tr><td>${claim.transportToTeachingInDate ? new Date(claim.transportToTeachingInDate).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</td><td>${claim.transportToTeachingFrom || 'N/A'}</td><td>${claim.transportToTeachingTo || 'N/A'}</td><td>${claim.transportToTeachingOutDate ? new Date(claim.transportToTeachingOutDate).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</td><td>${claim.transportToTeachingReturnFrom || 'N/A'}</td><td>${claim.transportToTeachingReturnTo || 'N/A'}</td><td>${claim.transportToTeachingDistanceKM ?? 'N/A'}</td></tr>`;
         });
-        if (!hasOtherClaims && (selectedClaimType === "ALL" || selectedClaimType === "TRANSPORTATION" || selectedClaimType === "THESIS_PROJECT")) {
-            otherClaimsHtml += '<tr><td colspan="7" style="text-align:center;">No claims of this specific type for the period.</td></tr>';
-        } else if (!hasOtherClaims && selectedClaimType === "ALL" && teachingClaims.length === 0) { // If "ALL" selected and no claims AT ALL (other than teaching which is handled separately)
-            otherClaimsHtml = `<div class="section-title">Other Claim Types</div><p>No other claim types (Transportation, Thesis/Project) found for this period.</p>`;
-        } else if (!hasOtherClaims) {
-            otherClaimsHtml = ''; // Hide "Other Claims" if no other claims and teaching claims were filtered out.
+        teachingTransportTableHtml += '</tbody></table>';
+      }
+    }
+
+    claimsToPrint.filter(c => c.claimType !== 'TEACHING').forEach(claim => {
+      hasOtherClaims = true;
+      let detailsCellContent = 'N/A';
+      let studentNameContent = 'N/A';
+      let thesisTopicContent = 'N/A';
+
+      if (claim.claimType === 'TRANSPORTATION') {
+        detailsCellContent = `Type: ${claim.transportType || 'N/A'}<br/>From: ${claim.transportDestinationFrom || 'N/A'}<br/>To: ${claim.transportDestinationTo || 'N/A'}<br/>Amount: ${claim.transportAmount != null ? `GHS ${Number(claim.transportAmount).toFixed(2)}` : 'N/A'}`;
+        studentNameContent = '-';
+        thesisTopicContent = '-';
+      } else if (claim.claimType === 'THESIS_PROJECT') {
+        detailsCellContent = `Type: ${claim.thesisType || 'N/A'}<br/>`;
+        if (claim.thesisType === 'SUPERVISION') {
+          detailsCellContent += `Rank: ${claim.thesisSupervisionRank || 'N/A'}<br/>`;
+          if (claim.supervisedStudents && claim.supervisedStudents.length > 0) {
+            const studentsInfo = claim.supervisedStudents.filter(s => s.studentName || s.thesisTitle);
+            if (studentsInfo.length > 0) {
+              studentNameContent = studentsInfo.map(s => s.studentName || 'N/A').join('<br/>');
+              thesisTopicContent = studentsInfo.map(s => s.thesisTitle || 'N/A').join('<br/>');
+            } else {
+              studentNameContent = 'No students listed';
+              thesisTopicContent = 'No topics listed';
+            }
+          } else {
+            studentNameContent = 'No students listed';
+            thesisTopicContent = 'No topics listed';
+          }
+        } else if (claim.thesisType === 'EXAMINATION') {
+          detailsCellContent += `Course: ${claim.thesisExamCourseCode || 'N/A'}<br/>Date: ${claim.thesisExamDate ? new Date(claim.thesisExamDate).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}`;
+          studentNameContent = '-';
+          thesisTopicContent = '-';
         }
+      }
 
-        const printHtml = `<html><head><title>Lecturer Claim Summary - ${summaryData.lecturerName} - ${summaryData.month} ${summaryData.year}</title><meta charset="UTF-8"><style>
-                /* Reset and Base Styles */
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { 
-                    font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; 
-                    line-height: 1.5; 
-                    color: #2d3748; 
-                    background: white;
-                    font-size: 11pt;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
-                
-                /* Print Container */
-                .print-container { 
-                    max-width: 210mm; 
-                    margin: 0 auto; 
-                    padding: 15mm 20mm; 
-                    background: white;
-                    min-height: 297mm;
-                    display: flex;
-                    flex-direction: column;
-                }
-                
-                .content-area {
-                    flex-grow: 1;
-                }
-                
-                /* Header Section */
-                .header { 
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin-bottom: 25px;
-                    padding-bottom: 20px;
-                    border-bottom: 3px solid ${uewDeepBlue};
-                    page-break-inside: avoid;
-                    gap: 25px;
-                }
-                .header-left { 
-                    flex-shrink: 0;
-                }
-                .header-right {
-                    flex-grow: 1;
-                    text-align: center;
-                }
-                .logo { 
-                    height: 80px; 
-                    width: auto;
-                    display: block;
-                }
-                .university-name { 
-                    font-size: 22pt; 
-                    font-weight: 700; 
-                    color: ${uewDeepBlue}; 
-                    margin-bottom: 5px;
-                    letter-spacing: 0.5px;
-                }
-                .college-name { 
-                    font-size: 14pt; 
-                    font-weight: 500; 
-                    color: ${uewDeepBlue}; 
-                    margin-bottom: 10px;
-                }
-                .document-title { 
-                    font-size: 18pt; 
-                    font-weight: 600; 
-                    color: ${uewDeepRed}; 
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                    margin-top: 15px;
-                }
-                
-                /* Section Styles */
-                .section { 
-                    margin-bottom: 20px; 
-                    padding: 18px; 
-                    border: 1px solid #e2e8f0; 
-                    border-radius: 8px; 
-                    background: #fafafa;
-                    page-break-inside: avoid;
-                }
-                .section-title { 
-                    font-size: 14pt; 
-                    font-weight: 600; 
-                    color: ${headingColor}; 
-                    margin-bottom: 15px; 
-                    padding-bottom: 10px; 
-                    border-bottom: 2px solid ${uewDeepBlue}40;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }
-                
-                /* Information Layout */
-                .info-row {
-                    display: flex;
-                    margin-bottom: 10px;
-                    align-items: flex-start;
-                    line-height: 1.4;
-                }
-                .info-label {
-                    font-weight: 600;
-                    color: ${headingColor};
-                    min-width: 140px;
-                    margin-right: 15px;
-                    flex-shrink: 0;
-                }
-                .info-value {
-                    flex: 1;
-                    word-break: break-word;
-                }
-                
-                /* Summary Grid */
-                .summary-grid { 
-                    display: grid; 
-                    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
-                    gap: 15px; 
-                    margin: 20px 0;
-                }
-                .summary-item { 
-                    padding: 18px 15px; 
-                    text-align: center; 
-                    border: 2px solid #e2e8f0; 
-                    border-radius: 12px; 
-                    background: white;
-                    transition: none;
-                }
-                .summary-item.total { 
-                    border-color: ${uewDeepBlue}; 
-                    background: linear-gradient(135deg, #eff6ff, #dbeafe);
-                    color: ${uewDeepBlue};
-                }
-                .summary-item.pending { 
-                    border-color: #f59e0b; 
-                    background: linear-gradient(135deg, #fffbeb, #fef3c7);
-                    color: #d97706;
-                }
-                .summary-item.approved { 
-                    border-color: #10b981; 
-                    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
-                    color: #047857;
-                }
-                .summary-item.rejected { 
-                    border-color: ${uewDeepRed}; 
-                    background: linear-gradient(135deg, #fef2f2, #fecaca);
-                    color: ${uewDeepRed};
-                }
-                
-                .summary-item b { 
-                    display: block; 
-                    font-size: 28pt; 
-                    font-weight: 700; 
-                    margin-bottom: 8px;
-                    line-height: 1;
-                }
-                .summary-item span { 
-                    font-size: 10pt; 
-                    font-weight: 600; 
-                    text-transform: uppercase; 
-                    letter-spacing: 0.8px;
-                }
-                
-                /* Tables */
-                .claims-table { 
-                    width: 100%; 
-                    border-collapse: collapse; 
-                    margin: 15px 0; 
-                    font-size: 10pt;
-                    background: white;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                }
-                .claims-table th, .claims-table td { 
-                    border: 1px solid #cbd5e0; 
-                    padding: 12px 8px; 
-                    text-align: left; 
-                    vertical-align: top;
-                    word-break: break-word;
-                }
-                .claims-table th { 
-                    background: linear-gradient(135deg, #f7fafc, #edf2f7); 
-                    font-weight: 600; 
-                    font-size: 9pt;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                    color: ${headingColor};
-                    border-bottom: 2px solid ${uewDeepBlue}40;
-                }
-                .claims-table tbody tr:nth-child(even) {
-                    background: #f8f9fa;
-                }
-                .claims-table tbody tr:hover {
-                    background: #e6f3ff;
-                }
-                
-                /* Status Badges */
-                .status-badge { 
-                    padding: 6px 10px; 
-                    border-radius: 15px; 
-                    font-weight: 600; 
-                    font-size: 8pt; 
-                    color: white; 
-                    text-transform: uppercase; 
-                    display: inline-block;
-                    letter-spacing: 0.5px;
-                    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-                }
-                .status-PENDING { background: linear-gradient(135deg, #f59e0b, #d97706); }
-                .status-APPROVED { background: linear-gradient(135deg, #10b981, #059669); }
-                .status-REJECTED { background: linear-gradient(135deg, ${uewDeepRed}, #b91c1c); }
-                
-                /* Highlight Boxes */
-                .highlight-box {
-                    margin-top: 15px;
-                    padding: 15px;
-                    border-radius: 8px;
-                    border-left: 4px solid;
-                }
-                .highlight-teaching {
-                    background: #ecfdf5;
-                    border-color: #10b981;
-                    color: #047857;
-                }
-                .highlight-transport {
-                    background: #fffbeb;
-                    border-color: #f59e0b;
-                    color: #92400e;
-                }
-                
-                /* Signature Section */
-                .signature-section { 
-                    margin-top: auto; 
-                    padding-top: 30px; 
-                    border-top: 3px solid #cbd5e0;
-                    page-break-inside: avoid;
-                    min-height: 150px;
-                    position: relative;
-                }
-                .signature-title {
-                    font-size: 14pt;
-                    font-weight: 600;
-                    text-align: center;
-                    margin-bottom: 25px;
-                    color: ${headingColor};
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                }
-                .signature-area { 
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-                    gap: 30px;
-                    margin-top: 30px;
-                }
-                .signature-block { 
-                    text-align: center;
-                    min-height: 90px;
-                }
-                .signature-line { 
-                    border-bottom: 2px solid #2d3748; 
-                    height: 50px; 
-                    margin-bottom: 10px;
-                    position: relative;
-                    border-radius: 2px;
-                }
-                .signature-line::after {
-                    content: '';
-                    position: absolute;
-                    bottom: -1px;
-                    left: 0;
-                    right: 0;
-                    height: 1px;
-                    background: #cbd5e0;
-                }
-                .signature-label { 
-                    font-size: 10pt; 
-                    font-weight: 600;
-                    color: ${headingColor};
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                    margin-top: 5px;
-                }
-                
-                /* Footer */
-                .footer { 
-                    text-align: center; 
-                    margin-top: 40px; 
-                    padding-top: 20px; 
-                    border-top: 1px solid #e2e8f0; 
-                    font-size: 9pt; 
-                    color: #718096;
-                    font-style: italic;
-                    font-weight: 500;
-                }
-                
-                /* Print Specific Styles */
-                @media print {
-                    body { 
-                        -webkit-print-color-adjust: exact; 
-                        print-color-adjust: exact; 
-                        font-size: 10pt;
-                        margin: 0;
-                        padding: 0;
-                    }
-                    .print-container { 
-                        width: 100%; 
-                        margin: 0; 
-                        padding: 12mm 15mm;
-                        box-shadow: none; 
-                        border: none;
-                        min-height: auto;
-                    }
-                    .section {
-                        break-inside: avoid;
-                        page-break-inside: avoid;
-                        margin-bottom: 15px;
-                        padding: 15px;
-                    }
-                    .signature-section {
-                        break-inside: avoid;
-                        page-break-inside: avoid;
-                    }
-                    .claims-table {
-                        page-break-inside: auto;
-                    }
-                    .claims-table thead {
-                        display: table-header-group;
-                    }
-                    .claims-table tr {
-                        page-break-inside: avoid;
-                        break-inside: avoid;
-                    }
-                    .status-badge, .summary-item, .highlight-box { 
-                        -webkit-print-color-adjust: exact; 
-                        print-color-adjust: exact;
-                    }
-                    .header {
-                        align-items: center;
-                        gap: 20px;
-                    }
-                    .logo {
-                        height: 70px;
-                    }
-                    .university-name {
-                        font-size: 20pt;
-                    }
-                    .document-title {
-                        font-size: 16pt;
-                    }
-                }
-                
-                @page {
-                    margin: 15mm;
-                    size: A4;
-                }
-                </style></head><body>
-                <div class="print-container">
-                    <div class="content-area">
-                        <div class="header">
-                            <div class="header-left">
-                                <img src="/uew.png" alt="University Logo" class="logo" />
-                            </div>
-                            <div class="header-right">
-                                <div class="university-name">UNIVERSITY OF EDUCATION, WINNEBA</div>
-                                <div class="college-name">COLLEGE OF DISTANCE AND e-LEARNING (CODeL)</div>
-                                <div class="document-title">Lecturer Monthly Claim Summary</div>
-                            </div>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="section-title">Summary Information</div>
-                            <div class="info-row">
-                                <span class="info-label">Lecturer:</span>
-                                <span class="info-value"><strong>${summaryData.lecturerName}</strong> (${summaryData.lecturerEmail || 'N/A'}) ${summaryData.lecturerDesignation ? '- ' + summaryData.lecturerDesignation.replace(/_/g, " ") : ''}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Period:</span>
-                                <span class="info-value"><strong>${summaryData.month}, ${summaryData.year}</strong></span>
-                            </div>
-                            ${selectedClaimType !== "ALL" ? `<div class="info-row"><span class="info-label">Claim Type Filter:</span><span class="info-value" style="text-transform:capitalize; font-weight: 600; color: ${uewDeepRed};">${selectedClaimType.toLowerCase().replace("_"," ")}</span></div>` : ''}
-                        </div>
+      otherClaimsHtml += `<tr><td>${claim.id ? claim.id.substring(0, 8) + '...' : 'N/A'}</td><td style="text-transform:capitalize;">${claim.claimType?.toLowerCase().replace("_", " ") || 'N/A'}</td><td>${detailsCellContent}</td><td>${studentNameContent}</td><td style="font-style: italic;">${thesisTopicContent}</td><td><span class="status-badge status-${claim.status || 'UNKNOWN'}">${claim.status || 'N/A'}</span></td><td>${claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</td></tr>`;
+    });
 
-                        <div class="section">
-                            <div class="section-title">Payment Information</div>
-                            <div class="info-row">
-                                <span class="info-label">Bank Name:</span>
-                                <span class="info-value">${summaryData.lecturerBankName || 'N/A'}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Bank Branch:</span>
-                                <span class="info-value">${summaryData.lecturerBankBranch || 'N/A'}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Account Name:</span>
-                                <span class="info-value">${summaryData.lecturerAccountName || 'N/A'}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Account Number:</span>
-                                <span class="info-value"><strong>${summaryData.lecturerAccountNumber || 'N/A'}</strong></span>
-                            </div>
-                        </div>
+    if (!hasOtherClaims && (selectedClaimType === 'ALL' || selectedClaimType === 'TRANSPORTATION' || selectedClaimType === 'THESIS_PROJECT')) {
+      otherClaimsHtml += '<tr><td colspan="7" style="text-align:center;">No claims of this specific type for the period.</td></tr>';
+    } else if (!hasOtherClaims && selectedClaimType === 'ALL' && teachingClaims.length === 0) {
+      otherClaimsHtml = `<div class="section-title">Other Claim Types</div><p>No other claim types (Transportation, Thesis/Project) found for this period.</p>`;
+    } else if (!hasOtherClaims) {
+      otherClaimsHtml = '';
+    }
 
-                        <div class="section">
-                            <div class="section-title">Overall Statistics for Period</div>
-                            <div class="summary-grid">
-                                <div class="summary-item total"><b>${summaryData.totalClaims}</b><span>Total Claims</span></div>
-                                <div class="summary-item pending"><b>${summaryData.pending}</b><span>Pending</span></div>
-                                <div class="summary-item approved"><b>${summaryData.approved}</b><span>Approved</span></div>
-                                <div class="summary-item rejected"><b>${summaryData.rejected}</b><span>Rejected</span></div>
-                            </div>
-                            ${summaryData.totalTeachingHours > 0 ? `<div class="highlight-box highlight-teaching"><strong>Total Approved Teaching Hours:</strong> ${summaryData.totalTeachingHours.toFixed(1)} hours</div>` : ''}
-                            ${summaryData.totalTransportAmount > 0 ? `<div class="highlight-box highlight-transport"><strong>Total Approved Transport Amount:</strong> GHS ${summaryData.totalTransportAmount.toFixed(2)}</div>` : ''}
-                        </div>
-                        ${teachingDetailsTableHtml ? `<div class="section">${teachingDetailsTableHtml}</div>` : ''}
-                        ${teachingTransportTableHtml ? `<div class="section">${teachingTransportTableHtml}</div>` : ''}
-                        ${otherClaimsHtml ? `<div class="section">${otherClaimsHtml}</div>` : ''}
-                    </div>
-                    
-                    <div class="signature-section">
-                        <div class="signature-title">Authorization Signatures</div>
-                        <div class="signature-area">
-                            <div class="signature-block">
-                                <div class="signature-line"></div>
-                                <p class="signature-label">Prepared by</p>
-                            </div>
-                            <div class="signature-block">
-                                <div class="signature-line"></div>
-                                <p class="signature-label">Center Coordinator</p>
-                            </div>
-                            <div class="signature-block">
-                                <div class="signature-line"></div>
-                                <p class="signature-label">Head of Department</p>
-                            </div>
-                            <div class="signature-block">
-                                <div class="signature-line"></div>
-                                <p class="signature-label">Duty Registrar</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="footer">Generated on: ${new Date().toLocaleString('en-US', dateTimeLocaleStringOptions)} by UEW Claims Management System</div>
-                </div>
-                </body></html>`;
-        printWindow.document.write(printHtml); printWindow.document.close(); printWindow.focus();
-        setTimeout(() => { try { printWindow.print(); } catch(e) { console.error("Print failed:", e); toast.error("Printing failed."); } }, 700);
-    } else { toast.error("Could not open print window."); }
+    const printHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lecturer Claim Summary - ${summaryData.lecturerName} - ${summaryData.month} ${summaryData.year}</title><style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color: #2d3748;
+        background: white;
+        font-size: 11pt;
+        line-height: 1.5;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      @page { size: A4; margin: 15mm; }
+
+      .print-container { width: auto; margin: 0; padding: 0; }
+      .page { padding: 12mm 15mm; break-after: page; page-break-after: always; -webkit-break-after: page; }
+      .page:last-child { break-after: auto; page-break-after: auto; -webkit-break-after: auto; }
+      .signature-page { min-height: calc(297mm - 2 * 15mm); display: flex; flex-direction: column; justify-content: flex-end; }
+
+      .header { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 3px solid ${uewDeepBlue}; page-break-inside: avoid; }
+      .logo { height: 80px; width: auto; display: block; }
+      .header-right { text-align: center; }
+      .university-name { font-size: 22pt; font-weight: 700; color: ${uewDeepBlue}; margin-bottom: 6px; letter-spacing: .5px; }
+      .college-name { font-size: 14pt; font-weight: 500; color: ${uewDeepBlue}; margin-bottom: 10px; }
+      .document-title { font-size: 18pt; font-weight: 600; color: ${uewDeepRed}; text-transform: uppercase; letter-spacing: 1px; margin-top: 10px; }
+
+      .section { margin-bottom: 14px; padding: 12px 0; break-inside: avoid; page-break-inside: avoid; }
+      .section-title { font-size: 12pt; font-weight: 700; color: ${headingColor}; margin-bottom: 8px; border-left: 4px solid ${uewDeepBlue}; padding-left: 10px; }
+      .info-row { display: flex; gap: 10px; margin: 6px 0; }
+      .info-label { font-weight: 600; color: ${headingColor}; min-width: 140px; }
+      .info-value { flex: 1; word-break: break-word; }
+
+      .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 14px 0; }
+      .summary-item { padding: 18px 15px; text-align: center; border: 2px solid #e2e8f0; border-radius: 12px; background: white; }
+      .summary-item.total { border-color: ${uewDeepBlue}; background: linear-gradient(135deg,#eff6ff,#dbeafe); color: ${uewDeepBlue}; }
+      .summary-item.pending { border-color: #f59e0b; background: linear-gradient(135deg,#fffbeb,#fef3c7); color: #d97706; }
+      .summary-item.approved { border-color: #10b981; background: linear-gradient(135deg,#ecfdf5,#d1fae5); color: #047857; }
+      .summary-item.rejected { border-color: ${uewDeepRed}; background: linear-gradient(135deg,#fef2f2,#fecaca); color: ${uewDeepRed}; }
+      .summary-item b { display: block; font-size: 26pt; font-weight: 700; margin-bottom: 6px; line-height: 1; }
+      .summary-item span { font-size: 9pt; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
+
+      .claims-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10pt; background: white; }
+      .claims-table th, .claims-table td { border: 1px solid #cbd5e0; padding: 10px 8px; text-align: left; vertical-align: top; word-break: break-word; }
+      .claims-table th { background: linear-gradient(135deg,#f7fafc,#edf2f7); font-weight: 600; font-size: 9pt; text-transform: uppercase; letter-spacing: .5px; color: ${headingColor}; border-bottom: 2px solid ${uewDeepBlue}40; }
+      .claims-table tbody tr:nth-child(even) { background: #f8f9fa; }
+
+      .status-badge { padding: 6px 10px; border-radius: 14px; font-weight: 700; font-size: 8pt; color: white; text-transform: uppercase; letter-spacing: .5px; }
+      .status-PENDING { background: linear-gradient(135deg,#f59e0b,#d97706); }
+      .status-APPROVED { background: linear-gradient(135deg,#10b981,#059669); }
+      .status-REJECTED { background: linear-gradient(135deg,${uewDeepRed},#b91c1c); }
+
+      .highlight-box { margin-top: 10px; padding: 12px; border-radius: 8px; border-left: 4px solid; }
+      .highlight-teaching { background: #ecfdf5; border-color: #10b981; color: #047857; }
+      .highlight-transport { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
+
+      .signature-section { padding-top: 10px; border-top: 2px solid #cbd5e0; background: white; }
+      .signature-title { font-size: 12pt; font-weight: 700; color: ${headingColor}; margin-bottom: 12px; text-align: left; }
+      .signature-area { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; align-items: end; }
+      .signature-block { text-align: center; }
+      .signature-line { height: 26px; border-bottom: 2px solid #2d3748; margin: 0 8px 6px 8px; }
+      .signature-label { font-size: 9pt; font-weight: 600; color: ${headingColor}; text-transform: uppercase; letter-spacing: .4px; }
+
+      .footer { text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 9pt; color: #718096; font-style: italic; font-weight: 500; }
+
+      @media print {
+        .claims-table { page-break-inside: avoid; }
+        .section { break-inside: avoid; page-break-inside: avoid; }
+      }
+    </style></head><body>
+      <div class="print-container">
+        <div class="page page-1">
+          <div class="header">
+            <div class="header-left"><img src="/uew.png" alt="University Logo" class="logo" /></div>
+            <div class="header-right">
+              <div class="university-name">UNIVERSITY OF EDUCATION, WINNEBA</div>
+              <div class="college-name">COLLEGE OF DISTANCE AND e-LEARNING (CODeL)</div>
+              <div class="document-title">Lecturer Monthly Claim Summary</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Summary Information</div>
+            <div class="info-row"><span class="info-label">Lecturer:</span><span class="info-value"><strong>${summaryData.lecturerName}</strong> (${summaryData.lecturerEmail || 'N/A'}) ${summaryData.lecturerDesignation ? '- ' + summaryData.lecturerDesignation.replace(/_/g, ' ') : ''}</span></div>
+            <div class="info-row"><span class="info-label">Period:</span><span class="info-value"><strong>${summaryData.month}, ${summaryData.year}</strong></span></div>
+            ${selectedClaimType !== 'ALL' ? `<div class="info-row"><span class="info-label">Claim Type Filter:</span><span class="info-value" style="text-transform:capitalize; font-weight:600; color:${uewDeepRed};">${selectedClaimType.toLowerCase().replace("_", " ")}</span></div>` : ''}
+          </div>
+
+          <div class="section">
+            <div class="section-title">Payment Information</div>
+            <div class="info-row"><span class="info-label">Bank Name:</span><span class="info-value">${summaryData.lecturerBankName || 'N/A'}</span></div>
+            <div class="info-row"><span class="info-label">Bank Branch:</span><span class="info-value">${summaryData.lecturerBankBranch || 'N/A'}</span></div>
+            <div class="info-row"><span class="info-label">Account Name:</span><span class="info-value">${summaryData.lecturerAccountName || 'N/A'}</span></div>
+            <div class="info-row"><span class="info-label">Account Number:</span><span class="info-value"><strong>${summaryData.lecturerAccountNumber || 'N/A'}</strong></span></div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Overall Statistics for Period</div>
+            <div class="summary-grid">
+              <div class="summary-item total"><b>${summaryData.totalClaims}</b><span>Total Claims</span></div>
+              <div class="summary-item pending"><b>${summaryData.pending}</b><span>Pending</span></div>
+              <div class="summary-item approved"><b>${summaryData.approved}</b><span>Approved</span></div>
+              <div class="summary-item rejected"><b>${summaryData.rejected}</b><span>Rejected</span></div>
+            </div>
+            ${summaryData.totalTeachingHours > 0 ? `<div class="highlight-box highlight-teaching"><strong>Total Approved Teaching Hours:</strong> ${summaryData.totalTeachingHours.toFixed(1)} hours</div>` : ''}
+            ${summaryData.totalTransportAmount > 0 ? `<div class="highlight-box highlight-transport"><strong>Total Approved Transport Amount:</strong> GHS ${summaryData.totalTransportAmount.toFixed(2)}</div>` : ''}
+          </div>
+          ${teachingDetailsTableHtml ? `<div class="section">${teachingDetailsTableHtml}</div>` : ''}
+          ${teachingTransportTableHtml ? `<div class="section">${teachingTransportTableHtml}</div>` : ''}
+          ${otherClaimsHtml ? `<div class="section">${otherClaimsHtml}</div>` : ''}
+
+          <div class="footer">Generated on: ${new Date().toLocaleString('en-US', dateTimeLocaleStringOptions)} by UEW Claims Management System</div>
+        </div>
+
+        <div class="page page-2 signature-page">
+          <div class="signature-section">
+            <div class="signature-title">Authorization Signatures</div>
+            <div class="signature-area">
+              <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Prepared by</p></div>
+              <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Center Coordinator</p></div>
+              <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Head of Department</p></div>
+              <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Duty Registrar</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body></html>`;
+
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      try { printWindow.print(); }
+      catch (e) { console.error('Print failed:', e); toast.error('Printing failed.'); }
+    }, 700);
   };
 
   const months = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: new Date(0, i).toLocaleString('en-US', { month: 'long' }) }));
