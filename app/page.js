@@ -257,7 +257,7 @@ export default function HomePage() {
                   Sign In to Portal
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="border-slate-500 text-white hover:bg-white/10 h-11 px-8">
+              <Button asChild variant="outline" size="lg" className="border-yellow-500/70 bg-transparent text-yellow-400 hover:bg-yellow-500/10 hover:text-yellow-300 h-11 px-8">
                 <Link href="/signup">
                   <UserPlus className="h-5 w-5 mr-2" />
                   Request Access

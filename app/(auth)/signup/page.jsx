@@ -1,22 +1,15 @@
 // app/(auth)/signup/page.jsx
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -26,18 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { requestSignup } from '@/lib/actions/auth.actions';
-import { getPublicCenters } from '@/lib/actions/registry.actions.js';
+import { requestSignup } from "@/lib/actions/auth.actions";
+import { getPublicCenters } from "@/lib/actions/registry.actions.js";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import Image from 'next/image';
-import { UserPlus, AlertCircle } from 'lucide-react';
+import {
+  UserPlus, AlertCircle, ArrowRight, Mail, Lock, User, Eye, EyeOff,
+  Building2, Phone, Landmark, CreditCard, BadgeCheck
+} from "lucide-react";
 
-const focusRingClass = "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-violet-600 dark:focus-visible:ring-violet-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900";
-const errorBorderClass = "border-red-500 dark:border-red-600 focus-visible:ring-red-500";
-const normalBorderClass = "border-slate-300 dark:border-slate-700"; // Adjusted dark border
-
-// Updated Zod Schema to include bank details and phone number
 const signupRequestSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(100),
   email: z.string().email("Invalid email address."),
@@ -49,7 +39,6 @@ const signupRequestSchema = z.object({
   }),
   requestedCenterId: z.string().optional(),
   isCentersAvailable: z.boolean().optional(),
-  // New fields
   bankName: z.string().optional(),
   bankBranch: z.string().optional(),
   accountName: z.string().optional(),
@@ -59,79 +48,46 @@ const signupRequestSchema = z.object({
   message: "Passwords do not match.",
   path: ["confirmPassword"],
 }).superRefine((data, ctx) => {
-  // Conditional validation for Lecturer role's requestedCenterId
   if (data.role === "LECTURER") {
     if (data.isCentersAvailable && !data.requestedCenterId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Please select a center for the lecturer role.",
-        path: ["requestedCenterId"],
-      });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select a center for the lecturer role.", path: ["requestedCenterId"] });
     }
-    // Conditional validation for bank details and phone number for Lecturers
     if (!data.bankName?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Bank name is required for lecturers.",
-        path: ["bankName"],
-      });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Bank name is required for lecturers.", path: ["bankName"] });
     }
     if (!data.bankBranch?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Bank branch is required for lecturers.",
-        path: ["bankBranch"],
-      });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Bank branch is required for lecturers.", path: ["bankBranch"] });
     }
     if (!data.accountName?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Account name is required for lecturers.",
-        path: ["accountName"],
-      });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Account name is required for lecturers.", path: ["accountName"] });
     }
     if (!data.accountNumber?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Account number is required for lecturers.",
-        path: ["accountNumber"],
-      });
-    } else if (!/^\d+$/.test(data.accountNumber.trim())) { // Example simple numeric validation
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Account number must be numeric.",
-        path: ["accountNumber"],
-      });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Account number is required for lecturers.", path: ["accountNumber"] });
+    } else if (!/^\d+$/.test(data.accountNumber.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Account number must be numeric.", path: ["accountNumber"] });
     }
     if (!data.phoneNumber?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Phone number is required for lecturers.",
-        path: ["phoneNumber"],
-      });
-    } else if (!/^\+?\d{10,15}$/.test(data.phoneNumber.trim())) { // Example phone number format validation
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Invalid phone number format.",
-        path: ["phoneNumber"],
-      });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Phone number is required for lecturers.", path: ["phoneNumber"] });
+    } else if (!/^\+?\d{10,15}$/.test(data.phoneNumber.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid phone number format.", path: ["phoneNumber"] });
     }
   }
 });
-
 
 export default function SignupRequestPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [availableCenters, setAvailableCenters] = useState([]);
   const [fetchCentersError, setFetchCentersError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(signupRequestSchema),
     defaultValues: {
       name: "", email: "", password: "", confirmPassword: "",
       role: undefined, requestedCenterId: "",
-      bankName: "", bankBranch: "", accountName: "", accountNumber: "", phoneNumber: "", // New default values
+      bankName: "", bankBranch: "", accountName: "", accountNumber: "", phoneNumber: "",
     },
   });
 
@@ -143,16 +99,15 @@ export default function SignupRequestPage() {
         const result = await getPublicCenters();
         if (result.success) {
           setAvailableCenters(result.centers || []);
-          // Set isCentersAvailable in form state for conditional validation
           form.setValue("isCentersAvailable", (result.centers || []).length > 0, { shouldValidate: true });
         } else {
           setFetchCentersError(result.error || "Could not load centers list.");
-          toast.error("Could not load centers list. You may proceed without selecting if applying as Lecturer and no centers are listed.");
+          toast.error("Could not load centers list.");
           form.setValue("isCentersAvailable", false, { shouldValidate: true });
         }
       } catch (error) {
-        setFetchCentersError("Failed to fetch centers. Check connection.");
-        toast.error("Failed to fetch centers. Please check connection or try again.");
+        setFetchCentersError("Failed to fetch centers.");
+        toast.error("Failed to fetch centers.");
         form.setValue("isCentersAvailable", false, { shouldValidate: true });
       }
     };
@@ -161,45 +116,32 @@ export default function SignupRequestPage() {
 
   const onSubmit = async (data) => {
     setIsLoading(true);
-    // Perform Zod validation manually, passing isCentersAvailable from state
-    const validationResult = signupRequestSchema.safeParse({
-      ...data,
-      isCentersAvailable: availableCenters.length > 0,
-    });
-
+    const validationResult = signupRequestSchema.safeParse({ ...data, isCentersAvailable: availableCenters.length > 0 });
     if (!validationResult.success) {
       validationResult.error.errors.forEach(err => {
-        form.setError(err.path.join('.'), { type: "manual", message: err.message });
+        form.setError(err.path.join("."), { type: "manual", message: err.message });
       });
-      if (validationResult.error.errors.length > 0) {
-        toast.error(validationResult.error.errors[0].message);
-      }
-      setIsLoading(false); return;
+      if (validationResult.error.errors.length > 0) toast.error(validationResult.error.errors[0].message);
+      setIsLoading(false);
+      return;
     }
-
-    const validatedData = validationResult.data;
-
-    // Prepare signupData to pass to server action, including new fields
+    const v = validationResult.data;
     const signupData = {
-      name: validatedData.name,
-      email: validatedData.email,
-      password: validatedData.password,
-      role: validatedData.role,
-      requestedCenterId: validatedData.role === 'LECTURER' ? validatedData.requestedCenterId || null : null,
-      // Pass new fields if role is Lecturer
-      bankName: validatedData.role === 'LECTURER' ? validatedData.bankName?.trim() || null : null,
-      bankBranch: validatedData.role === 'LECTURER' ? validatedData.bankBranch?.trim() || null : null,
-      accountName: validatedData.role === 'LECTURER' ? validatedData.accountName?.trim() || null : null,
-      accountNumber: validatedData.role === 'LECTURER' ? validatedData.accountNumber?.trim() || null : null,
-      phoneNumber: validatedData.role === 'LECTURER' ? validatedData.phoneNumber?.trim() || null : null,
+      name: v.name, email: v.email, password: v.password, role: v.role,
+      requestedCenterId: v.role === "LECTURER" ? v.requestedCenterId || null : null,
+      bankName: v.role === "LECTURER" ? v.bankName?.trim() || null : null,
+      bankBranch: v.role === "LECTURER" ? v.bankBranch?.trim() || null : null,
+      accountName: v.role === "LECTURER" ? v.accountName?.trim() || null : null,
+      accountNumber: v.role === "LECTURER" ? v.accountNumber?.trim() || null : null,
+      phoneNumber: v.role === "LECTURER" ? v.phoneNumber?.trim() || null : null,
     };
 
     const result = await requestSignup(signupData);
     setIsLoading(false);
     if (result.success) {
-      toast.success(result.message || "Signup request submitted successfully! Please wait for approval.");
+      toast.success(result.message || "Signup request submitted! Awaiting approval.");
       form.reset();
-      router.push('/login?status=signup_requested');
+      router.push("/login?status=signup_requested");
     } else {
       toast.error(result.error || "Signup request failed.");
       if (result.error?.toLowerCase().includes("email")) {
@@ -211,159 +153,348 @@ export default function SignupRequestPage() {
   };
 
   const onError = (errors) => {
-    console.error("Signup Form Validation Errors:", errors);
     for (const key in errors) {
-        if (errors[key]?.message) { toast.error(errors[key].message); return; }
+      if (errors[key]?.message) { toast.error(errors[key].message); return; }
     }
   };
 
-  const inputClasses = (fieldName) =>
-    `h-10 text-sm bg-white dark:bg-slate-700/80 text-slate-900 dark:text-slate-50 placeholder-slate-400 dark:placeholder-slate-500 ${focusRingClass} ${form.formState.errors[fieldName] ? errorBorderClass : normalBorderClass}`;
+  const FieldError = ({ name }) => {
+    const err = form.formState.errors[name];
+    if (!err) return null;
+    return (
+      <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+        <AlertCircle className="h-3 w-3 flex-shrink-0" />
+        {err.message}
+      </p>
+    );
+  };
 
-  const selectTriggerClasses = (fieldName) =>
-    `h-10 text-sm bg-white dark:bg-slate-700/80 text-slate-900 dark:text-slate-50 data-[placeholder]:text-slate-500 dark:data-[placeholder]:text-slate-400 ${focusRingClass} ${form.formState.errors[fieldName] ? errorBorderClass : normalBorderClass}`;
+  const inputCls = (name) =>
+    `h-11 bg-white border-slate-200 focus-visible:ring-yellow-500/40 focus-visible:border-yellow-500 ${form.formState.errors[name] ? "border-red-400 focus-visible:ring-red-400/40 focus-visible:border-red-400" : ""}`;
 
   return (
-    <div className={`flex flex-col items-center justify-center min-h-screen p-4 selection:bg-violet-500 selection:text-white
-                     bg-gradient-to-br from-red-500 via-purple-500 to-blue-500
-                     dark:from-red-800 dark:via-purple-800 dark:to-blue-800`}>
-      <Card className="w-full max-w-md sm:max-w-lg shadow-2xl rounded-xl overflow-hidden bg-white dark:bg-slate-800 border border-slate-200/30 dark:border-slate-700/50">
-        <CardHeader className="text-center p-6 sm:p-8 bg-white dark:bg-slate-800">
-          <div className="mx-auto mb-4 sm:mb-5 h-20 w-20 sm:h-24 sm:w-24 relative">
-            <Image src="/uew.png" alt="University Logo" layout="fill" objectFit="contain" priority />
-          </div>
-          <CardTitle className="text-2xl sm:text-3xl font-bold text-blue-700 dark:text-blue-300">
-            Request Account
-          </CardTitle>
-          <CardDescription className="text-slate-500 dark:text-slate-400 pt-1 text-sm">
-            UEW CODeL Claims Portal - New User Signup
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={form.handleSubmit(onSubmit, onError)}>
-          <CardContent className="grid gap-5 p-6 sm:p-8 bg-slate-50/50 dark:bg-slate-700/30">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="name" className="text-slate-700 dark:text-slate-200">Full Name <span className="text-red-500">*</span></Label>
-                <Input id="name" {...form.register("name")} disabled={isLoading} className={inputClasses("name")} placeholder="Enter your full name"/>
-                {form.formState.errors.name && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.name.message}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-slate-700 dark:text-slate-200">Email Address <span className="text-red-500">*</span></Label>
-                <Input id="email" type="email" {...form.register("email")} disabled={isLoading} className={inputClasses("email")} placeholder="your.email@example.com"/>
-                {form.formState.errors.email && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.email.message}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-slate-700 dark:text-slate-200">Password <span className="text-red-500">*</span></Label>
-                <Input id="password" type="password" {...form.register("password")} disabled={isLoading} className={inputClasses("password")} placeholder="Min. 6 characters"/>
-                {form.formState.errors.password && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.password.message}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="confirmPassword" className="text-slate-700 dark:text-slate-200">Confirm Password <span className="text-red-500">*</span></Label>
-                <Input id="confirmPassword" type="password" {...form.register("confirmPassword")} disabled={isLoading} className={inputClasses("confirmPassword")} placeholder="Re-enter password"/>
-                {form.formState.errors.confirmPassword && <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.confirmPassword.message}</p>}
-              </div>
+    <div className="min-h-screen flex">
+      {/* Left Panel - Image & Branding (same as login) */}
+      <div className="hidden lg:flex lg:w-[45%] xl:w-1/2 relative bg-slate-900 flex-col justify-between overflow-hidden">
+        <Image
+          src="/applv.jpg"
+          alt="University of Education, Winneba Campus"
+          fill
+          className="object-cover opacity-40"
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/70 to-slate-900/40" />
+
+        {/* Top - Logo */}
+        <div className="relative z-10 p-8">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative h-12 w-12 rounded-full overflow-hidden border-2 border-yellow-500/60 shadow-lg">
+              <Image src="/uew.png" alt="UEW Logo" fill className="object-contain bg-white" />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="role" className="text-slate-700 dark:text-slate-200">Requested Role <span className="text-red-500">*</span></Label>
-              <Controller
-                name="role"
-                control={form.control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value || undefined} >
-                    <SelectTrigger id="role" className={selectTriggerClasses("role")}>
-                      <SelectValue placeholder="Select the role you are applying for" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-800 dark:text-white">
-                      <SelectItem value="LECTURER">Lecturer</SelectItem>
-                      <SelectItem value="COORDINATOR">Coordinator</SelectItem>
-                      <SelectItem value="STAFF_REGISTRY">Staff Registry</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {form.formState.errors.role && <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.role.message}</p>}
+            <div>
+              <p className="text-white font-bold text-lg leading-tight group-hover:text-yellow-400 transition-colors">
+                University of Education
+              </p>
+              <p className="text-yellow-500 text-xs font-medium tracking-wider uppercase">
+                College for Distance and e-Learning
+              </p>
+            </div>
+          </Link>
+        </div>
+
+        {/* Center - Hero Text */}
+        <div className="relative z-10 px-8 pb-4">
+          <span className="inline-block bg-yellow-500/20 text-yellow-400 text-xs font-semibold tracking-widest uppercase px-3 py-1.5 rounded-full border border-yellow-500/30 mb-4">
+            New Staff Registration
+          </span>
+          <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-3">
+            Join the Claims
+            <br />
+            <span className="text-yellow-400">Management Portal</span>
+          </h1>
+          <p className="text-slate-300 text-base leading-relaxed max-w-md">
+            Request access to submit, track, and manage your teaching claims. Your account will be verified by the Registry Office.
+          </p>
+
+          {/* Steps */}
+          <div className="mt-8 space-y-3">
+            {[
+              { num: "1", text: "Fill in your details below" },
+              { num: "2", text: "Registry verifies your identity" },
+              { num: "3", text: "Access granted within 2-3 business days" },
+            ].map((s) => (
+              <div key={s.num} className="flex items-center gap-3">
+                <div className="h-7 w-7 rounded-full bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center text-yellow-400 text-xs font-bold flex-shrink-0">
+                  {s.num}
+                </div>
+                <p className="text-slate-300 text-sm">{s.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom */}
+        <div className="relative z-10 p-8 pt-0">
+          <div className="border-t border-white/10 pt-4">
+            <p className="text-slate-400 text-xs">
+              &copy; {new Date().getFullYear()} University of Education, Winneba. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Panel - Signup Form */}
+      <div className="w-full lg:w-[55%] xl:w-1/2 flex flex-col bg-slate-50">
+        {/* Mobile Header */}
+        <div className="lg:hidden bg-slate-900 p-4">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-yellow-500/60">
+              <Image src="/uew.png" alt="UEW Logo" fill className="object-contain bg-white" />
+            </div>
+            <div>
+              <p className="text-white font-bold text-sm leading-tight">University of Education, Winneba</p>
+              <p className="text-yellow-500 text-xs">CODeL Claims Portal</p>
+            </div>
+          </Link>
+        </div>
+
+        {/* Scrollable Form Area */}
+        <div className="flex-1 overflow-y-auto px-6 py-8 sm:px-10 lg:px-12 xl:px-16">
+          <div className="w-full max-w-lg mx-auto">
+            {/* Header */}
+            <div className="mb-6">
+              <div className="lg:hidden mb-4 flex justify-center">
+                <div className="relative h-14 w-14 rounded-full overflow-hidden border-2 border-yellow-500/40 shadow-md">
+                  <Image src="/uew.png" alt="UEW Logo" fill className="object-contain bg-white" />
+                </div>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">Request an Account</h2>
+              <p className="text-slate-500 mt-1.5 text-sm">Complete the form to request portal access. All fields marked <span className="text-red-500">*</span> are required.</p>
             </div>
 
-            {/* Conditional fields for LECTURER role: Center, Bank Details, Phone Number */}
-            {watchRole === "LECTURER" && (
-              <>
+            {/* Server Error */}
+            {form.formState.errors.root?.serverError && (
+              <div role="alert" className="mb-5 flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <p>{form.formState.errors.root.serverError.message}</p>
+              </div>
+            )}
+
+            <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-5">
+              {/* Personal Info Section */}
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Personal Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name" className="text-slate-700 font-medium text-sm">Full Name <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input id="name" {...form.register("name")} disabled={isLoading} className={`pl-10 ${inputCls("name")}`} placeholder="John Doe" />
+                    </div>
+                    <FieldError name="name" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-slate-700 font-medium text-sm">Email Address <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input id="email" type="email" {...form.register("email")} disabled={isLoading} className={`pl-10 ${inputCls("email")}`} placeholder="user@uew.edu.gh" />
+                    </div>
+                    <FieldError name="email" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Password Section */}
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Security</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="password" className="text-slate-700 font-medium text-sm">Password <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input id="password" type={showPassword ? "text" : "password"} {...form.register("password")} disabled={isLoading} className={`pl-10 pr-10 ${inputCls("password")}`} placeholder="Min. 6 characters" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" tabIndex={-1}>
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <FieldError name="password" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirmPassword" className="text-slate-700 font-medium text-sm">Confirm Password <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} {...form.register("confirmPassword")} disabled={isLoading} className={`pl-10 pr-10 ${inputCls("confirmPassword")}`} placeholder="Re-enter password" />
+                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" tabIndex={-1}>
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <FieldError name="confirmPassword" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Role Section */}
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Role Assignment</h3>
                 <div className="space-y-1.5">
-                  <Label htmlFor="requestedCenterId" className="text-slate-700 dark:text-slate-200">Requested Center {availableCenters.length > 0 ? <span className="text-red-500">*</span> : "(Optional for now)"}</Label>
+                  <Label htmlFor="role" className="text-slate-700 font-medium text-sm">Requested Role <span className="text-red-500">*</span></Label>
                   <Controller
-                    name="requestedCenterId"
+                    name="role"
                     control={form.control}
                     render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={isLoading || !!fetchCentersError || availableCenters.length === 0}>
-                        <SelectTrigger id="requestedCenterId" className={selectTriggerClasses("requestedCenterId")}>
-                          <SelectValue placeholder={fetchCentersError ? "Error loading centers" : (availableCenters.length === 0 ? "No centers listed" : "Select your center")} />
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
+                        <SelectTrigger id="role" className={`h-11 bg-white border-slate-200 ${form.formState.errors.role ? "border-red-400" : ""}`}>
+                          <SelectValue placeholder="Select the role you are applying for" />
                         </SelectTrigger>
-                        <SelectContent className="bg-white dark:bg-slate-800 dark:text-white max-h-48">
-                          {availableCenters.length > 0 &&
-                            availableCenters.map((center) => (
-                              <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
-                            ))}
+                        <SelectContent>
+                          <SelectItem value="LECTURER">Lecturer</SelectItem>
+                          <SelectItem value="COORDINATOR">Coordinator</SelectItem>
+                          <SelectItem value="STAFF_REGISTRY">Staff Registry</SelectItem>
                         </SelectContent>
                       </Select>
                     )}
                   />
-                  {form.formState.errors.requestedCenterId && <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.requestedCenterId.message}</p>}
+                  <FieldError name="role" />
                 </div>
+              </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
-                    <div className="space-y-1.5">
-                        <Label htmlFor="bankName" className="text-slate-700 dark:text-slate-200">Bank Name <span className="text-red-500">*</span></Label>
-                        <Input id="bankName" {...form.register("bankName")} disabled={isLoading} className={inputClasses("bankName")} placeholder="e.g., GCB Bank"/>
-                        {form.formState.errors.bankName && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.bankName.message}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="bankBranch" className="text-slate-700 dark:text-slate-200">Bank Branch <span className="text-red-500">*</span></Label>
-                        <Input id="bankBranch" {...form.register("bankBranch")} disabled={isLoading} className={inputClasses("bankBranch")} placeholder="e.g., Winneba Branch"/>
-                        {form.formState.errors.bankBranch && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.bankBranch.message}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="accountName" className="text-slate-700 dark:text-slate-200">Account Name <span className="text-red-500">*</span></Label>
-                        <Input id="accountName" {...form.register("accountName")} disabled={isLoading} className={inputClasses("accountName")} placeholder="Name on account"/>
-                        {form.formState.errors.accountName && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.accountName.message}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="accountNumber" className="text-slate-700 dark:text-slate-200">Account Number <span className="text-red-500">*</span></Label>
-                        <Input id="accountNumber" {...form.register("accountNumber")} disabled={isLoading} className={inputClasses("accountNumber")} placeholder="e.g., 1234567890"/>
-                        {form.formState.errors.accountNumber && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.accountNumber.message}</p>}
-                    </div>
-                </div>
-                <div className="space-y-1.5">
-                    <Label htmlFor="phoneNumber" className="text-slate-700 dark:text-slate-200">Phone Number <span className="text-red-500">*</span></Label>
-                    <Input id="phoneNumber" type="tel" {...form.register("phoneNumber")} disabled={isLoading} className={inputClasses("phoneNumber")} placeholder="e.g., +233241234567"/>
-                    {form.formState.errors.phoneNumber && <p className="text-xs text-red-500 dark:text-red-400 mt-1 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5"/>{form.formState.errors.phoneNumber.message}</p>}
-                </div>
-              </>
-            )}
+              {/* Lecturer-specific fields */}
+              {watchRole === "LECTURER" && (
+                <>
+                  {/* Center */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="requestedCenterId" className="text-slate-700 font-medium text-sm">
+                      Requested Center {availableCenters.length > 0 ? <span className="text-red-500">*</span> : <span className="text-slate-400 text-xs">(Optional)</span>}
+                    </Label>
+                    <Controller
+                      name="requestedCenterId"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value || ""} disabled={isLoading || !!fetchCentersError || availableCenters.length === 0}>
+                          <SelectTrigger id="requestedCenterId" className={`h-11 bg-white border-slate-200 ${form.formState.errors.requestedCenterId ? "border-red-400" : ""}`}>
+                            <SelectValue placeholder={fetchCentersError ? "Error loading centers" : (availableCenters.length === 0 ? "No centers listed" : "Select your center")} />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-48">
+                            {availableCenters.map((center) => (
+                              <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <FieldError name="requestedCenterId" />
+                  </div>
 
-            {form.formState.errors.root?.serverError && <p className="text-sm text-red-600 dark:text-red-400 text-center bg-red-100 dark:bg-red-900/40 p-3 rounded-md flex items-center gap-2 justify-center"><AlertCircle className="h-4 w-4"/>{form.formState.errors.root.serverError.message}</p>}
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4 p-6 sm:p-8 bg-slate-100 dark:bg-slate-700/60 border-t dark:border-slate-700">
-            <Button type="submit" className={`w-full text-white transition-all duration-300 ease-in-out transform hover:scale-[1.02] rounded-lg h-11 text-base font-semibold
-                                             bg-gradient-to-r from-blue-600 via-violet-600 to-red-600
-                                             hover:from-blue-700 hover:via-violet-700 hover:to-red-700
-                                             dark:from-blue-500 dark:via-violet-500 dark:to-red-500
-                                             dark:hover:from-blue-600 dark:hover:via-violet-600 dark:hover:to-red-600
-                                             disabled:opacity-70 ${focusRingClass}`}
-                      disabled={isLoading}>
-              <UserPlus className="mr-2 h-5 w-5" />
-              {isLoading ? "Submitting Request..." : "Request Account"}
-            </Button>
-            <p className="text-center text-sm text-slate-600 dark:text-slate-300">
-              Already have an account?{" "}
-              <Link href="/login" className="underline text-violet-700 hover:text-violet-800 dark:text-violet-400 dark:hover:text-violet-300 font-medium">
-                Login here
-              </Link>
+                  {/* Bank Details */}
+                  <div>
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Bank Details</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bankName" className="text-slate-700 font-medium text-sm">Bank Name <span className="text-red-500">*</span></Label>
+                        <div className="relative">
+                          <Landmark className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input id="bankName" {...form.register("bankName")} disabled={isLoading} className={`pl-10 ${inputCls("bankName")}`} placeholder="e.g., GCB Bank" />
+                        </div>
+                        <FieldError name="bankName" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bankBranch" className="text-slate-700 font-medium text-sm">Bank Branch <span className="text-red-500">*</span></Label>
+                        <div className="relative">
+                          <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input id="bankBranch" {...form.register("bankBranch")} disabled={isLoading} className={`pl-10 ${inputCls("bankBranch")}`} placeholder="e.g., Winneba Branch" />
+                        </div>
+                        <FieldError name="bankBranch" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="accountName" className="text-slate-700 font-medium text-sm">Account Name <span className="text-red-500">*</span></Label>
+                        <div className="relative">
+                          <BadgeCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input id="accountName" {...form.register("accountName")} disabled={isLoading} className={`pl-10 ${inputCls("accountName")}`} placeholder="Name on account" />
+                        </div>
+                        <FieldError name="accountName" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="accountNumber" className="text-slate-700 font-medium text-sm">Account Number <span className="text-red-500">*</span></Label>
+                        <div className="relative">
+                          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input id="accountNumber" {...form.register("accountNumber")} disabled={isLoading} className={`pl-10 ${inputCls("accountNumber")}`} placeholder="e.g., 1234567890" />
+                        </div>
+                        <FieldError name="accountNumber" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Phone */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phoneNumber" className="text-slate-700 font-medium text-sm">Phone Number <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input id="phoneNumber" type="tel" {...form.register("phoneNumber")} disabled={isLoading} className={`pl-10 ${inputCls("phoneNumber")}`} placeholder="e.g., +233241234567" />
+                    </div>
+                    <FieldError name="phoneNumber" />
+                  </div>
+                </>
+              )}
+
+              {/* Submit */}
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+                  size="lg"
+                >
+                  {isLoading ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Submitting Request...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <UserPlus className="h-4 w-4" />
+                      Request Account
+                      <ArrowRight className="h-4 w-4" />
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </form>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-slate-50 px-3 text-slate-400 font-medium">Already have an account?</span>
+              </div>
+            </div>
+
+            {/* Login Link */}
+            <Link href="/login" className="block">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-11 border-yellow-500/50 text-yellow-700 hover:bg-yellow-50 hover:border-yellow-500 font-semibold transition-all"
+                size="lg"
+              >
+                <span className="flex items-center gap-2">
+                  Sign In Instead
+                  <ArrowRight className="h-4 w-4" />
+                </span>
+              </Button>
+            </Link>
+
+            <p className="lg:hidden mt-6 text-center text-xs text-slate-400">
+              &copy; {new Date().getFullYear()} University of Education, Winneba
             </p>
-          </CardFooter>
-        </form>
-      </Card>
-      <footer className="text-center mt-8 text-xs text-white/80 dark:text-slate-300/70">
-        <p>&copy; {new Date().getFullYear()} University of Education, Winneba. All rights reserved.</p>
-      </footer>
+          </div>
+        </div>
+      </div>
+
       <Toaster richColors position="top-center" />
     </div>
   );
