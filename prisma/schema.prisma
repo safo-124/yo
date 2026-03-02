@@ -133,6 +133,8 @@ model User {
   @@index([departmentId])
   @@index([approvedSignupRequestId])
   @@index([phoneNumber])
+  @@index([role])                  // Filter users by role
+  @@index([createdAt])             // Sort users by creation date
 }
 
 model SignupRequest {
@@ -346,6 +348,8 @@ model Claim {
   @@index([processedById])
   @@index([claimType])
   @@index([status])
+  @@index([centerId, status])    // Composite: filter claims by center + status
+  @@index([submittedAt])         // Sorting by submission date
 }
 
 model SupervisedStudent {

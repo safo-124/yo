@@ -21,7 +21,6 @@ import {
   assignProgramsToDepartments,
   unassignProgramsFromDepartments,
   unassignCentersFromDepartment,
-  getRegistryData // To get centers data
 } from '@/lib/actions/registry.actions';
 
 export default function ManageDepartmentsTab() {

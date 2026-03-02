@@ -1,19 +1,17 @@
 // middleware.js
 import { NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/session';
 
-const SESSION_COOKIE_NAME = 'app_session'; // Must match the name used in auth.actions.js
+const SESSION_COOKIE_NAME = 'app_session';
 
 async function getSessionFromRequest(request) {
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
   if (!sessionCookie?.value) {
     return null;
   }
-  try {
-    return JSON.parse(sessionCookie.value); 
-  } catch (error) {
-    console.error('Middleware: Failed to parse session cookie:', error);
-    return null;
-  }
+  // Verify the JWT signature and expiration
+  const payload = await verifyToken(sessionCookie.value);
+  return payload;
 }
 
 export async function middleware(request) {
