@@ -101,7 +101,7 @@ export default function HomePage() {
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="lg" className="border-slate-400 text-white hover:bg-white/10 h-12 px-6">
+                <Button asChild variant="outline" size="lg" className="border-yellow-500/70 bg-transparent text-yellow-400 hover:bg-yellow-500/10 hover:text-yellow-300 h-12 px-6">
                   <Link href="/signup">
                     <UserPlus className="h-5 w-5 mr-2" />
                     Request Account
