@@ -5,8 +5,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // Change to your database provider 
-  // relationMode = "prisma" // Consider if needed for foreign key behaviors
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // --- Enums ---
