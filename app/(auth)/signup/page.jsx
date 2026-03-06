@@ -170,7 +170,7 @@ export default function SignupRequestPage() {
   };
 
   const inputCls = (name) =>
-    `h-11 bg-white border-slate-200 focus-visible:ring-yellow-500/40 focus-visible:border-yellow-500 ${form.formState.errors[name] ? "border-red-400 focus-visible:ring-red-400/40 focus-visible:border-red-400" : ""}`;
+    `h-11 bg-white border-slate-200 focus-visible:ring-red-500/40 focus-visible:border-red-500 ${form.formState.errors[name] ? "border-red-400 focus-visible:ring-red-400/40 focus-visible:border-red-400" : ""}`;
 
   return (
     <div className="min-h-screen flex">
@@ -188,14 +188,14 @@ export default function SignupRequestPage() {
         {/* Top - Logo */}
         <div className="relative z-10 p-8">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative h-12 w-12 rounded-full overflow-hidden border-2 border-yellow-500/60 shadow-lg">
+            <div className="relative h-12 w-12 rounded-full overflow-hidden border-2 border-red-500/60 shadow-lg">
               <Image src="/uew.png" alt="UEW Logo" fill className="object-contain bg-white" />
             </div>
             <div>
-              <p className="text-white font-bold text-lg leading-tight group-hover:text-yellow-400 transition-colors">
+              <p className="text-white font-bold text-lg leading-tight group-hover:text-red-400 transition-colors">
                 University of Education
               </p>
-              <p className="text-yellow-500 text-xs font-medium tracking-wider uppercase">
+              <p className="text-white/80 text-xs font-medium tracking-wider uppercase">
                 College for Distance and e-Learning
               </p>
             </div>
@@ -204,13 +204,13 @@ export default function SignupRequestPage() {
 
         {/* Center - Hero Text */}
         <div className="relative z-10 px-8 pb-4">
-          <span className="inline-block bg-yellow-500/20 text-yellow-400 text-xs font-semibold tracking-widest uppercase px-3 py-1.5 rounded-full border border-yellow-500/30 mb-4">
+          <span className="inline-block bg-white/10 text-white text-xs font-semibold tracking-widest uppercase px-3 py-1.5 rounded-full border border-white/20 mb-4">
             New Staff Registration
           </span>
           <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-3">
             Join the Claims
             <br />
-            <span className="text-yellow-400">Management Portal</span>
+            <span className="text-white">Management Portal</span>
           </h1>
           <p className="text-slate-300 text-base leading-relaxed max-w-md">
             Request access to submit, track, and manage your teaching claims. Your account will be verified by the Registry Office.
@@ -224,7 +224,7 @@ export default function SignupRequestPage() {
               { num: "3", text: "Access granted within 2-3 business days" },
             ].map((s) => (
               <div key={s.num} className="flex items-center gap-3">
-                <div className="h-7 w-7 rounded-full bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center text-yellow-400 text-xs font-bold flex-shrink-0">
+                <div className="h-7 w-7 rounded-full bg-white/10 border border-white/30 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                   {s.num}
                 </div>
                 <p className="text-slate-300 text-sm">{s.text}</p>
@@ -248,12 +248,12 @@ export default function SignupRequestPage() {
         {/* Mobile Header */}
         <div className="lg:hidden bg-slate-900 p-4">
           <Link href="/" className="flex items-center gap-3">
-            <div className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-yellow-500/60">
+            <div className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-red-500/60">
               <Image src="/uew.png" alt="UEW Logo" fill className="object-contain bg-white" />
             </div>
             <div>
               <p className="text-white font-bold text-sm leading-tight">University of Education, Winneba</p>
-              <p className="text-yellow-500 text-xs">CODeL Claims Portal</p>
+              <p className="text-red-500 text-xs">CODeL Claims Portal</p>
             </div>
           </Link>
         </div>
@@ -264,7 +264,7 @@ export default function SignupRequestPage() {
             {/* Header */}
             <div className="mb-6">
               <div className="lg:hidden mb-4 flex justify-center">
-                <div className="relative h-14 w-14 rounded-full overflow-hidden border-2 border-yellow-500/40 shadow-md">
+                <div className="relative h-14 w-14 rounded-full overflow-hidden border-2 border-red-500/40 shadow-md">
                   <Image src="/uew.png" alt="UEW Logo" fill className="object-contain bg-white" />
                 </div>
               </div>
@@ -478,7 +478,7 @@ export default function SignupRequestPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-11 border-yellow-500/50 text-yellow-700 hover:bg-yellow-50 hover:border-yellow-500 font-semibold transition-all"
+                className="w-full h-11 border-red-500/50 text-red-700 hover:bg-red-50 hover:border-red-500 font-semibold transition-all"
                 size="lg"
               >
                 <span className="flex items-center gap-2">

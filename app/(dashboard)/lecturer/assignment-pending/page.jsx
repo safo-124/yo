@@ -31,8 +31,8 @@ export default async function LecturerAssignmentPendingPage() {
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
       <Card className="w-full max-w-lg text-center">
         <CardHeader>
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 dark:bg-yellow-900 mb-4">
-            <AlertTriangle className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900 mb-4">
+            <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
           </div>
           <CardTitle className="text-2xl font-bold">Assignment Pending</CardTitle>
           <CardDescription className="text-md text-muted-foreground">

@@ -134,10 +134,8 @@ async function StaffRegistryLayout({ children }) {
         
         {/* Enhanced Main Content */}
         <div className="flex-1 overflow-auto bg-gradient-to-br from-white/20 via-slate-50/40 to-violet-50/20 dark:from-slate-800/20 dark:via-slate-700/30 dark:to-violet-900/10 p-4 sm:p-6 lg:p-8">
-          <div className="w-full max-w-7xl mx-auto">
-            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-xl shadow-violet-500/5 dark:shadow-violet-500/10 border border-white/20 dark:border-slate-700/50 p-6 lg:p-8 min-h-[calc(100vh-12rem)]">
-              {children}
-            </div>
+          <div className="w-full">
+            {children}
           </div>
         </div>
       </div>

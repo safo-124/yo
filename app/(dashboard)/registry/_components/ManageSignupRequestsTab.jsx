@@ -104,7 +104,7 @@ export default function ManageSignupRequestsTab({
       case 'LECTURER':
         return "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-800/30 dark:text-violet-200 dark:border-violet-700 hover:bg-violet-200/70 dark:hover:bg-violet-700/40";
       case 'STAFF_REGISTRY':
-        return "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-800/30 dark:text-yellow-200 dark:border-yellow-700 hover:bg-yellow-200/70 dark:hover:bg-yellow-700/40";
+        return "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-800/30 dark:text-amber-200 dark:border-amber-700 hover:bg-amber-200/70 dark:hover:bg-amber-700/40";
       default:
         return "border-slate-300 text-slate-600 bg-slate-100 dark:border-slate-600 dark:text-slate-400 dark:bg-slate-700/50";
     }

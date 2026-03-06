@@ -140,10 +140,8 @@ export default async function CoordinatorLayout({ children, params }) {
         
         {/* Enhanced Main Content */}
         <main className="flex-grow p-4 sm:p-6 lg:p-8 overflow-y-auto bg-gradient-to-br from-white/20 via-slate-50/40 to-blue-50/20 dark:from-slate-800/20 dark:via-slate-700/30 dark:to-blue-900/10">
-          <div className="w-full max-w-7xl mx-auto">
-            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-xl shadow-blue-500/5 dark:shadow-blue-500/10 border border-white/20 dark:border-slate-700/50 p-6 lg:p-8">
-              {children}
-            </div>
+          <div className="w-full">
+            {children}
           </div>
         </main>
       </div>

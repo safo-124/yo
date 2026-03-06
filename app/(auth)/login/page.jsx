@@ -68,14 +68,14 @@ export default function LoginPage() {
         {/* Top - Logo */}
         <div className="relative z-10 p-8">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative h-12 w-12 rounded-full overflow-hidden border-2 border-yellow-500/60 shadow-lg">
+            <div className="relative h-12 w-12 rounded-full overflow-hidden border-2 border-red-500/60 shadow-lg">
               <Image src="/uew.png" alt="UEW Logo" fill className="object-contain bg-white" />
             </div>
             <div>
-              <p className="text-white font-bold text-lg leading-tight group-hover:text-yellow-400 transition-colors">
+              <p className="text-white font-bold text-lg leading-tight group-hover:text-red-400 transition-colors">
                 University of Education
               </p>
-              <p className="text-yellow-500 text-xs font-medium tracking-wider uppercase">
+              <p className="text-white/80 text-xs font-medium tracking-wider uppercase">
                 College for Distance and e-Learning
               </p>
             </div>
@@ -84,13 +84,13 @@ export default function LoginPage() {
 
         {/* Center - Hero */}
         <div className="relative z-10 px-8 pb-4">
-          <span className="inline-block bg-yellow-500/20 text-yellow-400 text-xs font-semibold tracking-widest uppercase px-3 py-1.5 rounded-full border border-yellow-500/30 mb-4">
+          <span className="inline-block bg-white/10 text-white text-xs font-semibold tracking-widest uppercase px-3 py-1.5 rounded-full border border-white/20 mb-4">
             Staff Portal
           </span>
           <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-3">
             Academic Claims
             <br />
-            <span className="text-yellow-400">Management System</span>
+            <span className="text-white">Management System</span>
           </h1>
           <p className="text-slate-300 text-base leading-relaxed max-w-md">
             Submit, track, and manage teaching claims with the centralized digital platform for CODeL academic staff.
@@ -112,12 +112,12 @@ export default function LoginPage() {
         {/* Mobile Header */}
         <div className="lg:hidden bg-slate-900 p-4">
           <Link href="/" className="flex items-center gap-3">
-            <div className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-yellow-500/60">
+            <div className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-red-500/60">
               <Image src="/uew.png" alt="UEW Logo" fill className="object-contain bg-white" />
             </div>
             <div>
               <p className="text-white font-bold text-sm leading-tight">University of Education, Winneba</p>
-              <p className="text-yellow-500 text-xs">CODeL Claims Portal</p>
+              <p className="text-red-500 text-xs">CODeL Claims Portal</p>
             </div>
           </Link>
         </div>
@@ -128,7 +128,7 @@ export default function LoginPage() {
             {/* Header */}
             <div className="mb-8">
               <div className="lg:hidden mb-6 flex justify-center">
-                <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-yellow-500/40 shadow-md">
+                <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-red-500/40 shadow-md">
                   <Image src="/uew.png" alt="UEW Logo" fill className="object-contain bg-white" />
                 </div>
               </div>
@@ -161,7 +161,7 @@ export default function LoginPage() {
                     disabled={isLoading}
                     required
                     autoComplete="email"
-                    className="pl-10 h-11 bg-white border-slate-200 focus-visible:ring-yellow-500/40 focus-visible:border-yellow-500"
+                    className="pl-10 h-11 bg-white border-slate-200 focus-visible:ring-red-500/40 focus-visible:border-red-500"
                   />
                 </div>
               </div>
@@ -179,7 +179,7 @@ export default function LoginPage() {
                     disabled={isLoading}
                     required
                     autoComplete="current-password"
-                    className="pl-10 pr-10 h-11 bg-white border-slate-200 focus-visible:ring-yellow-500/40 focus-visible:border-yellow-500"
+                    className="pl-10 pr-10 h-11 bg-white border-slate-200 focus-visible:ring-red-500/40 focus-visible:border-red-500"
                   />
                   <button
                     type="button"
@@ -231,7 +231,7 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-11 border-yellow-500/50 text-yellow-700 hover:bg-yellow-50 hover:border-yellow-500 font-semibold transition-all"
+                className="w-full h-11 border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400 font-semibold transition-all"
                 size="lg"
               >
                 <span className="flex items-center gap-2">

@@ -215,7 +215,7 @@ export default function RegistryLayoutClient({ session, children }) {
       {/* Enhanced Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <main className="flex-grow p-4 md:p-6 lg:p-8 overflow-y-auto bg-gradient-to-br from-white via-slate-50/50 to-slate-100/80 dark:from-slate-900 dark:via-slate-800/50 dark:to-gray-900/80">
-          <div className="max-w-7xl mx-auto w-full">
+          <div className="w-full">
             {/* Enhanced Content Header */}
             <div className="mb-6 hidden md:block">
               <div className="flex items-center justify-between p-4 bg-white/80 dark:bg-slate-800/80 rounded-xl shadow-sm border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
@@ -242,10 +242,8 @@ export default function RegistryLayoutClient({ session, children }) {
               </div>
             </div>
             
-            {/* Page Content */}
-            <div className="bg-white/90 dark:bg-slate-800/90 rounded-xl shadow-sm border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm overflow-hidden min-h-[70vh]">
-              {children}
-            </div>
+            {/* Page Content — full width, no extra card wrapper */}
+            {children}
           </div>
         </main>
       </div>

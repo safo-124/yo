@@ -88,7 +88,7 @@ export default function SystemOverview({ initialStats, initialActivityFeed, init
             <StatCard title="Pending Claims" value={stats.pendingClaimsCount ?? 0} icon={Hourglass} description="Awaiting processing" color="text-orange-500" />
             <StatCard title="Approved Claims" value={stats.approvedClaimsCount ?? 0} icon={CheckCircle} description="Successfully processed" color="text-green-500" />
             <StatCard title="Rejected Claims" value={stats.rejectedClaimsCount ?? 0} icon={XCircle} description="Denied claims" color="text-red-500" />
-            <StatCard title="Pending Signups" value={stats.pendingSignupsCount ?? 0} icon={UserPlus} description="New account requests" color="text-yellow-500" />
+            <StatCard title="Pending Signups" value={stats.pendingSignupsCount ?? 0} icon={UserPlus} description="New account requests" color="text-amber-500" />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">

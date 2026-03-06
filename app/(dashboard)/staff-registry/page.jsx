@@ -68,12 +68,12 @@ export default async function StaffRegistryDashboardPage() {
       </div>
       
       {stats.assignedCentersCount === 0 && (
-        <Card className="mt-6 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-500 dark:border-yellow-700">
+        <Card className="mt-6 bg-amber-50 dark:bg-amber-900/30 border-amber-500 dark:border-amber-700">
             <CardHeader>
-                <CardTitle className="text-yellow-800 dark:text-yellow-300 flex items-center gap-2"><AlertTriangle className="h-5 w-5" />Action Required</CardTitle>
+                <CardTitle className="text-amber-800 dark:text-amber-300 flex items-center gap-2"><AlertTriangle className="h-5 w-5" />Action Required</CardTitle>
             </CardHeader>
             <CardContent>
-                <p className="text-yellow-700 dark:text-yellow-200">You are not currently assigned to any centers. Please contact a REGISTRY administrator to get assigned to centers to manage their claims.</p>
+                <p className="text-amber-700 dark:text-amber-200">You are not currently assigned to any centers. Please contact a REGISTRY administrator to get assigned to centers to manage their claims.</p>
             </CardContent>
         </Card>
       )}
