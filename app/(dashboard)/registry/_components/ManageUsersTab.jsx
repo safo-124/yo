@@ -50,10 +50,10 @@ const ROLES = [
 ];
 
 const ROLE_STYLES = {
-  REGISTRY: { bg: "bg-red-500", light: "bg-red-50 text-red-700 border-red-200", darkBadge: "bg-red-100 text-red-800 border-red-300 dark:bg-red-800/30 dark:text-red-200 dark:border-red-700", accent: "border-l-red-500" },
-  STAFF_REGISTRY: { bg: "bg-amber-500", light: "bg-amber-50 text-amber-700 border-amber-200", darkBadge: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-800/30 dark:text-amber-200 dark:border-amber-700", accent: "border-l-amber-500" },
-  COORDINATOR: { bg: "bg-blue-500", light: "bg-blue-50 text-blue-700 border-blue-200", darkBadge: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-800/30 dark:text-blue-200 dark:border-blue-700", accent: "border-l-blue-500" },
-  LECTURER: { bg: "bg-violet-500", light: "bg-violet-50 text-violet-700 border-violet-200", darkBadge: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-800/30 dark:text-violet-200 dark:border-violet-700", accent: "border-l-violet-500" },
+  REGISTRY: { bg: "bg-red-500", light: "bg-red-50 text-red-700 border-red-200", darkBadge: "bg-red-100 text-red-800 border-red-300 dark:bg-red-800/30 dark:text-red-200 dark:border-red-700", accent: "border-l-red-500", ring: "ring-red-300 dark:ring-red-500/40", statBg: "bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/30" },
+  STAFF_REGISTRY: { bg: "bg-amber-500", light: "bg-amber-50 text-amber-700 border-amber-200", darkBadge: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-800/30 dark:text-amber-200 dark:border-amber-700", accent: "border-l-amber-500", ring: "ring-amber-300 dark:ring-amber-500/40", statBg: "bg-amber-50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30" },
+  COORDINATOR: { bg: "bg-blue-500", light: "bg-blue-50 text-blue-700 border-blue-200", darkBadge: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-800/30 dark:text-blue-200 dark:border-blue-700", accent: "border-l-blue-500", ring: "ring-blue-300 dark:ring-blue-500/40", statBg: "bg-blue-50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/30" },
+  LECTURER: { bg: "bg-violet-500", light: "bg-violet-50 text-violet-700 border-violet-200", darkBadge: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-800/30 dark:text-violet-200 dark:border-violet-700", accent: "border-l-violet-500", ring: "ring-violet-300 dark:ring-violet-500/40", statBg: "bg-violet-50 dark:bg-violet-950/20 border-violet-100 dark:border-violet-900/30" },
 };
 
 const DESIGNATIONS = [
@@ -161,105 +161,108 @@ function UserCard({ user, onEdit, onDelete, onChangePassword, isLoading, registr
   return (
     <Card
       className={cn(
-        "group relative bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl",
-        "border-l-4", style.accent,
-        "hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200",
-        isSelected && "ring-2 ring-blue-500 ring-offset-2",
+        "group relative overflow-hidden bg-white dark:bg-slate-800/80 rounded-xl",
+        "border border-slate-200/80 dark:border-slate-700/80",
+        "hover:shadow-xl hover:-translate-y-1 transition-all duration-300",
+        isSelected && "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-slate-900",
         "animate-fade-in-up"
       )}
       style={{ animationDelay: `${animationDelay}ms`, animationFillMode: 'both' }}
     >
+      {/* Role color accent bar */}
+      <div className={cn("h-1.5 w-full", style.bg)} />
+
       {/* Bulk select checkbox */}
-      <div className="absolute top-3 left-3 z-10">
+      <div className="absolute top-5 right-4 z-10">
         <Checkbox
           checked={isSelected}
           onCheckedChange={() => onSelect(user.id)}
-          className="h-4 w-4 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity data-[state=checked]:opacity-100"
+          className="h-4 w-4 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity data-[state=checked]:opacity-100 border-slate-300"
           aria-label={`Select ${user.name}`}
         />
       </div>
 
       <CardHeader className="pb-3 pt-4 px-4 sm:px-5">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2.5 sm:gap-3 pl-4">
-            <Avatar className="h-10 w-10 sm:h-11 sm:w-11 ring-2 ring-slate-100 dark:ring-slate-700">
-              <AvatarImage src={user.image || undefined} />
-              <AvatarFallback className={cn("text-white text-sm sm:text-base font-semibold", style.bg)}>
-                {user.name?.charAt(0).toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <CardTitle className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-100 leading-tight truncate">
-                {user.name}
-              </CardTitle>
-              <div className="mt-1">{getRoleBadge(user.role)}</div>
-            </div>
-          </div>
-          <div className="flex gap-0.5 sm:gap-1 items-center opacity-100 sm:opacity-60 sm:group-hover:opacity-100 transition-opacity">
-            <Button variant="ghost" size="icon" onClick={() => onChangePassword(user)}
-              disabled={isLoading}
-              className={`h-7 w-7 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 ${focusRingClass}`}
-              title="Change password">
-              <KeyRound className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => onEdit(user)}
-              disabled={user.role === 'REGISTRY' || isLoading}
-              className={`h-7 w-7 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 ${focusRingClass}`}
-              title="Edit user">
-              <Edit3 className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => onDelete(user)}
-              disabled={(user.role === 'REGISTRY' && user.id === registryUserId) || isLoading}
-              className={`h-7 w-7 text-slate-400 hover:text-red-600 dark:hover:text-red-400 ${focusRingClass}`}
-              title="Delete user">
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+        <div className="flex items-center gap-3.5">
+          <Avatar className={cn("h-12 w-12 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-800 shrink-0", style.ring || "ring-slate-200")}>
+            <AvatarImage src={user.image || undefined} />
+            <AvatarFallback className={cn("text-white text-base font-bold", style.bg)}>
+              {user.name?.charAt(0).toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-sm sm:text-[15px] font-semibold text-slate-800 dark:text-slate-100 leading-snug truncate pr-6">
+              {user.name}
+            </CardTitle>
+            <div className="mt-1.5">{getRoleBadge(user.role)}</div>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-1.5 pt-0 pb-3 sm:pb-4 px-4 sm:px-5 text-xs sm:text-sm">
-        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-          <Mail className="h-3.5 w-3.5 flex-shrink-0" /><span className="truncate">{user.email}</span>
+      <CardContent className="space-y-1.5 pt-0 pb-4 px-4 sm:px-5 text-xs sm:text-[13px]">
+        <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/30 rounded-lg px-3 py-2">
+          <Mail className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" /><span className="truncate">{user.email}</span>
         </div>
         {user.designation && (
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-            <Briefcase className="h-3.5 w-3.5 flex-shrink-0" /><span>{getDesignationDisplay(user.designation)}</span>
+          <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400 px-3 py-1.5">
+            <Briefcase className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" /><span>{getDesignationDisplay(user.designation)}</span>
           </div>
         )}
         {user.role === 'COORDINATOR' && user.coordinatedCenterName && (
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-            <Building2 className="h-3.5 w-3.5 flex-shrink-0" /><span>{user.coordinatedCenterName}</span>
+          <div className="flex items-center gap-2.5 text-slate-600 dark:text-slate-300 bg-blue-50/60 dark:bg-blue-900/10 rounded-lg px-3 py-2">
+            <Building2 className="h-3.5 w-3.5 flex-shrink-0 text-blue-500 dark:text-blue-400" /><span className="font-medium">{user.coordinatedCenterName}</span>
           </div>
         )}
         {user.role === 'LECTURER' && user.lecturerCenterName && (
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-            <BookUser className="h-3.5 w-3.5 flex-shrink-0" /><span>{user.lecturerCenterName}</span>
+          <div className="flex items-center gap-2.5 text-slate-600 dark:text-slate-300 bg-violet-50/60 dark:bg-violet-900/10 rounded-lg px-3 py-2">
+            <BookUser className="h-3.5 w-3.5 flex-shrink-0 text-violet-500 dark:text-violet-400" /><span className="font-medium">{user.lecturerCenterName}</span>
           </div>
         )}
         {user.role === 'LECTURER' && user.departmentName && (
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-            <UsersIcon className="h-3.5 w-3.5 flex-shrink-0" /><span>{user.departmentName}</span>
+          <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400 px-3 py-1.5">
+            <UsersIcon className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" /><span>{user.departmentName}</span>
           </div>
         )}
         {user.role === 'STAFF_REGISTRY' && user.staffRegistryAssignedCenterNames?.length > 0 && (
-          <div className="flex items-start gap-2 text-slate-500 dark:text-slate-400">
-            <University className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-            <span>{user.staffRegistryAssignedCenterNames.join(', ')}</span>
+          <div className="flex items-start gap-2.5 text-slate-600 dark:text-slate-300 bg-amber-50/60 dark:bg-amber-900/10 rounded-lg px-3 py-2">
+            <University className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-500 dark:text-amber-400" />
+            <span className="font-medium">{user.staffRegistryAssignedCenterNames.join(', ')}</span>
           </div>
         )}
         {user.phoneNumber && (
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-            <Phone className="h-3.5 w-3.5 flex-shrink-0" /><span>{user.phoneNumber}</span>
+          <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400 px-3 py-1.5">
+            <Phone className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" /><span>{user.phoneNumber}</span>
           </div>
         )}
         {user.bankName && (
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-            <Banknote className="h-3.5 w-3.5 flex-shrink-0" /><span>{user.bankName} - {user.accountNumber}</span>
+          <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400 px-3 py-1.5">
+            <Banknote className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" /><span>{user.bankName} \u2013 {user.accountNumber}</span>
           </div>
         )}
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 pt-3 mt-2 border-t border-slate-100 dark:border-slate-700/50">
+          <Button variant="ghost" size="sm" onClick={() => onChangePassword(user)}
+            disabled={isLoading}
+            className={`h-8 px-2.5 text-xs gap-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/20 rounded-lg ${focusRingClass}`}
+            title="Change password">
+            <KeyRound className="h-3.5 w-3.5" /><span className="hidden xl:inline">Password</span>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onEdit(user)}
+            disabled={user.role === 'REGISTRY' || isLoading}
+            className={`h-8 px-2.5 text-xs gap-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg ${focusRingClass}`}
+            title="Edit user">
+            <Edit3 className="h-3.5 w-3.5" /><span className="hidden xl:inline">Edit</span>
+          </Button>
+          <div className="flex-1" />
+          <Button variant="ghost" size="sm" onClick={() => onDelete(user)}
+            disabled={(user.role === 'REGISTRY' && user.id === registryUserId) || isLoading}
+            className={`h-8 px-2.5 text-xs gap-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded-lg ${focusRingClass}`}
+            title="Delete user">
+            <Trash2 className="h-3.5 w-3.5" /><span className="hidden xl:inline">Delete</span>
+          </Button>
+        </div>
         {/* Created date */}
         {user.createdAt && (
-          <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 text-xs pt-1 border-t border-slate-100 dark:border-slate-700/50 mt-2">
+          <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 text-[11px] mt-2">
             <Calendar className="h-3 w-3 flex-shrink-0" /><span>Joined {formatDate(user.createdAt)}</span>
           </div>
         )}
@@ -686,31 +689,36 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   return (
     <div className="flex flex-col gap-4 sm:gap-6 p-3 sm:p-6 lg:p-8">
       {/* ── Header with stats ─────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         <div className="flex items-start sm:items-center gap-3 sm:gap-4">
-          <div className="p-2.5 sm:p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg shrink-0">
+          <div className="p-2.5 sm:p-3 bg-gradient-to-br from-violet-600 to-indigo-700 rounded-xl shadow-lg shrink-0">
             <UsersIcon className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-800 dark:text-slate-100">
               User Management
             </h1>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
-              <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">{allUsers.length} users</span>
-              <span className="text-slate-300 dark:text-slate-600 hidden sm:inline">·</span>
-              <div className="hidden sm:flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                {ROLES.map(r => (
-                  <span key={r.value} className="text-xs text-slate-500 dark:text-slate-400">
-                    {r.label.split(' (')[0]}: <span className="font-semibold text-slate-700 dark:text-slate-300">{liveRoleCounts[r.value]}</span>
-                  </span>
-                ))}
-                <span className="text-slate-300 dark:text-slate-600">·</span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  Centers: <span className="font-semibold text-slate-700 dark:text-slate-300">{totalCenters}</span>
-                </span>
-              </div>
-            </div>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              {allUsers.length} user{allUsers.length !== 1 ? 's' : ''} across {totalCenters} center{totalCenters !== 1 ? 's' : ''}
+            </p>
           </div>
+        </div>
+
+        {/* Role stat cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {ROLES.map(role => {
+            const rs = ROLE_STYLES[role.value];
+            return (
+              <div key={role.value} className={cn("rounded-xl px-4 py-3.5 border transition-colors", rs.statBg)}>
+                <div className={cn("inline-flex items-center justify-center h-8 w-8 rounded-lg text-sm font-bold text-white mb-2", rs.bg)}>
+                  {liveRoleCounts[role.value]}
+                </div>
+                <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 leading-tight">
+                  {role.label.split(' (')[0]}{liveRoleCounts[role.value] !== 1 ? 's' : ''}
+                </p>
+              </div>
+            );
+          })}
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
@@ -859,7 +867,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                   onCreateUser={() => setIsCreateUserDialogOpen(true)}
                 />
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
                   {displayedUsers.map((user, idx) => (
                     <UserCard
                       key={user.id} user={user}
