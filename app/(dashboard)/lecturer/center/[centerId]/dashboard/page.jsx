@@ -7,15 +7,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { 
-  Activity, 
   Building, 
   Briefcase, 
   UserCircle, 
   FilePlus, 
   ListChecks,
   BarChart3,
-  PieChart
-} from 'lucide-react'; // Added ListChecks, Activity
+  PieChart,
+  FileWarning,
+  ArrowRight,
+  TrendingUp
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -39,15 +41,14 @@ export default async function LecturerCenterDashboardPage({ params }) {
 
   if (!result.success || !result.data) {
     return (
-      // Error Alert styling adjusted for theme
       <div className="w-full py-6 px-4">
-        <Alert variant="destructive" className="mt-4 border-red-800/50 text-red-800 dark:text-red-400 bg-red-100 dark:bg-red-800/20">
+        <Alert variant="destructive" className="mt-4 border-red-800/50 text-red-800 bg-red-100 dark:text-red-400 dark:bg-red-800/20">
           <FileWarning className="h-5 w-5 text-red-800 dark:text-red-400" />
-          <AlertTitle className="font-semibold text-red-900 dark:text-red-300">Error Loading Dashboard Data</AlertTitle>
+          <AlertTitle className="font-semibold text-red-900 dark:text-red-300">Error Loading Dashboard</AlertTitle>
           <AlertDescription>
-            {result.error || "Could not load your dashboard data. Please try again later or contact support."}
+            {result.error || "Could not load your dashboard data. Please try again later."}
             <div className="mt-4">
-              <Button asChild variant="outline" className="border-red-800 text-red-800 hover:bg-red-100 dark:border-red-600 dark:text-red-300 dark:hover:bg-red-800/30">
+              <Button asChild variant="outline" className="border-red-800 text-red-800 hover:bg-red-100">
                 <Link href="/">Go to Homepage</Link>
               </Button>
             </div>
@@ -60,10 +61,7 @@ export default async function LecturerCenterDashboardPage({ params }) {
 
   const { profile, center, department, claims, courseAssignments } = result.data;
 
-  console.log(`[DASHBOARD] Center validation - URL centerId: ${centerId}, Data center.id: ${center?.id}`);
-
   if (center?.id !== centerId) {
-    console.warn(`Data mismatch: Lecturer ${session.userId} in center ${center?.id} accessed URL for center ${centerId}.`);
     redirect('/lecturer/assignment-pending');
   }
 
@@ -81,260 +79,271 @@ export default async function LecturerCenterDashboardPage({ params }) {
   const getStatusBadgeClasses = (status) => {
     switch (status) {
       case 'PENDING': 
-        return 'border-blue-600 text-blue-800 bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:bg-blue-800/30 hover:bg-blue-100/80';
+        return 'border-amber-500/50 text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-900/30';
       case 'APPROVED': 
-        return 'border-violet-600 text-violet-800 bg-violet-100 dark:border-violet-700 dark:text-violet-300 dark:bg-violet-800/30 hover:bg-violet-100/80';
+        return 'border-emerald-500/50 text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-900/30';
       case 'REJECTED': 
-        return 'border-red-600 text-red-800 bg-red-100 dark:border-red-700 dark:text-red-300 dark:bg-red-800/30 hover:bg-red-100/80';
+        return 'border-red-500/50 text-red-700 bg-red-50 dark:text-red-300 dark:bg-red-900/30';
       default: 
-        return 'border-gray-400 text-gray-600 bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:bg-gray-700/30 hover:bg-gray-100/80';
+        return 'border-gray-400 text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-700/30';
     }
   };
 
   const getClaimTypeDisplay = (claimType) => {
     switch (claimType) {
-      case 'TEACHING':
-        return 'Teaching';
-      case 'TRANSPORTATION':
-        return 'Transportation';
-      case 'THESIS_PROJECT':
-        return 'Thesis/Project';
-      default:
-        return claimType.replace(/_/g, ' ');
+      case 'TEACHING': return 'Teaching';
+      case 'TRANSPORTATION': return 'Transportation';
+      case 'THESIS_PROJECT': return 'Thesis/Project';
+      default: return claimType.replace(/_/g, ' ');
     }
   };
 
   const getClaimTypeColor = (claimType) => {
     switch (claimType) {
       case 'TEACHING':
-        return 'text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-800/30';
+        return 'text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-900/30';
       case 'TRANSPORTATION':
-        return 'text-blue-700 bg-blue-100 dark:text-blue-300 dark:bg-blue-800/30';
+        return 'text-blue-700 bg-blue-50 dark:text-blue-300 dark:bg-blue-900/30';
       case 'THESIS_PROJECT':
-        return 'text-purple-700 bg-purple-100 dark:text-purple-300 dark:bg-purple-800/30';
+        return 'text-purple-700 bg-purple-50 dark:text-purple-300 dark:bg-purple-900/30';
       default:
         return 'text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-gray-800/30';
     }
   };
-  
-  const statsCardsData = [
+
+  // Stats cards with emerald/teal theme
+  const statsCards = [
     { 
-      title: "My Profile", 
-      icon: UserCircle, // Pass component directly
-      content: [profile.name || "N/A", profile.email || "N/A"],
-      gradient: "from-blue-800 to-violet-800",
+      title: "Profile", 
+      icon: UserCircle,
+      value: profile.name || "N/A",
+      subtitle: profile.email || "N/A",
+      gradient: "from-emerald-600 to-teal-600",
     },
     { 
-      title: "My Center", 
+      title: "Center", 
       icon: Building,
-      content: [center?.name || 'Not Assigned'],
-      gradient: "from-violet-800 to-red-800",
+      value: center?.name || 'Not Assigned',
+      subtitle: department?.name || 'No Department',
+      gradient: "from-teal-600 to-cyan-600",
     },
     { 
-      title: "My Department", 
-      icon: Briefcase,
-      content: [department?.name || 'Not Assigned'],
-      gradient: "from-red-800 to-blue-800",
+      title: "Total Claims", 
+      icon: TrendingUp,
+      value: claimStats.total,
+      subtitle: `${claimStats.pending} pending · ${claimStats.approved} approved`,
+      gradient: "from-cyan-600 to-emerald-600",
     }
   ];
 
+  // Quick action cards
+  const quickActions = [
+    {
+      title: "Submit New Claim",
+      description: "Create a teaching, transportation, or thesis claim",
+      icon: FilePlus,
+      href: `/lecturer/center/${centerId}/submit-claim`,
+      color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+    },
+    {
+      title: "View My Claims",
+      description: "Track all your submitted claims and their status",
+      icon: ListChecks,
+      href: `/lecturer/center/${centerId}/my-claims`,
+      color: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
+    },
+  ];
 
-  // This page's root div assumes the layout provides the main horizontal padding (px) and max-width centering.
-  // It only adds vertical spacing (space-y) and vertical padding (py).
   return (
-    <div className="w-full space-y-4 md:space-y-6 py-3 md:py-4">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-        <div className="flex-1">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-blue-800 dark:text-blue-300 flex items-center">
-            <Activity className="mr-2 sm:mr-3 h-6 w-6 sm:h-7 md:h-8 md:w-8 text-blue-700 dark:text-blue-500" />
-            Lecturer Dashboard
-          </h1>
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Welcome back, <span className="font-semibold">{profile.name || profile.email}</span>!
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-500">
-            Center: <span className="font-medium text-gray-700 dark:text-gray-300">{center?.name || 'N/A'}</span>
-          </p>
+    <div className="w-full space-y-5 md:space-y-6 py-2">
+      {/* Welcome Banner */}
+      <div className="rounded-xl bg-gradient-to-r from-emerald-900 to-teal-900 p-5 md:p-6 text-white shadow-lg">
+        <h2 className="text-lg md:text-xl font-semibold">
+          Welcome back, {profile.name || profile.email}!
+        </h2>
+        <p className="text-emerald-200/80 text-sm mt-1">
+          {center?.name} · {department?.name || 'No Department'}
+        </p>
+        <div className="flex flex-wrap gap-2 mt-3">
+          <Button asChild size="sm" className="bg-white/15 hover:bg-white/25 text-white border-0 backdrop-blur-sm">
+            <Link href={`/lecturer/center/${centerId}/submit-claim`}>
+              <FilePlus className="mr-1.5 h-4 w-4" /> Submit Claim
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="ghost" className="text-white/90 hover:text-white hover:bg-white/10">
+            <Link href={`/lecturer/center/${centerId}/my-claims`}>
+              <ListChecks className="mr-1.5 h-4 w-4" /> My Claims
+            </Link>
+          </Button>
         </div>
-        <Button 
-          asChild 
-          className="bg-violet-800 text-white hover:bg-violet-900 dark:bg-violet-700 dark:hover:bg-violet-800 focus-visible:ring-violet-600 h-9 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm w-full sm:w-auto mt-2 sm:mt-0 shadow-md hover:shadow-lg transition-shadow"
-        >
-          <Link href={`/lecturer/center/${centerId}/submit-claim`}>
-            <FilePlus className="mr-1.5 h-4 w-4" /> Submit New Claim
-          </Link>
-        </Button>
       </div>
 
-      {/* Stats Cards Grid */}
-      <div className="grid gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {statsCardsData.map(({ title, icon: Icon, content, gradient }, idx) => (
+      {/* Stats Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {statsCards.map(({ title, icon: Icon, value, subtitle, gradient }, idx) => (
           <Card 
             key={idx} 
-            className={`text-white shadow-lg hover:shadow-xl transform transition-all duration-300 ease-in-out hover:-translate-y-1 bg-gradient-to-br ${gradient}`}
+            className={`text-white shadow-lg hover:shadow-xl transform transition-all duration-300 hover:-translate-y-0.5 bg-gradient-to-br ${gradient} border-0`}
+            style={{ animationDelay: `${idx * 100}ms` }}
           >
-            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-              <CardTitle className="text-sm sm:text-base font-medium">{title}</CardTitle>
-              <Icon className="h-5 w-5 text-white/80" />
+            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-4 px-4">
+              <CardTitle className="text-sm font-medium text-white/90">{title}</CardTitle>
+              <Icon className="h-5 w-5 text-white/70" />
             </CardHeader>
             <CardContent className="pb-4 px-4">
-              {content.map((line, i) => (
-                <p 
-                  key={i} 
-                  className={`truncate ${i === 0 ? "text-lg sm:text-xl font-semibold" : "text-xs sm:text-sm text-white/80"}`}
-                  title={line}
-                >
-                  {line}
-                </p>
-              ))}
+              <p className="text-xl font-bold truncate" title={String(value)}>{value}</p>
+              <p className="text-xs text-white/70 truncate mt-0.5" title={subtitle}>{subtitle}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Claims Overview */}
-      <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
-        <Card className="border-slate-200 dark:border-slate-700 shadow-lg">
+      {/* Claims Overview Grid */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Claims Summary */}
+        <Card className="border-slate-200 dark:border-slate-700 shadow-sm">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
-              <BarChart3 className="mr-2 h-5 w-5" />
+            <CardTitle className="text-base font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+              <BarChart3 className="mr-2 h-5 w-5 text-emerald-600" />
               Claims Summary
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
-              <span className="text-sm font-medium">Total Claims</span>
-              <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+            <div className="flex justify-between items-center p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Claims</span>
+              <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 font-semibold">
                 {claimStats.total}
               </Badge>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <div className="text-center p-2 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
-                <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{claimStats.pending}</div>
-                <div className="text-xs text-yellow-600 dark:text-yellow-500">Pending</div>
+              <div className="text-center p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30">
+                <div className="text-lg font-bold text-amber-600 dark:text-amber-400">{claimStats.pending}</div>
+                <div className="text-[11px] font-medium text-amber-600/80 dark:text-amber-500">Pending</div>
               </div>
-              <div className="text-center p-2 rounded-lg bg-green-50 dark:bg-green-900/20">
-                <div className="text-lg font-bold text-green-600 dark:text-green-400">{claimStats.approved}</div>
-                <div className="text-xs text-green-600 dark:text-green-500">Approved</div>
+              <div className="text-center p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/30">
+                <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{claimStats.approved}</div>
+                <div className="text-[11px] font-medium text-emerald-600/80 dark:text-emerald-500">Approved</div>
               </div>
-              <div className="text-center p-2 rounded-lg bg-red-50 dark:bg-red-900/20">
+              <div className="text-center p-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30">
                 <div className="text-lg font-bold text-red-600 dark:text-red-400">{claimStats.rejected}</div>
-                <div className="text-xs text-red-600 dark:text-red-500">Rejected</div>
+                <div className="text-[11px] font-medium text-red-600/80 dark:text-red-500">Rejected</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 dark:border-slate-700 shadow-lg">
+        {/* Claims by Type */}
+        <Card className="border-slate-200 dark:border-slate-700 shadow-sm">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
-              <PieChart className="mr-2 h-5 w-5" />
+            <CardTitle className="text-base font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+              <PieChart className="mr-2 h-5 w-5 text-teal-600" />
               Claims by Type
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500 mr-2"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Teaching</span>
+            {[
+              { label: 'Teaching', count: claimStats.teaching, color: 'bg-emerald-500', textColor: 'text-emerald-700 dark:text-emerald-300' },
+              { label: 'Transportation', count: claimStats.transportation, color: 'bg-blue-500', textColor: 'text-blue-700 dark:text-blue-300' },
+              { label: 'Thesis/Project', count: claimStats.thesis, color: 'bg-purple-500', textColor: 'text-purple-700 dark:text-purple-300' },
+            ].map(({ label, count, color, textColor }) => (
+              <div key={label} className="flex justify-between items-center p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${color}`}></div>
+                  <span className={`text-sm font-medium ${textColor}`}>{label}</span>
                 </div>
-                <Badge variant="outline" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">
-                  {claimStats.teaching}
-                </Badge>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{count}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Transportation</span>
-                </div>
-                <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                  {claimStats.transportation}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Thesis/Project</span>
-                </div>
-                <Badge variant="outline" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
-                  {claimStats.thesis}
-                </Badge>
-              </div>
-            </div>
+            ))}
             {claimStats.total === 0 && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">
-                No claims submitted yet
-              </p>
+              <p className="text-xs text-gray-500 text-center py-3">No claims submitted yet</p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Claims Card */}
-      <Card className="border-slate-200 dark:border-slate-700 shadow-lg w-full">
-        <CardHeader className="bg-blue-800 text-white rounded-t-lg p-4 sm:p-5">
-          <CardTitle className="text-lg sm:text-xl font-semibold flex items-center">
-            <ListChecks className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+      {/* Quick Actions */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {quickActions.map(({ title, description, icon: Icon, href, color }) => (
+          <Link key={title} href={href}>
+            <Card className="border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer group">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className={`flex-shrink-0 rounded-lg p-3 ${color}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{title}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      {/* Recent Claims Table */}
+      <Card className="border-slate-200 dark:border-slate-700 shadow-sm">
+        <CardHeader className="bg-gradient-to-r from-emerald-800 to-teal-800 text-white rounded-t-lg px-4 py-4">
+          <CardTitle className="text-base sm:text-lg font-semibold flex items-center">
+            <ListChecks className="mr-2 h-5 w-5" />
             Recent Claims
           </CardTitle>
-          <CardDescription className="text-blue-100/90 text-xs sm:text-sm mt-0.5">
-            A quick overview of your latest submitted claims.
+          <CardDescription className="text-emerald-100/80 text-xs sm:text-sm mt-0.5">
+            Your latest submitted claims overview
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {claims.length > 0 ? (
-            // shadcn/ui Table component handles its own scroll wrapper
-            <Table className="min-w-[700px] md:min-w-full">
-              <TableHeader className="bg-slate-50 dark:bg-slate-800/60">
-                <TableRow>
-                  <TableHead className="w-[120px] sm:w-[140px] text-xs font-semibold uppercase text-blue-800 dark:text-blue-300 tracking-wider px-3 py-2.5 sm:px-4">Claim ID</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-blue-800 dark:text-blue-300 tracking-wider px-3 py-2.5 sm:px-4">Type</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-blue-800 dark:text-blue-300 tracking-wider px-3 py-2.5 sm:px-4">Submitted</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-blue-800 dark:text-blue-300 tracking-wider px-3 py-2.5 sm:px-4">Status</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-blue-800 dark:text-blue-300 tracking-wider px-3 py-2.5 sm:px-4">Processed By</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="divide-y divide-slate-200 dark:divide-slate-700">
-                {claims.slice(0, 5).map((claim) => (
-                  <TableRow key={claim.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/70 transition-colors">
-                    <TableCell className="font-mono text-[11px] sm:text-xs px-3 py-2.5 sm:px-4 whitespace-nowrap text-gray-600 dark:text-gray-400">{claim.id.substring(0, 12)}...</TableCell>
-                    <TableCell className="px-3 py-2.5 sm:px-4 whitespace-nowrap">
-                      <Badge 
-                        variant="outline"
-                        className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${getClaimTypeColor(claim.claimType)}`}
-                      >
-                        {getClaimTypeDisplay(claim.claimType)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs sm:text-sm px-3 py-2.5 sm:px-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{new Date(claim.submittedAt).toLocaleDateString()}</TableCell>
-                    <TableCell className="px-3 py-2.5 sm:px-4 whitespace-nowrap">
-                      <Badge 
-                        variant="outline"
-                        className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium capitalize ${getStatusBadgeClasses(claim.status)}`}
-                      >
-                        {claim.status.toLowerCase()}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs sm:text-sm px-3 py-2.5 sm:px-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{claim.processedByCoordinator || (claim.status !== 'PENDING' ? <span className="text-gray-500 dark:text-gray-400">N/A</span> : <span className="text-gray-500 dark:text-gray-400">-</span>)}</TableCell>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[650px]">
+                <TableHeader className="bg-slate-50 dark:bg-slate-800/60">
+                  <TableRow>
+                    <TableHead className="text-xs font-semibold uppercase text-emerald-800 dark:text-emerald-300 tracking-wider px-4 py-2.5">Claim ID</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-emerald-800 dark:text-emerald-300 tracking-wider px-4 py-2.5">Type</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-emerald-800 dark:text-emerald-300 tracking-wider px-4 py-2.5">Submitted</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-emerald-800 dark:text-emerald-300 tracking-wider px-4 py-2.5">Status</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase text-emerald-800 dark:text-emerald-300 tracking-wider px-4 py-2.5">Processed By</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {claims.slice(0, 5).map((claim) => (
+                    <TableRow key={claim.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
+                      <TableCell className="font-mono text-xs px-4 py-2.5 text-gray-600 dark:text-gray-400">{claim.id.substring(0, 12)}...</TableCell>
+                      <TableCell className="px-4 py-2.5">
+                        <Badge variant="outline" className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${getClaimTypeColor(claim.claimType)}`}>
+                          {getClaimTypeDisplay(claim.claimType)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm px-4 py-2.5 text-gray-700 dark:text-gray-300">
+                        {new Date(claim.submittedAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="px-4 py-2.5">
+                        <Badge variant="outline" className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium capitalize ${getStatusBadgeClasses(claim.status)}`}>
+                          {claim.status.toLowerCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm px-4 py-2.5 text-gray-700 dark:text-gray-300">
+                        {claim.processedByCoordinator || (claim.status !== 'PENDING' ? 'N/A' : '—')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
-            <div className="text-center py-8 sm:py-12 px-4">
-              <ListChecks className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-blue-800 dark:text-blue-500 opacity-50" />
-              <p className="mt-3 text-sm sm:text-base text-gray-600 dark:text-gray-400">You have not submitted any claims yet.</p>
+            <div className="text-center py-10 px-4">
+              <ListChecks className="mx-auto h-12 w-12 text-emerald-600/40" />
+              <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">No claims submitted yet</p>
+              <Button asChild size="sm" className="mt-3 bg-emerald-700 hover:bg-emerald-800 text-white">
+                <Link href={`/lecturer/center/${centerId}/submit-claim`}>
+                  <FilePlus className="mr-1.5 h-4 w-4" /> Submit Your First Claim
+                </Link>
+              </Button>
             </div>
           )}
-          {claims.length > 0 && claims.length > 5 && ( // Show only if there are claims and more than 5
-            <div className="mt-0 p-3 sm:p-4 text-center border-t border-slate-200 dark:border-slate-700">
-              <Button 
-                variant="outline" 
-                asChild 
-                className="text-violet-800 border-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:border-violet-600 dark:hover:bg-violet-800/30 dark:hover:text-violet-200 focus-visible:ring-violet-500 h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm"
-              >
+          {claims.length > 5 && (
+            <div className="p-3 text-center border-t border-slate-200 dark:border-slate-700">
+              <Button variant="outline" asChild size="sm" className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-300 dark:border-emerald-700 dark:hover:bg-emerald-900/30">
                 <Link href={`/lecturer/center/${centerId}/my-claims`}>View All My Claims</Link>
               </Button>
             </div>

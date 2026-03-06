@@ -174,28 +174,28 @@ function UserCard({ user, onEdit, onDelete, onChangePassword, isLoading, registr
         <Checkbox
           checked={isSelected}
           onCheckedChange={() => onSelect(user.id)}
-          className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity data-[state=checked]:opacity-100"
+          className="h-4 w-4 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity data-[state=checked]:opacity-100"
           aria-label={`Select ${user.name}`}
         />
       </div>
 
-      <CardHeader className="pb-3 pt-4 px-5">
+      <CardHeader className="pb-3 pt-4 px-4 sm:px-5">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3 pl-4">
-            <Avatar className="h-11 w-11 ring-2 ring-slate-100 dark:ring-slate-700">
+          <div className="flex items-center gap-2.5 sm:gap-3 pl-4">
+            <Avatar className="h-10 w-10 sm:h-11 sm:w-11 ring-2 ring-slate-100 dark:ring-slate-700">
               <AvatarImage src={user.image || undefined} />
-              <AvatarFallback className={cn("text-white text-base font-semibold", style.bg)}>
+              <AvatarFallback className={cn("text-white text-sm sm:text-base font-semibold", style.bg)}>
                 {user.name?.charAt(0).toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-100 leading-tight">
+            <div className="min-w-0">
+              <CardTitle className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-100 leading-tight truncate">
                 {user.name}
               </CardTitle>
               <div className="mt-1">{getRoleBadge(user.role)}</div>
             </div>
           </div>
-          <div className="flex gap-1 items-center opacity-60 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-0.5 sm:gap-1 items-center opacity-100 sm:opacity-60 sm:group-hover:opacity-100 transition-opacity">
             <Button variant="ghost" size="icon" onClick={() => onChangePassword(user)}
               disabled={isLoading}
               className={`h-7 w-7 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 ${focusRingClass}`}
@@ -217,7 +217,7 @@ function UserCard({ user, onEdit, onDelete, onChangePassword, isLoading, registr
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-1.5 pt-0 pb-4 px-5 text-sm">
+      <CardContent className="space-y-1.5 pt-0 pb-3 sm:pb-4 px-4 sm:px-5 text-xs sm:text-sm">
         <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
           <Mail className="h-3.5 w-3.5 flex-shrink-0" /><span className="truncate">{user.email}</span>
         </div>
@@ -273,7 +273,8 @@ function UserTableView({ users, onEdit, onDelete, onChangePassword, isLoading, r
   const allSelected = users.length > 0 && users.every(u => selectedIds.includes(u.id));
   return (
     <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800/90">
-      <Table>
+      <div className="overflow-x-auto">
+      <Table className="min-w-[700px]">
         <TableHeader>
           <TableRow className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
             <TableHead className="w-10 px-4">
@@ -345,6 +346,7 @@ function UserTableView({ users, onEdit, onDelete, onChangePassword, isLoading, r
           })}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }
@@ -353,11 +355,11 @@ function UserTableView({ users, onEdit, onDelete, onChangePassword, isLoading, r
 function BulkActionBar({ count, onDelete, onClear }) {
   if (count === 0) return null;
   return (
-    <div className="flex items-center gap-4 px-4 py-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg animate-fade-in-up">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg animate-fade-in-up">
       <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
         {count} user{count > 1 ? 's' : ''} selected
       </span>
-      <div className="flex gap-2 ml-auto">
+      <div className="flex gap-2 sm:ml-auto w-full sm:w-auto">
         <Button variant="outline" size="sm" onClick={onClear}
           className="h-8 text-xs border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300">
           Clear
@@ -682,41 +684,43 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
   // ══ RENDER ═════════════════════════════════════════════════════════════════
   // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8">
+    <div className="flex flex-col gap-4 sm:gap-6 p-3 sm:p-6 lg:p-8">
       {/* ── Header with stats ─────────────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
-            <UsersIcon className="h-7 w-7 text-white" />
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+          <div className="p-2.5 sm:p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg shrink-0">
+            <UsersIcon className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
           </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-100">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-800 dark:text-slate-100">
               User Management
             </h1>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              <span className="text-sm text-slate-500 dark:text-slate-400">{allUsers.length} users</span>
-              <span className="text-slate-300 dark:text-slate-600">·</span>
-              {ROLES.map(r => (
-                <span key={r.value} className="text-xs text-slate-500 dark:text-slate-400">
-                  {r.label.split(' (')[0]}: <span className="font-semibold text-slate-700 dark:text-slate-300">{liveRoleCounts[r.value]}</span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+              <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">{allUsers.length} users</span>
+              <span className="text-slate-300 dark:text-slate-600 hidden sm:inline">·</span>
+              <div className="hidden sm:flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                {ROLES.map(r => (
+                  <span key={r.value} className="text-xs text-slate-500 dark:text-slate-400">
+                    {r.label.split(' (')[0]}: <span className="font-semibold text-slate-700 dark:text-slate-300">{liveRoleCounts[r.value]}</span>
+                  </span>
+                ))}
+                <span className="text-slate-300 dark:text-slate-600">·</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  Centers: <span className="font-semibold text-slate-700 dark:text-slate-300">{totalCenters}</span>
                 </span>
-              ))}
-              <span className="text-slate-300 dark:text-slate-600">·</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Centers: <span className="font-semibold text-slate-700 dark:text-slate-300">{totalCenters}</span>
-              </span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           {/* Search */}
-          <div className="relative flex-grow sm:flex-grow-0 sm:w-64">
+          <div className="relative flex-1 sm:flex-initial sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               type="text" placeholder="Search users..."
               value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className={`pl-9 pr-8 h-9 text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded-lg ${focusRingClass}`}
+              className={`pl-9 pr-8 h-9 text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded-lg w-full ${focusRingClass}`}
             />
             {searchQuery && (
               <Button variant="ghost" size="sm" onClick={clearSearch}
@@ -726,6 +730,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
             )}
           </div>
 
+          <div className="flex items-center gap-2 sm:gap-3">
           {/* View toggle */}
           <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
             <Button variant="ghost" size="icon"
@@ -745,7 +750,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
           {/* Add User */}
           <Dialog open={isCreateUserDialogOpen} onOpenChange={(open) => { if (!open && !isLoading) resetCreateForm(); setIsCreateUserDialogOpen(open); }}>
             <DialogTrigger asChild>
-              <Button className={`gap-2 bg-violet-700 hover:bg-violet-800 text-white font-semibold h-9 px-4 text-sm rounded-lg shadow-sm hover:shadow-md transition-all ${focusRingClass}`}>
+              <Button className={`gap-2 bg-violet-700 hover:bg-violet-800 text-white font-semibold h-9 px-3 sm:px-4 text-sm rounded-lg shadow-sm hover:shadow-md transition-all flex-shrink-0 ${focusRingClass}`}>
                 <UserPlus className="h-4 w-4" /><span className="hidden sm:inline">Add New User</span><span className="sm:hidden">Add</span>
               </Button>
             </DialogTrigger>
@@ -798,6 +803,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </div>
 
@@ -823,13 +829,13 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
       ) : (
         <Tabs value={activeRoleTab} onValueChange={(v) => { setActiveRoleTab(v); setSelectedUserIds([]); }} className="flex flex-col">
           {/* Tab triggers with counts */}
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mb-5 flex-shrink-0">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mb-4 sm:mb-5 flex-shrink-0">
             {ROLES.map(role => (
               <TabsTrigger
                 key={role.value} value={role.value}
-                className="px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm data-[state=active]:dark:bg-slate-700 data-[state=active]:dark:text-slate-100 rounded-md transition-all duration-200 flex items-center justify-center gap-2"
+                className="px-2 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm data-[state=active]:dark:bg-slate-700 data-[state=active]:dark:text-slate-100 rounded-md transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2"
               >
-                {role.label.split(' (')[0]}
+                <span className="truncate">{role.label.split(' (')[0]}</span>
                 <span className={cn(
                   "inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full text-xs font-bold transition-colors",
                   activeRoleTab === role.value
@@ -853,7 +859,7 @@ export default function ManageUsersTab({ initialUsers = [], centers = [], fetchE
                   onCreateUser={() => setIsCreateUserDialogOpen(true)}
                 />
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-5">
                   {displayedUsers.map((user, idx) => (
                     <UserCard
                       key={user.id} user={user}
