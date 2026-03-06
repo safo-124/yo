@@ -1,94 +1,309 @@
 // app/(dashboard)/registry/_components/ManageCentersTab.jsx
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { createCenter, deleteCenterByRegistry, getAvailableDepartments, assignDepartmentsToCenter, updateCenter, unassignDepartmentsFromCenter } from '@/lib/actions/registry.actions.js';
+import {
+  createCenter, deleteCenterByRegistry, getAvailableDepartments,
+  assignDepartmentsToCenter, updateCenter, unassignDepartmentsFromCenter
+} from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
-import { PlusCircle, Building2, UserRound, Mail, CalendarDays, AlertTriangle, Loader2, Trash2, MoreHorizontal, Edit3, Search, XCircle, Users, Briefcase, ShieldCheck, Star, Plus, Minus } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  PlusCircle, Building2, UserRound, Mail, CalendarDays, AlertTriangle, Loader2,
+  Trash2, Edit3, Search, XCircle, Users, ShieldCheck, Plus,
+  LayoutGrid, LayoutList, BookOpen, GraduationCap, Calendar
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
-// Define DESIGNATIONS locally or import if shared, to display coordinator's designation
+// ── Constants ──────────────────────────────────────────────────────────────────
+const focusRingClass = "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 dark:focus-visible:ring-blue-400 focus-visible:ring-offset-background";
+
 const DESIGNATIONS_DISPLAY_MAP = {
-  ASSISTANT_LECTURER: "Asst. Lecturer",
-  LECTURER: "Lecturer",
-  SENIOR_LECTURER: "Snr. Lecturer",
-  PROFESSOR: "Professor",
-  ADMINISTRATIVE_STAFF: "Admin. Staff",
-  TECHNICAL_STAFF: "Tech. Staff",
+  ASSISTANT_LECTURER: "Asst. Lecturer", LECTURER: "Lecturer", SENIOR_LECTURER: "Snr. Lecturer",
+  PROFESSOR: "Professor", ADMINISTRATIVE_STAFF: "Admin. Staff", TECHNICAL_STAFF: "Tech. Staff",
+};
+const getDesignationDisplay = (v) => DESIGNATIONS_DISPLAY_MAP[v] || v || null;
+
+// Rotating department badge colors
+const DEPT_COLORS = [
+  "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-700",
+  "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-700",
+  "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-700",
+  "bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/20 dark:text-pink-300 dark:border-pink-700",
+  "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-300 dark:border-cyan-700",
+  "bg-lime-50 text-lime-700 border-lime-200 dark:bg-lime-900/20 dark:text-lime-300 dark:border-lime-700",
+];
+
+const getDeptColor = (index) => DEPT_COLORS[index % DEPT_COLORS.length];
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const getDesignationDisplay = (designationValue) => {
-  return DESIGNATIONS_DISPLAY_MAP[designationValue] || designationValue || null;
-};
+const dialogInputClass = `h-9 sm:h-10 text-sm bg-white dark:bg-slate-700/80 border-slate-300 dark:border-slate-600 focus-visible:ring-blue-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-md ${focusRingClass}`;
+const dialogLabelClass = "text-xs font-medium text-slate-700 dark:text-slate-300";
 
+// ── Center Card ────────────────────────────────────────────────────────────────
+function CenterCard({ center, onEdit, onDelete, isLoading, animationDelay = 0 }) {
+  return (
+    <Card
+      className={cn(
+        "group relative bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl",
+        "border-l-4 border-l-violet-500",
+        "hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200",
+        "animate-fade-in-up"
+      )}
+      style={{ animationDelay: `${animationDelay}ms`, animationFillMode: 'both' }}
+    >
+      <CardHeader className="pb-3 pt-4 px-5">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-violet-100 dark:bg-violet-800/30">
+              <Building2 className="h-5 w-5 text-violet-700 dark:text-violet-400" />
+            </div>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-100 leading-tight">
+              {center.name}
+            </CardTitle>
+          </div>
+          {/* Inline actions — visible on hover */}
+          <div className="flex gap-1 items-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button variant="ghost" size="icon" onClick={() => onEdit(center)}
+              className={`h-7 w-7 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 ${focusRingClass}`}
+              title="Edit center">
+              <Edit3 className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => onDelete(center)}
+              disabled={isLoading}
+              className={`h-7 w-7 text-slate-400 hover:text-red-600 dark:hover:text-red-400 ${focusRingClass}`}
+              title="Delete center">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
 
-export default function ManageCentersTab({ initialCenters = [], potentialCoordinators = [], currentUserId }) {
+      <CardContent className="space-y-3 pt-0 pb-4 px-5 text-sm">
+        {/* Coordinator */}
+        <div className="flex items-center gap-3">
+          {center.coordinator ? (
+            <>
+              <Avatar className="h-8 w-8 ring-2 ring-slate-100 dark:ring-slate-700">
+                <AvatarImage src={center.coordinator.image || undefined} />
+                <AvatarFallback className="bg-blue-500 text-white text-xs font-semibold">
+                  {center.coordinator.name?.match(/\b(\w)/g)?.join('').toUpperCase() || 'C'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-slate-700 dark:text-slate-200 text-sm truncate">{center.coordinator.name}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{center.coordinator.email}</p>
+              </div>
+            </>
+          ) : (
+            <span className="text-xs text-slate-400 italic">No coordinator assigned</span>
+          )}
+        </div>
+
+        {/* Departments */}
+        <div>
+          {center.departments && center.departments.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {center.departments.map((dept, idx) => (
+                <Badge key={dept.id} variant="outline"
+                  className={cn("text-[11px] px-2 py-0.5 font-normal border", getDeptColor(idx))}>
+                  {dept.name}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-slate-400 italic">No departments</span>
+          )}
+        </div>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 pt-1">
+          <span className="flex items-center gap-1" title="Lecturers">
+            <GraduationCap className="h-3.5 w-3.5" /> {center.lecturerCount ?? 0}
+          </span>
+          <span className="flex items-center gap-1" title="Departments">
+            <BookOpen className="h-3.5 w-3.5" /> {center.departmentCount ?? 0}
+          </span>
+          <span className="flex items-center gap-1" title="Staff Registry">
+            <ShieldCheck className="h-3.5 w-3.5" /> {center.staffRegistryCount ?? 0}
+          </span>
+        </div>
+
+        {/* Created date */}
+        {center.createdAt && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-700/50 mt-1">
+            <Calendar className="h-3 w-3" />
+            <span>Created {formatDate(center.createdAt)}</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Center Table View ──────────────────────────────────────────────────────────
+function CenterTableView({ centers, onEdit, onDelete, isLoading }) {
+  return (
+    <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800/90">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+            <TableHead className="w-12 px-3" />
+            <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">Center</TableHead>
+            <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">Coordinator</TableHead>
+            <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">Departments</TableHead>
+            <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center">Stats</TableHead>
+            <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center">Created</TableHead>
+            <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-right pr-4">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {centers.map((center, idx) => (
+            <TableRow key={center.id}
+              className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors animate-fade-in-up"
+              style={{ animationDelay: `${idx * 30}ms`, animationFillMode: 'both' }}>
+              <TableCell className="px-3">
+                <div className="p-2 rounded-lg bg-violet-100 dark:bg-violet-800/30 inline-flex">
+                  <Building2 className="h-4 w-4 text-violet-700 dark:text-violet-400" />
+                </div>
+              </TableCell>
+              <TableCell className="font-medium text-slate-800 dark:text-slate-100 text-sm">{center.name}</TableCell>
+              <TableCell>
+                {center.coordinator ? (
+                  <div className="flex items-center gap-2.5">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-blue-500 text-white text-xs font-semibold">
+                        {center.coordinator.name?.match(/\b(\w)/g)?.join('').toUpperCase() || 'C'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium text-sm text-slate-800 dark:text-slate-100">{center.coordinator.name}</p>
+                      <p className="text-xs text-slate-400">{center.coordinator.email}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-400 italic">Not Assigned</span>
+                )}
+              </TableCell>
+              <TableCell>
+                {center.departments?.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 max-w-[250px]">
+                    {center.departments.map((dept, di) => (
+                      <Badge key={dept.id} variant="outline"
+                        className={cn("text-[10px] px-1.5 py-0.5 font-normal border", getDeptColor(di))}>
+                        {dept.name}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-400 italic">None</span>
+                )}
+              </TableCell>
+              <TableCell className="text-center text-xs text-slate-600 dark:text-slate-400">
+                <div className="flex flex-col gap-0.5">
+                  <span title="Lecturers"><GraduationCap className="inline h-3 w-3 mr-0.5 opacity-70" />{center.lecturerCount ?? 0}</span>
+                  <span title="Departments"><BookOpen className="inline h-3 w-3 mr-0.5 opacity-70" />{center.departmentCount ?? 0}</span>
+                  <span title="Staff"><ShieldCheck className="inline h-3 w-3 mr-0.5 opacity-70" />{center.staffRegistryCount ?? 0}</span>
+                </div>
+              </TableCell>
+              <TableCell className="text-center text-xs text-slate-500">{formatDate(center.createdAt)}</TableCell>
+              <TableCell className="text-right pr-4">
+                <div className="flex gap-1 justify-end">
+                  <Button variant="ghost" size="icon" onClick={() => onEdit(center)}
+                    className={`h-7 w-7 text-slate-400 hover:text-blue-600 ${focusRingClass}`} title="Edit">
+                    <Edit3 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => onDelete(center)}
+                    disabled={isLoading}
+                    className={`h-7 w-7 text-slate-400 hover:text-red-600 ${focusRingClass}`} title="Delete">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+// ── Empty State ────────────────────────────────────────────────────────────────
+function EmptyState({ searchQuery, onClearSearch, onCreateCenter }) {
+  if (searchQuery) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="p-4 bg-slate-100 dark:bg-slate-700/50 rounded-full mb-4">
+          <Search className="h-8 w-8 text-slate-400" />
+        </div>
+        <p className="font-semibold text-slate-700 dark:text-slate-300 mb-1">No results for &quot;{searchQuery}&quot;</p>
+        <p className="text-sm text-slate-500 mb-4">Try a different search term</p>
+        <Button variant="link" onClick={onClearSearch} className="text-blue-600 hover:text-blue-800">Clear Search</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <div className="p-5 bg-violet-50 dark:bg-violet-900/20 rounded-full mb-5">
+        <Building2 className="h-12 w-12 text-violet-400 dark:text-violet-500" />
+      </div>
+      <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">No study centers yet</h3>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-sm">
+        Create your first center to begin organizing academic programs, departments, and coordinators.
+      </p>
+      <Button onClick={onCreateCenter}
+        className={`gap-2 bg-violet-700 hover:bg-violet-800 text-white font-medium h-9 px-4 text-sm rounded-lg shadow-sm ${focusRingClass}`}>
+        <PlusCircle className="h-4 w-4" /> Create First Center
+      </Button>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ══ MAIN COMPONENT ═══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
+export default function ManageCentersTab({ initialCenters = [], potentialCoordinators = [], currentUserId, stats = {} }) {
   const [allCenters, setAllCenters] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState('grid');
+
+  // Create dialog
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newCenterName, setNewCenterName] = useState('');
   const [selectedCoordinatorId, setSelectedCoordinatorId] = useState('');
   const [formError, setFormError] = useState('');
   const [isLoadingCreate, setIsLoadingCreate] = useState(false);
-
-  // Department selection states for create center
   const [createAvailableDepartments, setCreateAvailableDepartments] = useState([]);
   const [createSelectedDepartments, setCreateSelectedDepartments] = useState([]);
   const [isLoadingCreateDepartments, setIsLoadingCreateDepartments] = useState(false);
 
+  // Delete dialog
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [centerToDelete, setCenterToDelete] = useState(null);
   const [isLoadingDelete, setIsLoadingDelete] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Department assignment states
-  const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
-  const [selectedCenter, setSelectedCenter] = useState(null);
-  const [availableDepartments, setAvailableDepartments] = useState([]);
-  const [selectedDepartments, setSelectedDepartments] = useState([]);
-  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
-
-  // Edit center states
+  // Edit dialog
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCenter, setEditingCenter] = useState(null);
   const [editCenterName, setEditCenterName] = useState('');
@@ -97,713 +312,443 @@ export default function ManageCentersTab({ initialCenters = [], potentialCoordin
   const [editAvailableDepartments, setEditAvailableDepartments] = useState([]);
   const [editSelectedDepartments, setEditSelectedDepartments] = useState([]);
 
+  // ── Effects ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const validInitialCenters = Array.isArray(initialCenters) ? initialCenters : [];
-    const sortedInitialCenters = [...validInitialCenters].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    setAllCenters(sortedInitialCenters);
+    const valid = Array.isArray(initialCenters) ? initialCenters : [];
+    setAllCenters([...valid].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
   }, [initialCenters]);
 
+  // ── Filtered ───────────────────────────────────────────────────────────────
   const filteredCenters = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return allCenters;
-    return allCenters.filter(center => {
-      const centerNameMatch = center.name?.toLowerCase().includes(query);
-      const coordinatorNameMatch = center.coordinator?.name?.toLowerCase().includes(query);
-      const coordinatorEmailMatch = center.coordinator?.email?.toLowerCase().includes(query);
-      return centerNameMatch || coordinatorNameMatch || coordinatorEmailMatch;
-    });
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return allCenters;
+    return allCenters.filter(c =>
+      c.name?.toLowerCase().includes(q) ||
+      c.coordinator?.name?.toLowerCase().includes(q) ||
+      c.coordinator?.email?.toLowerCase().includes(q) ||
+      c.departments?.some(d => d.name?.toLowerCase().includes(q))
+    );
   }, [allCenters, searchQuery]);
 
-  const handleCreateCenter = async (event) => {
-    event.preventDefault();
-    setFormError(''); setIsLoadingCreate(true);
-    if (!newCenterName.trim() || !selectedCoordinatorId) {
-      setFormError("Center name and coordinator are required."); setIsLoadingCreate(false); return;
-    }
-    const result = await createCenter({ 
-      name: newCenterName.trim(), 
-      coordinatorId: selectedCoordinatorId,
-      departmentIds: createSelectedDepartments 
-    });
-    if (result.success && result.center) {
-      toast.success(`Center "${result.center.name}" created successfully!`);
-      setAllCenters(prev => [...prev, { ...result.center, staffRegistryCount: result.center.staffRegistryCount || 0, lecturerCount: result.center.lecturerCount || 0, departmentCount: result.center.departmentCount || 0 }].sort((a, b) => a.name.localeCompare(b.name)));
-      resetCreateForm();
-      setIsCreateDialogOpen(false);
-    } else {
-      const errorMsg = result.error || "Failed to create center.";
-      setFormError(errorMsg); toast.error(errorMsg);
-    }
-    setIsLoadingCreate(false);
+  // Live stats
+  const liveStats = useMemo(() => ({
+    totalCenters: allCenters.length,
+    totalLecturers: allCenters.reduce((s, c) => s + (c.lecturerCount || 0), 0),
+    totalDepartments: allCenters.reduce((s, c) => s + (c.departmentCount || 0), 0),
+    totalStaffRegistry: allCenters.reduce((s, c) => s + (c.staffRegistryCount || 0), 0),
+  }), [allCenters]);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  const clearSearch = () => setSearchQuery('');
+
+  const resetCreateForm = () => {
+    setNewCenterName(''); setSelectedCoordinatorId('');
+    setCreateSelectedDepartments([]); setCreateAvailableDepartments([]); setFormError('');
+  };
+
+  const resetEditForm = () => {
+    setEditingCenter(null); setEditCenterName(''); setEditSelectedCoordinatorId('');
+    setEditSelectedDepartments([]); setEditAvailableDepartments([]); setFormError('');
   };
 
   const fetchDepartmentsForCreate = async () => {
     setIsLoadingCreateDepartments(true);
     try {
       const result = await getAvailableDepartments();
-      if (result.success) {
-        setCreateAvailableDepartments(result.departments || []);
-      } else {
-        toast.error('Error fetching departments');
-        setCreateAvailableDepartments([]);
-      }
-    } catch (error) {
-      toast.error('Error fetching departments');
-      setCreateAvailableDepartments([]);
-    }
+      if (result.success) setCreateAvailableDepartments(result.departments || []);
+      else toast.error('Error fetching departments');
+    } catch { toast.error('Error fetching departments'); }
     setIsLoadingCreateDepartments(false);
   };
 
-  const resetCreateForm = () => {
-    setNewCenterName('');
-    setSelectedCoordinatorId('');
-    setCreateSelectedDepartments([]);
-    setCreateAvailableDepartments([]);
+  const handleCreateCenter = async (event) => {
+    event.preventDefault();
     setFormError('');
+    if (!newCenterName.trim() || !selectedCoordinatorId) {
+      setFormError("Center name and coordinator are required."); return;
+    }
+    setIsLoadingCreate(true);
+    const result = await createCenter({
+      name: newCenterName.trim(), coordinatorId: selectedCoordinatorId,
+      departmentIds: createSelectedDepartments
+    });
+    if (result.success && result.center) {
+      toast.success(`Center "${result.center.name}" created!`);
+      setAllCenters(prev => [...prev, {
+        ...result.center,
+        staffRegistryCount: result.center.staffRegistryCount || 0,
+        lecturerCount: result.center.lecturerCount || 0,
+        departmentCount: result.center.departmentCount || 0,
+      }].sort((a, b) => a.name.localeCompare(b.name)));
+      resetCreateForm(); setIsCreateDialogOpen(false);
+    } else {
+      setFormError(result.error || "Failed to create center."); toast.error(result.error || "Failed.");
+    }
+    setIsLoadingCreate(false);
   };
 
-  const handleCreateDepartmentToggle = (departmentId) => {
-    setCreateSelectedDepartments(prev => {
-      if (prev.includes(departmentId)) {
-        return prev.filter(id => id !== departmentId);
-      } else {
-        return [...prev, departmentId];
+  const openEditDialog = async (center) => {
+    setEditingCenter(center); setEditCenterName(center.name);
+    setEditSelectedCoordinatorId(center.coordinator?.id || '');
+    setEditSelectedDepartments(center.departments?.map(d => d.id) || []);
+    setIsEditDialogOpen(true); setFormError('');
+    try {
+      const result = await getAvailableDepartments();
+      if (result.success) setEditAvailableDepartments(result.departments || []);
+      else toast.error(result.error || 'Failed to fetch departments');
+    } catch { toast.error('Error fetching departments'); }
+  };
+
+  const handleUpdateCenter = async (e) => {
+    e.preventDefault();
+    if (!editCenterName.trim()) { setFormError('Center name is required.'); return; }
+    if (!editSelectedCoordinatorId) { setFormError('Select a coordinator.'); return; }
+    setIsLoadingEdit(true); setFormError('');
+    try {
+      const result = await updateCenter({
+        centerId: editingCenter.id, name: editCenterName.trim(), coordinatorId: editSelectedCoordinatorId
+      });
+      if (!result.success) {
+        setFormError(result.error || 'Failed.'); toast.error(result.error || 'Failed.');
+        setIsLoadingEdit(false); return;
       }
-    });
+      const currentIds = editingCenter.departments?.map(d => d.id) || [];
+      const toAssign = editSelectedDepartments.filter(id => !currentIds.includes(id));
+      const toUnassign = currentIds.filter(id => !editSelectedDepartments.includes(id));
+      if (toAssign.length > 0) {
+        const r = await assignDepartmentsToCenter(editingCenter.id, toAssign);
+        if (!r.success) toast.error(`Assign error: ${r.error}`);
+      }
+      if (toUnassign.length > 0) {
+        const r = await unassignDepartmentsFromCenter(editingCenter.id, toUnassign);
+        if (!r.success) toast.error(`Unassign error: ${r.error}`);
+      }
+      toast.success('Center updated!');
+      const updated = {
+        ...result.center,
+        departments: editAvailableDepartments.filter(d => editSelectedDepartments.includes(d.id)),
+        departmentCount: editSelectedDepartments.length,
+      };
+      setAllCenters(prev => prev.map(c => c.id === editingCenter.id ? updated : c).sort((a, b) => a.name.localeCompare(b.name)));
+      setIsEditDialogOpen(false); resetEditForm();
+    } catch {
+      setFormError('Error updating center.'); toast.error('Error updating center.');
+    }
+    setIsLoadingEdit(false);
   };
 
   const openDeleteDialog = (center) => { setCenterToDelete(center); setIsDeleteDialogOpen(true); };
 
   const handleDeleteCenter = async () => {
-    if (!centerToDelete || !currentUserId) {
-      toast.error("Cannot delete center. User ID or Center missing."); setIsLoadingDelete(false); setIsDeleteDialogOpen(false); return;
-    }
+    if (!centerToDelete || !currentUserId) { toast.error("Missing data."); setIsDeleteDialogOpen(false); return; }
     setIsLoadingDelete(true);
     const result = await deleteCenterByRegistry({ centerId: centerToDelete.id, registryUserId: currentUserId });
     if (result.success) {
       toast.success(result.message || `Center "${centerToDelete.name}" deleted.`);
       setAllCenters(prev => prev.filter(c => c.id !== centerToDelete.id));
       setIsDeleteDialogOpen(false); setCenterToDelete(null);
-    } else {
-      toast.error(result.error || "Failed to delete center.");
-    }
+    } else { toast.error(result.error || "Failed."); }
     setIsLoadingDelete(false);
   };
 
-  const openDepartmentDialog = async (center) => {
-    setSelectedCenter(center);
-    setSelectedDepartments([]);
-    setIsDepartmentDialogOpen(true);
-    setIsLoadingDepartments(true);
-    
-    try {
-      const result = await getAvailableDepartments();
-      if (result.success) {
-        setAvailableDepartments(result.departments || []);
-      } else {
-        toast.error(result.error || 'Failed to fetch departments');
-      }
-    } catch (error) {
-      toast.error('Error fetching departments');
-    }
-    setIsLoadingDepartments(false);
-  };
-
-  const handleAssignDepartments = async () => {
-    if (!selectedCenter || selectedDepartments.length === 0) {
-      toast.error('Please select departments to assign');
-      return;
-    }
-
-    setIsLoadingDepartments(true);
-    try {
-      const result = await assignDepartmentsToCenter(selectedCenter.id, selectedDepartments);
-      if (result.success) {
-        toast.success(`${selectedDepartments.length} department(s) assigned successfully`);
-        setIsDepartmentDialogOpen(false);
-        setSelectedDepartments([]);
-        setSelectedCenter(null);
-        
-        // Refresh centers to show updated department counts
-        const validInitialCenters = Array.isArray(initialCenters) ? initialCenters : [];
-        const sortedInitialCenters = [...validInitialCenters].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-        setAllCenters(sortedInitialCenters);
-      } else {
-        toast.error(result.error || 'Failed to assign departments');
-      }
-    } catch (error) {
-      toast.error('Error assigning departments');
-    }
-    setIsLoadingDepartments(false);
-  };
-
-  const toggleDepartmentSelection = (departmentId) => {
-    setSelectedDepartments(prev => 
-      prev.includes(departmentId) 
-        ? prev.filter(id => id !== departmentId)
-        : [...prev, departmentId]
-    );
-  };
-
-  const toggleEditDepartmentSelection = (departmentId) => {
-    setEditSelectedDepartments(prev => 
-      prev.includes(departmentId) 
-        ? prev.filter(id => id !== departmentId)
-        : [...prev, departmentId]
-    );
-  };
-
-  const openEditDialog = async (center) => {
-    setEditingCenter(center);
-    setEditCenterName(center.name);
-    setEditSelectedCoordinatorId(center.coordinator?.id || '');
-    setEditSelectedDepartments(center.departments?.map(dept => dept.id) || []);
-    setIsEditDialogOpen(true);
-    setFormError('');
-    
-    // Load available departments
-    try {
-      const result = await getAvailableDepartments();
-      if (result.success) {
-        setEditAvailableDepartments(result.departments || []);
-      } else {
-        toast.error(result.error || 'Failed to fetch departments');
-      }
-    } catch (error) {
-      toast.error('Error fetching departments');
-    }
-  };
-
-  const resetEditForm = () => {
-    setEditingCenter(null);
-    setEditCenterName('');
-    setEditSelectedCoordinatorId('');
-    setEditSelectedDepartments([]);
-    setEditAvailableDepartments([]);
-    setFormError('');
-  };
-
-  const handleUpdateCenter = async (e) => {
-    e.preventDefault();
-    
-    if (!editCenterName.trim()) {
-      setFormError('Center name is required.');
-      return;
-    }
-
-    if (!editSelectedCoordinatorId) {
-      setFormError('Please select a coordinator.');
-      return;
-    }
-
-    setIsLoadingEdit(true);
-    setFormError('');
-
-    try {
-      // Update center basic details first
-      const result = await updateCenter({
-        centerId: editingCenter.id,
-        name: editCenterName.trim(),
-        coordinatorId: editSelectedCoordinatorId
-      });
-
-      if (!result.success) {
-        setFormError(result.error || 'Failed to update center.');
-        toast.error(result.error || 'Failed to update center.');
-        setIsLoadingEdit(false);
-        return;
-      }
-
-      // Handle department assignments/unassignments
-      const currentDepartmentIds = editingCenter.departments?.map(dept => dept.id) || [];
-      const newDepartmentIds = editSelectedDepartments;
-
-      // Departments to assign (new ones)
-      const toAssign = newDepartmentIds.filter(id => !currentDepartmentIds.includes(id));
-      
-      // Departments to unassign (removed ones)
-      const toUnassign = currentDepartmentIds.filter(id => !newDepartmentIds.includes(id));
-
-      // Assign new departments
-      if (toAssign.length > 0) {
-        const assignResult = await assignDepartmentsToCenter(editingCenter.id, toAssign);
-        if (!assignResult.success) {
-          toast.error(`Failed to assign departments: ${assignResult.error}`);
-        }
-      }
-
-      // Unassign removed departments
-      if (toUnassign.length > 0) {
-        const unassignResult = await unassignDepartmentsFromCenter(editingCenter.id, toUnassign);
-        if (!unassignResult.success) {
-          toast.error(`Failed to unassign departments: ${unassignResult.error}`);
-        }
-      }
-
-      toast.success('Center updated successfully!');
-      
-      // Update the centers list - refetch the updated center data
-      const updatedCenterData = {
-        ...result.center,
-        departments: editAvailableDepartments.filter(dept => newDepartmentIds.includes(dept.id)),
-        departmentCount: newDepartmentIds.length
-      };
-      
-      setAllCenters(prev => 
-        prev.map(center => 
-          center.id === editingCenter.id 
-            ? updatedCenterData
-            : center
-        ).sort((a, b) => a.name.localeCompare(b.name))
-      );
-      
-      setIsEditDialogOpen(false);
-      resetEditForm();
-    } catch (error) {
-      const errorMessage = 'Error updating center.';
-      setFormError(errorMessage);
-      toast.error(errorMessage);
-      console.error('Error updating center:', error);
-    }
-    
-    setIsLoadingEdit(false);
-  };
-
-  const focusRingClass = "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-700 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900";
-  const clearSearch = () => setSearchQuery('');
-
+  // ══════════════════════════════════════════════════════════════════════════
+  // ══ RENDER ═════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 pb-4 sm:pb-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3 text-blue-800 dark:text-blue-300">
-            <Building2 className="h-7 w-7 sm:h-8 sm:w-8 text-violet-700 dark:text-violet-500" />
-            Study Centers
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1 text-sm sm:text-base">
-            Manage academic centers, coordinators, and view staff assignments.
-          </p>
+    <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      {/* ── Header with stats ─────────────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-lg">
+            <Building2 className="h-7 w-7 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-100">
+              Study Centers
+            </h1>
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <span><span className="font-semibold text-slate-700 dark:text-slate-300">{liveStats.totalCenters}</span> Centers</span>
+              <span className="text-slate-300 dark:text-slate-600">·</span>
+              <span><span className="font-semibold text-slate-700 dark:text-slate-300">{liveStats.totalLecturers}</span> Lecturers</span>
+              <span className="text-slate-300 dark:text-slate-600">·</span>
+              <span><span className="font-semibold text-slate-700 dark:text-slate-300">{liveStats.totalDepartments}</span> Departments</span>
+              <span className="text-slate-300 dark:text-slate-600">·</span>
+              <span><span className="font-semibold text-slate-700 dark:text-slate-300">{liveStats.totalStaffRegistry}</span> Staff</span>
+            </div>
+          </div>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => { 
-          setIsCreateDialogOpen(open); 
-          if (!open && !isLoadingCreate) { 
-            resetCreateForm();
-          } else if (open) {
-            fetchDepartmentsForCreate();
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button className={`gap-2 shadow-md hover:shadow-lg transition-shadow bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-semibold h-9 px-3 text-xs sm:h-10 sm:px-4 sm:text-sm ${focusRingClass}`}>
-              <PlusCircle className="h-4 w-4 sm:h-5 sm:w-5" /><span>New Center</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-2xl rounded-xl">
-            <DialogHeader className="mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
-              <DialogTitle className="flex items-center gap-2.5 text-xl font-semibold text-blue-800 dark:text-blue-300"><Building2 className="h-6 w-6 text-violet-700 dark:text-violet-500" />Create New Academic Center</DialogTitle>
-              <DialogDescription className="text-slate-500 dark:text-slate-400 text-sm pt-1">Register a new center and assign an available coordinator.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreateCenter} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="centerName-create" className="font-medium text-slate-700 dark:text-slate-300">Center Name <span className="text-red-600 dark:text-red-500">*</span></Label>
-                  <Input id="centerName-create" value={newCenterName} onChange={(e) => setNewCenterName(e.target.value)} placeholder="e.g., Faculty of Engineering" disabled={isLoadingCreate} className={`bg-slate-50 dark:bg-slate-700/60 border-slate-300 dark:border-slate-600/80 focus-visible:ring-blue-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 ${focusRingClass}`} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="coordinator-create" className="font-medium text-slate-700 dark:text-slate-300">Center Coordinator <span className="text-red-600 dark:text-red-500">*</span></Label>
-                  <Select value={selectedCoordinatorId} onValueChange={setSelectedCoordinatorId} disabled={isLoadingCreate}>
-                    <SelectTrigger id="coordinator-create" className={`w-full bg-slate-50 dark:bg-slate-700/60 border-slate-300 dark:border-slate-600/80 focus:ring-blue-600 text-slate-900 dark:text-slate-50 data-[placeholder]:text-slate-400 dark:data-[placeholder]:text-slate-500 ${focusRingClass}`}><SelectValue placeholder="Select a coordinator" /></SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-lg max-h-60"> {/* Added max-h for long lists */}
-                      {potentialCoordinators.length > 0 ? ( potentialCoordinators.map((user) => ( <SelectItem key={user.id} value={user.id} className={`focus:bg-violet-100 dark:focus:bg-violet-700/30 hover:bg-slate-50 dark:hover:bg-slate-700/70 cursor-pointer ${focusRingClass}`}> <div className="flex items-center gap-3 py-1.5 px-1"><Avatar className="h-9 w-9"><AvatarImage src={user.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium">{user.name ? user.name.match(/\b(\w)/g)?.join('').toUpperCase() : 'U'}</AvatarFallback></Avatar><div><span className="font-medium text-sm text-slate-800 dark:text-slate-100">{user.name}</span><span className="block text-xs text-slate-500 dark:text-slate-400">{user.email} <span className="capitalize font-medium">({user.role?.toLowerCase()})</span> {user.designation && ` - ${getDesignationDisplay(user.designation)}`}</span></div></div></SelectItem> ))) : ( <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">No eligible coordinators found.</div> )}
-                    </SelectContent>
-                  </Select>
-                </div>
 
-                {/* Department Assignment Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="font-medium text-slate-700 dark:text-slate-300">Assign Departments (Optional)</Label>
-                    {createAvailableDepartments.length === 0 && !isLoadingCreateDepartments && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={fetchDepartmentsForCreate}
-                        className="text-xs px-2 py-1 h-auto"
-                      >
-                        Load Departments
-                      </Button>
-                    )}
+        <div className="flex items-center gap-3">
+          {/* Search */}
+          <div className="relative flex-grow sm:flex-grow-0 sm:w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input type="text" placeholder="Search centers..."
+              value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              className={`pl-9 pr-8 h-9 text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded-lg ${focusRingClass}`} />
+            {searchQuery && (
+              <Button variant="ghost" size="sm" onClick={clearSearch}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 text-slate-400 hover:text-slate-600">
+                <XCircle className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+          {/* View toggle */}
+          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
+            <Button variant="ghost" size="icon" onClick={() => setViewMode('grid')}
+              className={cn("h-8 w-8 rounded-md", viewMode === 'grid' ? "bg-white dark:bg-slate-700 shadow-sm" : "text-slate-500")}
+              title="Grid view">
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setViewMode('table')}
+              className={cn("h-8 w-8 rounded-md", viewMode === 'table' ? "bg-white dark:bg-slate-700 shadow-sm" : "text-slate-500")}
+              title="Table view">
+              <LayoutList className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* New Center */}
+          <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+            setIsCreateDialogOpen(open);
+            if (!open && !isLoadingCreate) resetCreateForm();
+            else if (open) fetchDepartmentsForCreate();
+          }}>
+            <DialogTrigger asChild>
+              <Button className={`gap-2 bg-violet-700 hover:bg-violet-800 text-white font-semibold h-9 px-4 text-sm rounded-lg shadow-sm hover:shadow-md transition-all ${focusRingClass}`}>
+                <PlusCircle className="h-4 w-4" /><span className="hidden sm:inline">New Center</span><span className="sm:hidden">New</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-xl rounded-lg">
+              <DialogHeader className="pb-4 pt-2 border-b border-slate-200 dark:border-slate-700">
+                <DialogTitle className="flex items-center gap-2 text-xl text-slate-800 dark:text-slate-100 font-semibold">
+                  <Building2 className="h-5 w-5 text-violet-700 dark:text-violet-400" /> Create New Center
+                </DialogTitle>
+                <DialogDescription className="text-slate-500 dark:text-slate-400 text-sm">
+                  Register a center and assign a coordinator.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreateCenter}>
+                <div className="grid gap-4 py-4 px-1">
+                  <div className="space-y-1.5">
+                    <Label className={dialogLabelClass}>Center Name *</Label>
+                    <Input value={newCenterName} onChange={(e) => setNewCenterName(e.target.value)}
+                      placeholder="e.g., Faculty of Engineering" disabled={isLoadingCreate} className={dialogInputClass} />
                   </div>
-                  
-                  {isLoadingCreateDepartments ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-                      <span className="ml-2 text-sm text-slate-500">Loading departments...</span>
-                    </div>
-                  ) : createAvailableDepartments.length > 0 ? (
-                    <div className="max-h-32 overflow-y-auto border border-slate-200 dark:border-slate-600 rounded-md p-3 bg-slate-50 dark:bg-slate-700/50">
-                      <div className="space-y-2">
-                        {createAvailableDepartments.map((department) => (
-                          <div key={department.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`create-dept-${department.id}`}
-                              checked={createSelectedDepartments.includes(department.id)}
-                              onCheckedChange={() => handleCreateDepartmentToggle(department.id)}
-                              disabled={isLoadingCreate}
-                              className="border-slate-300 dark:border-slate-500"
-                            />
-                            <label
-                              htmlFor={`create-dept-${department.id}`}
-                              className="flex-1 text-sm cursor-pointer text-slate-700 dark:text-slate-200"
-                            >
-                              {department.name}
-                              {department.isAssigned && (
+                  <div className="space-y-1.5">
+                    <Label className={dialogLabelClass}>Coordinator *</Label>
+                    <Select value={selectedCoordinatorId} onValueChange={setSelectedCoordinatorId} disabled={isLoadingCreate}>
+                      <SelectTrigger className={`${dialogInputClass} data-[placeholder]:text-slate-400`}>
+                        <SelectValue placeholder="Select coordinator" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg max-h-60">
+                        {potentialCoordinators.length > 0 ? potentialCoordinators.map((u) => (
+                          <SelectItem key={u.id} value={u.id} className="cursor-pointer">
+                            <div className="flex items-center gap-2 py-1">
+                              <Avatar className="h-7 w-7">
+                                <AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-xs">
+                                  {u.name?.match(/\b(\w)/g)?.join('').toUpperCase() || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <span className="text-sm font-medium">{u.name}</span>
+                                <span className="block text-xs text-slate-500">{u.email}{u.designation ? ` · ${getDesignationDisplay(u.designation)}` : ''}</span>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        )) : (
+                          <div className="px-3 py-2 text-sm text-slate-500">No coordinators available</div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Departments */}
+                  <div className="space-y-2">
+                    <Label className={dialogLabelClass}>Departments (Optional)</Label>
+                    {isLoadingCreateDepartments ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                        <span className="ml-2 text-sm text-slate-500">Loading...</span>
+                      </div>
+                    ) : createAvailableDepartments.length > 0 ? (
+                      <div className="max-h-32 overflow-y-auto border border-slate-200 dark:border-slate-600 rounded-md p-3 bg-slate-50 dark:bg-slate-700/50 space-y-2">
+                        {createAvailableDepartments.map(dept => (
+                          <div key={dept.id} className="flex items-center space-x-2">
+                            <Checkbox id={`create-dept-${dept.id}`}
+                              checked={createSelectedDepartments.includes(dept.id)}
+                              onCheckedChange={() => setCreateSelectedDepartments(prev =>
+                                prev.includes(dept.id) ? prev.filter(x => x !== dept.id) : [...prev, dept.id]
+                              )}
+                              disabled={isLoadingCreate} className="border-slate-300 dark:border-slate-500" />
+                            <label htmlFor={`create-dept-${dept.id}`} className="flex-1 text-sm cursor-pointer text-slate-700 dark:text-slate-200">
+                              {dept.name}
+                              {dept.isAssigned && (
                                 <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">
-                                  (Already assigned to {department.centers?.length || 0} center{department.centers?.length !== 1 ? 's' : ''})
+                                  (Assigned to {dept.centers?.length || 0} center{dept.centers?.length !== 1 ? 's' : ''})
                                 </span>
                               )}
                             </label>
                           </div>
                         ))}
                       </div>
+                    ) : (
+                      <p className="text-center text-sm text-slate-500 py-3">No departments available to assign.</p>
+                    )}
+                    {createSelectedDepartments.length > 0 && (
+                      <p className="text-xs text-slate-500">{createSelectedDepartments.length} selected</p>
+                    )}
+                  </div>
+
+                  {formError && (
+                    <div className="p-2.5 bg-red-50 dark:bg-red-800/30 border border-red-300 dark:border-red-700/50 rounded-md text-xs sm:text-sm text-red-700 dark:text-red-300 flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0" /> {formError}
                     </div>
-                  ) : (
-                    <div className="text-center text-slate-500 dark:text-slate-400 py-3 text-sm">
-                      <Building2 className="h-6 w-6 mx-auto mb-1 opacity-50" />
-                      <p>Click "Load Departments" to assign departments to this center</p>
-                    </div>
-                  )}
-                  
-                  {createSelectedDepartments.length > 0 && (
-                    <p className="text-xs text-slate-600 dark:text-slate-400">
-                      {createSelectedDepartments.length} department{createSelectedDepartments.length !== 1 ? 's' : ''} selected
-                    </p>
                   )}
                 </div>
-                {formError && ( <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700/50 rounded-md"><p className="text-sm text-red-700 dark:text-red-300 flex items-center gap-2"><AlertTriangle className="h-4 w-4 flex-shrink-0"/> {formError}</p></div> )}
-              <DialogFooter className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 gap-2 sm:gap-3"><DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingCreate} className={`border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${focusRingClass}`}>Cancel</Button></DialogClose><Button type="submit" disabled={isLoadingCreate} className={`bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-semibold ${focusRingClass}`}>{isLoadingCreate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{isLoadingCreate ? "Creating..." : "Create Center"}</Button></DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="mb-4 sm:mb-6 shrink-0">
-        <Label htmlFor="search-centers" className="sr-only">Search Centers</Label>
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-4 w-4 text-slate-400 dark:text-slate-500" /></div>
-          <Input id="search-centers" type="text" placeholder="Search by name, coordinator name or email..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-10 pr-10 w-full sm:max-w-md bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus-visible:ring-blue-600 ${focusRingClass}`} />
-          {searchQuery && (<Button variant="ghost" size="sm" className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300" onClick={clearSearch}><XCircle className="h-4 w-4" /><span className="sr-only">Clear search</span></Button>)}
+                <DialogFooter className="flex justify-end gap-3 px-1 pb-2 pt-3 border-t border-slate-200 dark:border-slate-700">
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline" disabled={isLoadingCreate} className={`h-9 px-4 text-sm rounded-lg ${focusRingClass}`}>Cancel</Button>
+                  </DialogClose>
+                  <Button type="submit" disabled={isLoadingCreate}
+                    className={`h-9 px-4 text-sm rounded-lg bg-violet-700 hover:bg-violet-800 text-white font-medium shadow ${focusRingClass}`}>
+                    {isLoadingCreate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {isLoadingCreate ? "Creating..." : "Create Center"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        {initialCenters.length === 0 && !isLoadingCreate && !isLoadingDelete ? (
-          <div className="h-full flex flex-col items-center justify-center"> {/* ... Empty state card ... */} </div>
-        ) : filteredCenters.length === 0 && searchQuery ? (
-          <div className="h-full flex flex-col items-center justify-center text-center"> {/* ... No search results ... */} </div>
-        ) : (
-          <div className="h-full flex flex-col">
-            <div className="hidden md:block flex-1 overflow-hidden">
-              <Card className="h-full flex flex-col bg-white dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 shadow-lg rounded-xl">
-                <ScrollArea className="flex-1 min-h-0">
-                  <Table className="min-w-full">
-                    <TableHeader className="bg-slate-50 dark:bg-slate-700/50 sticky top-0 z-10 backdrop-blur-sm">
-                      <TableRow className="border-b-slate-200 dark:border-b-slate-700">
-                        <TableHead className="w-[50px] px-3 py-3.5 text-center"></TableHead>
-                        <TableHead className="min-w-[200px] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Center Name</TableHead>
-                        <TableHead className="min-w-[280px] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Coordinator</TableHead>
-                        <TableHead className="min-w-[250px] text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Departments</TableHead>
-                        <TableHead className="w-[150px] text-center text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Statistics</TableHead>
-                        <TableHead className="w-[120px] text-center text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Created</TableHead>
-                        <TableHead className="w-[100px] text-center text-blue-700 dark:text-blue-300 text-xs uppercase font-semibold tracking-wider py-3.5 px-4">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                      {filteredCenters.map((center) => (
-                        <TableRow key={center.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors duration-150">
-                          <TableCell className="px-3 py-3.5 text-center"><div className="p-2.5 rounded-lg bg-violet-100 dark:bg-violet-800/30 inline-flex"><Building2 className="h-5 w-5 text-violet-700 dark:text-violet-400" /></div></TableCell>
-                          <TableCell className="font-medium text-slate-800 dark:text-slate-100 px-4 py-3.5 text-sm">{center.name}</TableCell>
-                          <TableCell className="text-slate-700 dark:text-slate-200 px-4 py-3.5 text-sm">
-                            {center.coordinator ? (
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9"><AvatarImage src={center.coordinator.image || undefined} /><AvatarFallback className="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs font-medium">{center.coordinator.name ? center.coordinator.name.match(/\b(\w)/g)?.join('').toUpperCase() : 'C'}</AvatarFallback></Avatar>
-                                <div>
-                                  <p className="font-medium text-sm text-slate-800 dark:text-slate-100">{center.coordinator.name}</p>
-                                  <p className="text-xs text-slate-500 dark:text-slate-400">{center.coordinator.email}</p>
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 border-blue-400 text-blue-700 bg-blue-50 dark:border-blue-600 dark:text-blue-300 dark:bg-blue-900/30 font-normal tracking-normal capitalize">{center.coordinator.role?.toLowerCase()}</Badge>
-                                    {center.coordinator.designation && <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 border-green-400 text-green-700 bg-green-50 dark:border-green-600 dark:text-green-300 dark:bg-green-900/30 font-normal tracking-normal">{getDesignationDisplay(center.coordinator.designation)}</Badge>}
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (<span className="text-slate-400 dark:text-slate-500 italic text-xs">Not Assigned</span>)}
-                          </TableCell>
-                          <TableCell className="text-slate-700 dark:text-slate-200 px-4 py-3.5 text-sm">
-                            {center.departments && center.departments.length > 0 ? (
-                              <div className="space-y-1">
-                                {center.departments.map((dept, index) => (
-                                  <Badge 
-                                    key={dept.id} 
-                                    variant="outline" 
-                                    className="text-[11px] px-2 py-1 border-purple-400 text-purple-700 bg-purple-50 dark:border-purple-600 dark:text-purple-300 dark:bg-purple-900/30 font-normal"
-                                  >
-                                    {dept.name}
-                                  </Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 dark:text-slate-500 italic text-xs">No departments assigned</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="px-4 py-3.5 text-xs text-center text-slate-600 dark:text-slate-300">
-                            <div title="Lecturers"><Users className="inline-block h-3.5 w-3.5 mr-1 opacity-70"/> {center.lecturerCount ?? 0}</div>
-                            <div title="Departments"><Building2 className="inline-block h-3.5 w-3.5 mr-1 opacity-70"/> {center.departmentCount ?? 0}</div>
-                            <div title="Staff Registry"><ShieldCheck className="inline-block h-3.5 w-3.5 mr-1 opacity-70"/> {center.staffRegistryCount ?? 0}</div>
-                          </TableCell>
-                          <TableCell className="px-4 py-3.5 text-center"><div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 text-xs"><CalendarDays className="h-4 w-4 mb-0.5" /><span>{new Date(center.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div></TableCell>
-                          <TableCell className="px-4 py-3.5 text-center">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild><Button variant="ghost" className={`h-8 w-8 p-0 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-700 ${focusRingClass}`}><span className="sr-only">Open menu</span><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg">
-                                <DropdownMenuLabel className="text-xs px-2 py-1.5 text-slate-500 dark:text-slate-400">Actions</DropdownMenuLabel><DropdownMenuSeparator className="bg-slate-100 dark:bg-slate-700/50"/>
-                                <DropdownMenuItem className={`text-slate-700 dark:text-slate-200 hover:!bg-slate-100 dark:hover:!bg-slate-700/50 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => openEditDialog(center)}><Edit3 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /> Edit Details</DropdownMenuItem>
-                                <DropdownMenuItem className={`text-slate-700 dark:text-slate-200 hover:!bg-slate-100 dark:hover:!bg-slate-700/50 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => openDepartmentDialog(center)}><Plus className="h-3.5 w-3.5 text-green-600 dark:text-green-400" /> Assign Departments</DropdownMenuItem>
-                                <DropdownMenuItem className={`text-red-600 dark:text-red-400 hover:!bg-red-50 dark:hover:!bg-red-700/20 text-sm flex items-center gap-2 cursor-pointer ${focusRingClass}`} onSelect={() => openDeleteDialog(center)} disabled={isLoadingDelete && centerToDelete?.id === center.id}>{isLoadingDelete && centerToDelete?.id === center.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Trash2 className="h-3.5 w-3.5" />} Delete Center</DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  {(isLoadingCreate || isLoadingDelete) && filteredCenters.length === 0 && allCenters.length > 0 && ( <div className="p-8 text-center text-slate-500 dark:text-slate-400 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin mr-2" /> Processing...</div>)}
-                </ScrollArea>
-              </Card>
-            </div>
+      {/* ── Content ───────────────────────────────────────────────────────── */}
+      {allCenters.length === 0 ? (
+        <EmptyState searchQuery="" onClearSearch={clearSearch} onCreateCenter={() => setIsCreateDialogOpen(true)} />
+      ) : filteredCenters.length === 0 ? (
+        <EmptyState searchQuery={searchQuery} onClearSearch={clearSearch} onCreateCenter={() => setIsCreateDialogOpen(true)} />
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {filteredCenters.map((center, idx) => (
+            <CenterCard
+              key={center.id}
+              center={center}
+              onEdit={openEditDialog}
+              onDelete={openDeleteDialog}
+              isLoading={isLoadingDelete}
+              animationDelay={idx * 50}
+            />
+          ))}
+        </div>
+      ) : (
+        <CenterTableView
+          centers={filteredCenters}
+          onEdit={openEditDialog}
+          onDelete={openDeleteDialog}
+          isLoading={isLoadingDelete}
+        />
+      )}
 
-            <div className="md:hidden flex-1 space-y-4 overflow-y-auto pb-4">
-              {filteredCenters.map((center) => (
-                <Card key={center.id} className="bg-white dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 shadow-lg rounded-xl overflow-hidden">
-                   <CardHeader className="p-4 flex flex-row justify-between items-start bg-slate-50/50 dark:bg-slate-700/30 border-b dark:border-slate-700/50">
-                     <div className="flex items-center gap-3"><div className="p-2.5 rounded-lg bg-violet-100 dark:bg-violet-800/40"><Building2 className="h-5 w-5 text-violet-700 dark:text-violet-400"/></div><CardTitle className="text-md font-semibold text-blue-800 dark:text-blue-300 leading-tight">{center.name}</CardTitle></div>
-                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className={`h-8 w-8 p-0 data-[state=open]:bg-slate-200 dark:data-[state=open]:bg-slate-600 ${focusRingClass}`}><MoreHorizontal className="h-4.5 w-4.5"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-white dark:bg-slate-800 ..."><DropdownMenuItem onSelect={() => openEditDialog(center)}>Edit Details</DropdownMenuItem><DropdownMenuItem onSelect={() => openDepartmentDialog(center)}>Assign Departments</DropdownMenuItem><DropdownMenuItem onSelect={() => openDeleteDialog(center)} disabled={isLoadingDelete && centerToDelete?.id === center.id}>Delete Center</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
-                   </CardHeader>
-                   <CardContent className="p-4 space-y-3 text-xs">
-                    <div className="flex items-start gap-2.5"><UserRound className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Coordinator</p>{center.coordinator ? ( <> <p className="font-medium text-slate-700 dark:text-slate-200">{center.coordinator.name}</p> {center.coordinator.designation && <Badge variant="outline" className="mt-0.5 text-[10px] px-1.5 py-0.5 border-green-400 text-green-700 bg-green-50 dark:border-green-600 dark:text-green-300 dark:bg-green-900/30 font-normal tracking-normal">{getDesignationDisplay(center.coordinator.designation)}</Badge>} </> ) : <p className="italic text-slate-400 dark:text-slate-500">Not Assigned</p>}</div></div>
-                    {center.coordinator?.email && (<div className="flex items-start gap-2.5"><Mail className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Email</p><p className="text-slate-700 dark:text-slate-200">{center.coordinator.email}</p></div></div>)}
-                    <div className="flex items-start gap-2.5"><Building2 className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Departments</p><div className="flex flex-wrap gap-1 mt-1">{center.departments && center.departments.length > 0 ? center.departments.map((dept) => (<Badge key={dept.id} variant="outline" className="text-[9px] px-1.5 py-0.5 border-purple-400 text-purple-700 bg-purple-50 dark:border-purple-600 dark:text-purple-300 dark:bg-purple-900/30 font-normal">{dept.name}</Badge>)) : <span className="italic text-slate-400 dark:text-slate-500 text-[11px]">No departments assigned</span>}</div></div></div>
-                    <div className="flex items-start gap-2.5"><Users className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Stats</p><p className="text-slate-700 dark:text-slate-200">Lecturers: {center.lecturerCount ?? 0} | Depts: {center.departmentCount ?? 0} | Staff: {center.staffRegistryCount ?? 0}</p></div></div>
-                    <div className="flex items-start gap-2.5"><CalendarDays className="h-4 w-4 mt-0.5 text-violet-600 dark:text-violet-400 flex-shrink-0" /><div><p className="text-slate-500 dark:text-slate-400 text-[11px] font-medium uppercase tracking-wider">Created</p><p className="text-slate-700 dark:text-slate-200">{new Date(center.createdAt).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}</p></div></div>
-                   </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Assign Departments Dialog */}
-      <Dialog open={isDepartmentDialogOpen} onOpenChange={setIsDepartmentDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Assign Departments to Center</DialogTitle>
-            <p className="text-sm text-gray-600">
-              Select departments to assign to <strong>{selectedCenter?.name}</strong>
-            </p>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {isLoadingDepartments ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                <span className="ml-2 text-gray-600">Loading departments...</span>
-              </div>
-            ) : availableDepartments.length > 0 ? (
-              <ScrollArea className="h-64 border rounded-md p-3">
-                <div className="space-y-2">
-                  {availableDepartments.map(department => (
-                    <div key={department.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`dept-${department.id}`}
-                        checked={selectedDepartments.includes(department.id)}
-                        onCheckedChange={() => toggleDepartmentSelection(department.id)}
-                      />
-                      <label
-                        htmlFor={`dept-${department.id}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer"
-                      >
-                        <div className="flex flex-col">
-                          <span>{department.name}</span>
-                          <span className="text-xs text-gray-500">
-                            {department._count?.programs || 0} programs
-                          </span>
-                        </div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="text-center text-gray-500 py-8">
-                <Building2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>No unassigned departments available</p>
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDepartmentDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAssignDepartments}
-              disabled={selectedDepartments.length === 0 || isLoadingDepartments}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {isLoadingDepartments ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
-              )}
-              Assign {selectedDepartments.length} Department(s)
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ══ DIALOGS ═══════════════════════════════════════════════════════════ */}
 
       {/* Edit Center Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingEdit) { resetEditForm(); } setIsEditDialogOpen(open); }}>
-        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-2xl rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-blue-700 dark:text-blue-400">
-              <Edit3 className="h-5 w-5" />
-              Edit Center Details
-            </DialogTitle>
-            <DialogDescription className="text-slate-600 dark:text-slate-400">
-              Update the center name and coordinator.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleUpdateCenter}>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-center-name" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Center Name <span className="text-red-600">*</span>
-                </Label>
-                <Input
-                  id="edit-center-name"
-                  type="text"
-                  value={editCenterName}
-                  onChange={(e) => setEditCenterName(e.target.value)}
-                  placeholder="Enter center name"
-                  disabled={isLoadingEdit}
-                  className="h-10 bg-white dark:bg-slate-700/80 border-slate-300 dark:border-slate-600 focus-visible:ring-blue-600"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-center-coordinator" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Coordinator <span className="text-red-600">*</span>
-                </Label>
-                <Select 
-                  value={editSelectedCoordinatorId} 
-                  onValueChange={setEditSelectedCoordinatorId}
-                  disabled={isLoadingEdit}
-                >
-                  <SelectTrigger className="h-10 bg-white dark:bg-slate-700/80 border-slate-300 dark:border-slate-600">
-                    <SelectValue placeholder="Select coordinator" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-                    {potentialCoordinators.length > 0 ? (
-                      potentialCoordinators.map(user => (
-                        <SelectItem key={user.id} value={user.id} className="text-slate-900 dark:text-slate-50">
-                          {user.name} - {user.email}
-                          {user.designation && ` (${getDesignationDisplay(user.designation)})`}
+      {editingCenter && (
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingEdit) resetEditForm(); setIsEditDialogOpen(open); }}>
+          <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-xl rounded-lg">
+            <DialogHeader className="pb-4 pt-2 border-b border-slate-200 dark:border-slate-700">
+              <DialogTitle className="flex items-center gap-2 text-xl text-slate-800 dark:text-slate-100 font-semibold">
+                <Edit3 className="h-5 w-5 text-violet-700 dark:text-violet-400" /> Edit: {editingCenter.name}
+              </DialogTitle>
+              <DialogDescription className="text-slate-500 text-sm">Update center details and departments.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdateCenter}>
+              <div className="grid gap-4 py-4 px-1">
+                <div className="space-y-1.5">
+                  <Label className={dialogLabelClass}>Center Name *</Label>
+                  <Input value={editCenterName} onChange={(e) => setEditCenterName(e.target.value)}
+                    placeholder="Center name" disabled={isLoadingEdit} className={dialogInputClass} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className={dialogLabelClass}>Coordinator *</Label>
+                  <Select value={editSelectedCoordinatorId} onValueChange={setEditSelectedCoordinatorId} disabled={isLoadingEdit}>
+                    <SelectTrigger className={`${dialogInputClass} data-[placeholder]:text-slate-400`}>
+                      <SelectValue placeholder="Select coordinator" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg">
+                      {potentialCoordinators.length > 0 ? potentialCoordinators.map(u => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name} — {u.email}{u.designation ? ` (${getDesignationDisplay(u.designation)})` : ''}
                         </SelectItem>
-                      ))
+                      )) : (
+                        <div className="px-3 py-2 text-sm text-slate-500">No coordinators available.</div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className={dialogLabelClass}>Departments</Label>
+                  <div className="border border-slate-200 dark:border-slate-600 rounded-md p-3 max-h-40 overflow-y-auto bg-slate-50 dark:bg-slate-700/50">
+                    {editAvailableDepartments.length > 0 ? (
+                      <div className="space-y-2">
+                        {editAvailableDepartments.map(dept => (
+                          <div key={dept.id} className="flex items-center space-x-2">
+                            <Checkbox id={`edit-dept-${dept.id}`}
+                              checked={editSelectedDepartments.includes(dept.id)}
+                              onCheckedChange={() => setEditSelectedDepartments(prev =>
+                                prev.includes(dept.id) ? prev.filter(x => x !== dept.id) : [...prev, dept.id]
+                              )}
+                              disabled={isLoadingEdit} />
+                            <label htmlFor={`edit-dept-${dept.id}`} className="flex-1 text-sm cursor-pointer text-slate-700 dark:text-slate-200">
+                              {dept.name}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <div className="px-3 py-2 text-sm text-slate-500">No coordinators available.</div>
+                      <p className="text-center text-sm text-slate-500 py-3">No departments available</p>
                     )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Assigned Departments
-                </Label>
-                <div className="border border-slate-300 dark:border-slate-600 rounded-md p-3 max-h-40 overflow-y-auto bg-white dark:bg-slate-700/80">
-                  {editAvailableDepartments.length > 0 ? (
-                    <div className="space-y-2">
-                      {editAvailableDepartments.map(department => (
-                        <div key={department.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`edit-dept-${department.id}`}
-                            checked={editSelectedDepartments.includes(department.id)}
-                            onCheckedChange={() => toggleEditDepartmentSelection(department.id)}
-                            disabled={isLoadingEdit}
-                          />
-                          <label
-                            htmlFor={`edit-dept-${department.id}`}
-                            className="flex-1 text-sm cursor-pointer text-slate-700 dark:text-slate-200"
-                          >
-                            {department.name}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center text-slate-500 dark:text-slate-400 py-4">
-                      <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No departments available</p>
-                    </div>
-                  )}
+                  </div>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Select departments to assign to this center
-                </p>
-              </div>
-              {formError && (
-                <div className="p-3 text-red-700 bg-red-50 border border-red-300 rounded-md text-sm flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  {formError}
-                </div>
-              )}
-            </div>
-            <DialogFooter className="gap-2">
-              <DialogClose asChild>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  disabled={isLoadingEdit}
-                  className="border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700"
-                >
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button 
-                type="submit" 
-                disabled={isLoadingEdit}
-                className="bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium"
-              >
-                {isLoadingEdit ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Edit3 className="mr-2 h-4 w-4" />
-                    Update Center
-                  </>
+                {formError && (
+                  <div className="p-2.5 bg-red-50 dark:bg-red-800/30 border border-red-300 dark:border-red-700/50 rounded-md text-xs sm:text-sm text-red-700 dark:text-red-300 flex items-center gap-1.5">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0" /> {formError}
+                  </div>
                 )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+              </div>
+              <DialogFooter className="flex justify-end gap-3 px-1 pb-2 pt-3 border-t border-slate-200 dark:border-slate-700">
+                <DialogClose asChild>
+                  <Button type="button" variant="outline" disabled={isLoadingEdit} className={`h-9 px-4 text-sm rounded-lg ${focusRingClass}`}>Cancel</Button>
+                </DialogClose>
+                <Button type="submit" disabled={isLoadingEdit}
+                  className={`h-9 px-4 text-sm rounded-lg bg-violet-700 hover:bg-violet-800 text-white font-medium shadow ${focusRingClass}`}>
+                  {isLoadingEdit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit3 className="mr-2 h-4 w-4" />}
+                  {isLoadingEdit ? "Updating..." : "Update Center"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
 
+      {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 shadow-2xl rounded-xl">
-            <DialogHeader className="pb-3"><DialogTitle className="flex items-center gap-2.5 text-lg font-semibold text-red-700 dark:text-red-400"><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-500" />Confirm Center Deletion</DialogTitle></DialogHeader>
-            <DialogDescription className="text-slate-600 dark:text-slate-400 pt-1 pb-2 text-sm">Are you sure you want to delete the center <strong className="mx-1 text-slate-800 dark:text-slate-100">{centerToDelete?.name}</strong>?<br/>This action cannot be undone and may affect associated users and claims.</DialogDescription>
-            <DialogFooter className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-700 gap-2 sm:gap-3"><Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isLoadingDelete} className={`border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${focusRingClass}`}>Cancel</Button><Button onClick={handleDeleteCenter} disabled={isLoadingDelete} className={`bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold ${focusRingClass}`}>{isLoadingDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}{isLoadingDelete ? "Deleting..." : "Yes, Delete Center"}</Button></DialogFooter>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 shadow-xl rounded-lg">
+          <DialogHeader className="pb-3">
+            <DialogTitle className="flex items-center gap-2 text-lg text-red-700 dark:text-red-300 font-semibold">
+              <AlertTriangle className="h-5 w-5" /> Delete Center
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600 dark:text-slate-400 py-2">
+            Delete <strong className="text-slate-800 dark:text-slate-100">{centerToDelete?.name}</strong>? This cannot be undone and may affect associated users and claims.
+          </p>
+          <DialogFooter className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 gap-3">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isLoadingDelete}
+              className={`h-9 px-4 text-sm rounded-lg ${focusRingClass}`}>Cancel</Button>
+            <Button onClick={handleDeleteCenter} disabled={isLoadingDelete}
+              className={`h-9 px-4 text-sm rounded-lg bg-red-700 hover:bg-red-800 text-white font-medium shadow ${focusRingClass}`}>
+              {isLoadingDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {isLoadingDelete ? "Deleting..." : "Delete Center"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

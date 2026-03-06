@@ -8,7 +8,7 @@ import {
 } from '@/lib/actions/registry.actions.js';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
-import { FileWarning, Building } from "lucide-react";
+import { FileWarning } from "lucide-react";
 import ManageCentersTab from '../_components/ManageCentersTab';
 import { Toaster } from "@/components/ui/sonner";
 
@@ -19,76 +19,66 @@ export default async function RegistryManageCentersPage() {
     redirect(session ? '/unauthorized' : '/login');
   }
 
-  // Fetch data concurrently
   const [centersResult, potentialCoordinatorsResult] = await Promise.all([
     getCenters(),
     getPotentialCoordinators()
   ]);
 
-  // Consolidated error handling
   let fetchErrorMsg = null;
   if (!centersResult.success) {
     fetchErrorMsg = centersResult.error || "Could not load centers data.";
-  } else if (!potentialCoordinatorsResult.success && !fetchErrorMsg) { // Only set if no previous error
+  } else if (!potentialCoordinatorsResult.success) {
     fetchErrorMsg = potentialCoordinatorsResult.error || "Could not load potential coordinators data.";
   }
 
-
   if (fetchErrorMsg) {
     return (
-      <div className="flex flex-col flex-1 h-full items-center justify-center p-4 bg-white dark:bg-slate-900">
-        <div className="w-full max-w-2xl">
-          <Alert
-            variant="destructive"
-            className="bg-red-50 border-red-300 dark:bg-red-800/20 dark:border-red-700/50 text-red-700 dark:text-red-300 shadow-md rounded-lg"
-          >
-            <FileWarning className="h-5 w-5 text-red-600 dark:text-red-400" />
-            <AlertTitle className="font-semibold text-lg text-red-800 dark:text-red-200">Error Loading Data</AlertTitle>
-            <AlertDescription className="text-red-700 dark:text-red-300">
-              {fetchErrorMsg} Please try again later or contact support.
-              <div className="mt-6">
-                <Button
-                  asChild
-                  variant="outline"
-                  className="border-red-600 text-red-700 hover:bg-red-100 focus-visible:ring-red-500 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-700/30"
-                >
-                  <Link href="/registry">Back to Registry Overview</Link>
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        </div>
+      <div className="w-full py-8 px-6">
+        <Alert
+          variant="destructive"
+          className="bg-gradient-to-br from-red-50 to-red-100 border-red-200 dark:from-red-900/20 dark:to-red-800/10 dark:border-red-700/50 text-red-800 dark:text-red-200 shadow-lg rounded-xl"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+              <FileWarning className="h-6 w-6 text-red-600 dark:text-red-400" />
+            </div>
+            <AlertTitle className="font-bold text-lg text-red-900 dark:text-red-100">
+              Unable to Load Data
+            </AlertTitle>
+          </div>
+          <AlertDescription className="text-red-700 dark:text-red-300 leading-relaxed">
+            {fetchErrorMsg}
+            <div className="mt-6">
+              <Button asChild variant="outline"
+                className="border-red-300 text-red-700 hover:bg-red-100 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-900/30">
+                <Link href="/registry">← Back to Registry</Link>
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
         <Toaster richColors position="top-right" theme="light" />
       </div>
     );
   }
 
-  return (
-    // This root div sets up the overall page flex structure.
-    // h-full assumes its parent (likely from a layout file) also supports height distribution.
-    <div className="flex flex-col flex-1 h-full bg-white dark:bg-slate-900">
-      <header className="w-full border-b border-slate-200 dark:border-slate-700 p-4 sm:p-6 bg-white dark:bg-slate-800 shadow-sm shrink-0"> {/* Added shrink-0 to header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold flex items-center text-blue-800 dark:text-blue-300">
-              <Building className="mr-3 h-7 w-7 md:h-8 md:w-8 text-violet-700 dark:text-violet-500" />
-              Manage Study Centers
-            </h1>
-            <p className="text-sm md:text-base text-slate-600 dark:text-slate-400 mt-1">
-              Create and manage Study centers and their coordinators.
-            </p>
-          </div>
-        </div>
-      </header>
+  const centers = centersResult.centers || [];
 
-      {/* Main content area: flex-1 allows it to take available vertical space. overflow-hidden is crucial. */}
-      <main className="flex-1 overflow-hidden p-4 sm:p-6">
-        <ManageCentersTab
-          initialCenters={centersResult.centers || []}
-          potentialCoordinators={potentialCoordinatorsResult.users || []}
-          currentUserId={session.userId}
-        />
-      </main>
+  // Compute aggregate stats
+  const stats = {
+    totalCenters: centers.length,
+    totalLecturers: centers.reduce((sum, c) => sum + (c.lecturerCount || 0), 0),
+    totalDepartments: centers.reduce((sum, c) => sum + (c.departmentCount || 0), 0),
+    totalStaffRegistry: centers.reduce((sum, c) => sum + (c.staffRegistryCount || 0), 0),
+  };
+
+  return (
+    <div className="w-full">
+      <ManageCentersTab
+        initialCenters={centers}
+        potentialCoordinators={potentialCoordinatorsResult.users || []}
+        currentUserId={session.userId}
+        stats={stats}
+      />
       <Toaster richColors position="top-right" theme="light" />
     </div>
   );
