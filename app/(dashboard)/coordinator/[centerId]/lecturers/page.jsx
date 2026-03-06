@@ -1,12 +1,12 @@
 // app/(dashboard)/coordinator/[centerId]/lecturers/page.jsx
 import { getSession } from '@/lib/actions/auth.actions';
-import { getCoordinatorDashboardData } from '@/lib/actions/coordinator.actions.js'; // This fetches lecturers and departments
+import { getCoordinatorDashboardData } from '@/lib/actions/coordinator.actions.js';
 import { redirect } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { FileWarning, Users } from "lucide-react"; // Icons
-import ManageCoordinatorLecturersTab from '../_components/ManageCoordinatorLecturersTab'; // Adjusted path
+import { FileWarning } from "lucide-react";
+import ManageCoordinatorLecturersTab from '../_components/ManageCoordinatorLecturersTab';
 import { Toaster } from "@/components/ui/sonner";
 
 export default async function CoordinatorLecturersPage({ params }) {
@@ -14,63 +14,42 @@ export default async function CoordinatorLecturersPage({ params }) {
   const { centerId } = await params;
 
   if (!session || session.role !== 'COORDINATOR') {
-    // This should ideally be caught by the layout, but good for direct access attempts
     redirect('/login');
   }
 
-  // The layout (CoordinatorLayout) already verifies that this coordinator is assigned to this centerId.
-  // Now, fetch all data for this center, which includes lecturers and departments (for assignment).
   const result = await getCoordinatorDashboardData(session.userId);
 
   if (!result.success || !result.data) {
     return (
-      <div className="mt-4">
-        <Alert variant="destructive">
-          <FileWarning className="h-4 w-4" />
-          <AlertTitle>Error Loading Lecturer Data</AlertTitle>
-          <AlertDescription>
-            {result.error || "Could not load the necessary data for managing lecturers. Please try again later or contact support."}
+      <div className="w-full py-6 px-4">
+        <Alert variant="destructive" className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+          <FileWarning className="h-5 w-5 text-red-600" />
+          <AlertTitle className="font-semibold text-red-800 dark:text-red-300">Error Loading Lecturers</AlertTitle>
+          <AlertDescription className="text-red-700 dark:text-red-400">
+            {result.error || "Could not load lecturer data. Please try again."}
             <div className="mt-4">
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" size="sm" className="border-red-300 text-red-700 hover:bg-red-100">
                 <Link href={`/coordinator/${centerId}`}>Back to Overview</Link>
               </Button>
             </div>
           </AlertDescription>
         </Alert>
+        <Toaster richColors position="top-right" />
       </div>
     );
   }
 
-  const {
-    center,
-    lecturers,
-    departments, // Needed for assigning lecturers to departments
-    // claims: pendingClaims // Not directly used on this page
-  } = result.data;
+  const { center, lecturers, departments } = result.data;
 
-  // Sanity check: ensure the fetched center ID matches the URL parameter.
   if (center.id !== centerId) {
-      console.error(`Data mismatch on lecturers page: Fetched center ID ${center.id} does not match URL center ID ${centerId} for coordinator ${session.userId}`);
-      redirect('/unauthorized?error=data_mismatch_lecturers');
+    redirect('/unauthorized?error=data_mismatch_lecturers');
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center">
-            <Users className="mr-3 h-8 w-8 text-primary" />
-            Manage Lecturers
-          </h1>
-          <p className="text-muted-foreground">
-            Center: <span className="font-semibold">{center.name}</span>
-          </p>
-        </div>
-      </div>
-
-      {/* Render the ManageCoordinatorLecturersTab component */}
+    <div className="w-full space-y-5 py-2">
       <ManageCoordinatorLecturersTab
         centerId={center.id}
+        centerName={center.name}
         initialLecturers={lecturers || []}
         departmentsForAssignment={departments || []}
         coordinatorUserId={session.userId}
