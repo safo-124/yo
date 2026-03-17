@@ -70,10 +70,11 @@ export default async function RegistryManageSystemClaimsPage() {
 
   return (
     <div className="flex flex-col flex-1 h-full p-4 py-6 sm:p-6 lg:p-8 space-y-6 bg-slate-50 dark:bg-slate-900">
+      {/* ── F) Polished Page Header ── */}
       <header className="pb-5 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-3 md:gap-4">
-          <span className="p-3 bg-violet-100 dark:bg-violet-800/30 rounded-xl">
-            <PageIcon className="h-6 w-6 md:h-7 md:w-7 text-violet-700 dark:text-violet-400" />
+          <span className="p-3 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-xl shadow-lg shadow-violet-500/20">
+            <PageIcon className="h-6 w-6 md:h-7 md:w-7 text-white" />
           </span>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">

@@ -120,6 +120,10 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
   const [filterLevel, setFilterLevel] = useState('');
   const [filterSemester, setFilterSemester] = useState('');
 
+  // Filter states for programs tab
+  const [filterProgramCategory, setFilterProgramCategory] = useState('');
+  const [filterProgramDept, setFilterProgramDept] = useState('');
+
   // View mode and pagination  
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
   const [currentPage, setCurrentPage] = useState(1);
@@ -170,16 +174,28 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
 
   // Filter programs for display
   const filteredPrograms = useMemo(() => {
+    let result = programs;
+    if (filterProgramCategory) {
+      result = result.filter(p => p.programCategory === filterProgramCategory);
+    }
+    if (filterProgramDept) {
+      result = result.filter(p => p.departmentId === filterProgramDept || p.departmentName === filterProgramDept);
+    }
     const query = searchQuery.toLowerCase().trim();
-    if (!query) return programs;
-    return programs.filter(program => {
-      const codeMatch = program.programCode?.toLowerCase().includes(query);
-      const titleMatch = program.programTitle?.toLowerCase().includes(query);
-      const categoryMatch = program.programCategory?.toLowerCase().includes(query);
-      const deptMatch = program.departmentName?.toLowerCase().includes(query);
-      return codeMatch || titleMatch || categoryMatch || deptMatch;
-    });
-  }, [programs, searchQuery]);
+    if (query) {
+      result = result.filter(program => {
+        const codeMatch = program.programCode?.toLowerCase().includes(query);
+        const titleMatch = program.programTitle?.toLowerCase().includes(query);
+        const categoryMatch = program.programCategory?.toLowerCase().includes(query);
+        const deptMatch = program.departmentName?.toLowerCase().includes(query);
+        return codeMatch || titleMatch || categoryMatch || deptMatch;
+      });
+    }
+    return result;
+  }, [programs, searchQuery, filterProgramCategory, filterProgramDept]);
+
+  // Active program filter count
+  const activeProgramFilterCount = [filterProgramCategory, filterProgramDept].filter(Boolean).length;
 
   // Filter courses for display
   const filteredCourses = useMemo(() => {
@@ -231,6 +247,37 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
 
   // Active filter count
   const activeFilterCount = [filterProgram, filterLevel, filterSemester].filter(Boolean).length;
+
+  // Helper: get category color for program cards
+  const getCategoryColor = (category) => {
+    switch (category) {
+      case 'UNDERGRADUATE': return { border: 'border-t-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/30', text: 'text-blue-700 dark:text-blue-300', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', icon: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-100 dark:bg-blue-900/40' };
+      case 'POSTGRADUATE': return { border: 'border-t-violet-500', bg: 'bg-violet-50 dark:bg-violet-950/30', text: 'text-violet-700 dark:text-violet-300', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300', icon: 'text-violet-600 dark:text-violet-400', iconBg: 'bg-violet-100 dark:bg-violet-900/40' };
+      case 'DIPLOMA': return { border: 'border-t-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-300', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', icon: 'text-emerald-600 dark:text-emerald-400', iconBg: 'bg-emerald-100 dark:bg-emerald-900/40' };
+      default: return { border: 'border-t-slate-400', bg: 'bg-slate-50 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-300', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', icon: 'text-slate-600 dark:text-slate-400', iconBg: 'bg-slate-100 dark:bg-slate-800' };
+    }
+  };
+
+  // Unique departments for program filter
+  const uniqueProgramDepartments = useMemo(() => {
+    const deptMap = new Map();
+    programs.forEach(p => {
+      if (p.departmentName && !deptMap.has(p.departmentName)) {
+        deptMap.set(p.departmentName, { name: p.departmentName, id: p.departmentId || p.departmentName });
+      }
+    });
+    return Array.from(deptMap.values());
+  }, [programs]);
+
+  // Program stats
+  const programStats = useMemo(() => {
+    const undergrad = programs.filter(p => p.programCategory === 'UNDERGRADUATE').length;
+    const postgrad = programs.filter(p => p.programCategory === 'POSTGRADUATE').length;
+    const diploma = programs.filter(p => p.programCategory === 'DIPLOMA').length;
+    const withDept = programs.filter(p => p.departmentName).length;
+    const totalCourses = programs.reduce((sum, p) => sum + (p.courseCount || 0), 0);
+    return { undergrad, postgrad, diploma, withDept, totalCourses };
+  }, [programs]);
 
   // Helper: get a color for program badges based on program code  
   const getProgramColor = (programCode) => {
@@ -946,6 +993,7 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
 
     const clearSearch = () => setSearchQuery('');
     const clearFilters = () => { setFilterProgram(''); setFilterLevel(''); setFilterSemester(''); };
+    const clearProgramFilters = () => { setFilterProgramCategory(''); setFilterProgramDept(''); };
 
     return (
       <>
@@ -1500,151 +1548,213 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
 
             {/* Programs Tab Content */}
             <TabsContent value="programs" className="h-full mt-0 pt-0 data-[state=inactive]:hidden">
-              {/* ======================= EDIT PROGRAM DIALOG (ADD THIS) ======================= */}
-{editingProgram && (
-  <Dialog open={isEditProgramDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetEditProgramForm(); } setIsEditProgramDialogOpen(open); }}>
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2"><Edit2 className="h-5 w-5 text-violet-700" /> Edit Program</DialogTitle>
-        <DialogDescription>Update the details for the program: {editingProgram.programCode}.</DialogDescription>
-      </DialogHeader>
-      <form onSubmit={handleUpdateProgram}>
-        <div className="grid gap-4 py-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="editProgramCode" className={dialogLabelClass}>Program Code <span className="text-red-700">*</span></Label>
-            <Input
-              id="editProgramCode"
-              value={editingProgram.programCode || ''}
-              onChange={(e) => setEditingProgram(prev => ({ ...prev, programCode: e.target.value }))}
-              placeholder="e.g., BSc-CS"
-              disabled={isLoadingForm}
-              className={dialogInputClass}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="editProgramTitle" className={dialogLabelClass}>Program Title <span className="text-red-700">*</span></Label>
-            <Input
-              id="editProgramTitle"
-              value={editingProgram.programTitle || ''}
-              onChange={(e) => setEditingProgram(prev => ({ ...prev, programTitle: e.target.value }))}
-              placeholder="e.g., Bachelor of Science in Computer Science"
-              disabled={isLoadingForm}
-              className={dialogInputClass}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="editProgramCategory" className={dialogLabelClass}>Program Category <span className="text-red-700">*</span></Label>
-            <Select
-              value={editingProgram.programCategory || ''}
-              onValueChange={(val) => setEditingProgram(prev => ({ ...prev, programCategory: val }))}
-              disabled={isLoadingForm}
-            >
-              <SelectTrigger id="editProgramCategory" className={dialogSelectTriggerClass}><SelectValue placeholder="Select category" /></SelectTrigger>
-              <SelectContent className={dialogSelectContentClass}>
-                {PROGRAM_CATEGORIES.map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="editProgramDepartmentId" className={dialogLabelClass}>Department <span className="text-red-700">*</span></Label>
-            <Select
-              value={editingProgram.departmentId || ''}
-              onValueChange={(val) => setEditingProgram(prev => ({ ...prev, departmentId: val }))}
-              disabled={isLoadingForm || departments.length === 0}
-            >
-              <SelectTrigger id="editProgramDepartmentId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select department" /></SelectTrigger>
-              <SelectContent className={dialogSelectContentClass}>
-                {departments.length > 0 ? departments.map(dept => (
-                  <SelectItem key={dept.id} value={dept.id}>{dept.name} ({dept.centerName})</SelectItem>
-                )) : <div className="px-3 py-2 text-sm text-slate-500">No departments found.</div>}
-              </SelectContent>
-            </Select>
-          </div>
-          {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
-        </div>
-        <DialogFooter>
-          <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
-          <Button type="submit" disabled={isLoadingForm}>
-            {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-            Save Changes
-          </Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
-  </Dialog>
-)}
-{/* ================================================================================= */}
-              {/* FIX: Moved p-4 inside ScrollArea's content div */}
+              {/* ======================= EDIT PROGRAM DIALOG ======================= */}
+              {editingProgram && (
+                <Dialog open={isEditProgramDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetEditProgramForm(); } setIsEditProgramDialogOpen(open); }}>
+                  <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden rounded-2xl border-slate-200 dark:border-slate-700">
+                    <div className="bg-gradient-to-r from-violet-600 to-indigo-700 px-6 py-5">
+                      <DialogTitle className="text-white text-lg font-semibold flex items-center gap-2.5">
+                        <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-white/20 backdrop-blur-sm"><Edit2 className="h-5 w-5 text-white" /></div>
+                        Edit Program
+                      </DialogTitle>
+                      <DialogDescription className="text-violet-200 text-sm mt-1">Update details for {editingProgram.programCode}</DialogDescription>
+                    </div>
+                    <form onSubmit={handleUpdateProgram}>
+                      <div className="grid gap-4 p-6">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <Label htmlFor="editProgramCode" className={dialogLabelClass}>Program Code <span className="text-red-700">*</span></Label>
+                            <Input id="editProgramCode" value={editingProgram.programCode || ''} onChange={(e) => setEditingProgram(prev => ({ ...prev, programCode: e.target.value }))} placeholder="e.g., BSc-CS" disabled={isLoadingForm} className={dialogInputClass} />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor="editProgramCategory" className={dialogLabelClass}>Category <span className="text-red-700">*</span></Label>
+                            <Select value={editingProgram.programCategory || ''} onValueChange={(val) => setEditingProgram(prev => ({ ...prev, programCategory: val }))} disabled={isLoadingForm}>
+                              <SelectTrigger id="editProgramCategory" className={dialogSelectTriggerClass}><SelectValue placeholder="Select category" /></SelectTrigger>
+                              <SelectContent className={dialogSelectContentClass}>{PROGRAM_CATEGORIES.map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="editProgramTitle" className={dialogLabelClass}>Program Title <span className="text-red-700">*</span></Label>
+                          <Input id="editProgramTitle" value={editingProgram.programTitle || ''} onChange={(e) => setEditingProgram(prev => ({ ...prev, programTitle: e.target.value }))} placeholder="e.g., Bachelor of Science in Computer Science" disabled={isLoadingForm} className={dialogInputClass} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="editProgramDepartmentId" className={dialogLabelClass}>Department <span className="text-red-700">*</span></Label>
+                          <Select value={editingProgram.departmentId || ''} onValueChange={(val) => setEditingProgram(prev => ({ ...prev, departmentId: val }))} disabled={isLoadingForm || departments.length === 0}>
+                            <SelectTrigger id="editProgramDepartmentId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select department" /></SelectTrigger>
+                            <SelectContent className={dialogSelectContentClass}>{departments.length > 0 ? departments.map(dept => (<SelectItem key={dept.id} value={dept.id}>{dept.name} ({dept.centerName})</SelectItem>)) : <div className="px-3 py-2 text-sm text-slate-500">No departments found.</div>}</SelectContent>
+                          </Select>
+                        </div>
+                        {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+                      </div>
+                      <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
+                        <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm} className="rounded-lg">Cancel</Button></DialogClose>
+                        <Button type="submit" disabled={isLoadingForm} className="rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-md">
+                          {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Edit2 className="mr-2 h-4 w-4"/>}Save Changes
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
+
+              {/* ── Program Filter Bar ────────────────────────────── */}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <Select value={filterProgramCategory} onValueChange={setFilterProgramCategory}>
+                  <SelectTrigger className={`w-[160px] h-9 text-sm rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 ${filterProgramCategory ? 'ring-2 ring-violet-500/30 border-violet-300 dark:border-violet-600' : ''}`}>
+                    <Layers className="h-3.5 w-3.5 mr-1 text-slate-400" /><SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent className={dialogSelectContentClass}>
+                    {PROGRAM_CATEGORIES.map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={filterProgramDept} onValueChange={setFilterProgramDept}>
+                  <SelectTrigger className={`w-[200px] h-9 text-sm rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 ${filterProgramDept ? 'ring-2 ring-violet-500/30 border-violet-300 dark:border-violet-600' : ''}`}>
+                    <Building2 className="h-3.5 w-3.5 mr-1 text-slate-400" /><SelectValue placeholder="Department" />
+                  </SelectTrigger>
+                  <SelectContent className={dialogSelectContentClass}>
+                    {uniqueProgramDepartments.map(dept => <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {activeProgramFilterCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearProgramFilters} className="h-9 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+                    <X className="h-3.5 w-3.5 mr-1" />Clear filters
+                  </Button>
+                )}
+                <span className="text-xs text-slate-500 dark:text-slate-400 ml-auto">{filteredPrograms.length} program{filteredPrograms.length !== 1 ? 's' : ''}</span>
+              </div>
+
+              {/* ── Program Stats Mini Bar ─────────────────────────── */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Undergraduate: {programStats.undergrad}</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800">
+                  <div className="h-2 w-2 rounded-full bg-violet-500" />
+                  <span className="text-xs font-medium text-violet-700 dark:text-violet-300">Postgraduate: {programStats.postgrad}</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Diploma: {programStats.diploma}</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <BookText className="h-3.5 w-3.5 text-slate-500" />
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{programStats.totalCourses} total courses</span>
+                </div>
+              </div>
+
               <ScrollArea className="h-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg bg-white dark:bg-slate-800/90">
-                <div className="p-4"> {/* Added padding inside ScrollArea's content */}
+                <div className="p-4">
                   {isLoadingForm && activeTab === 'programs' && (
-                    <div className="space-y-4">
-                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
-                        <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[1,2,3,4,5,6].map(i => (
+                        <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+                          <Skeleton className="h-5 w-3/4 rounded bg-slate-200 dark:bg-slate-700"/>
+                          <Skeleton className="h-4 w-1/3 rounded bg-slate-200 dark:bg-slate-700"/>
+                          <Skeleton className="h-4 w-1/2 rounded bg-slate-200 dark:bg-slate-700"/>
+                          <Skeleton className="h-8 w-full rounded bg-slate-200 dark:bg-slate-700"/>
+                        </div>
+                      ))}
                     </div>
                   )}
-                  {searchQuery && filteredPrograms.length === 0 && (
-                    <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
-                      <Search className="h-10 w-10 mb-3" />
-                      <p className="font-semibold">No programs found for "{searchQuery}".</p>
-                      <Button variant="link" onClick={clearSearch} className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Clear Search</Button>
+                  {(searchQuery || activeProgramFilterCount > 0) && filteredPrograms.length === 0 && (
+                    <div className="flex flex-col items-center justify-center p-12 text-center min-h-[300px]">
+                      <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-slate-100 dark:bg-slate-700 mb-4">
+                        <Search className="h-8 w-8 text-slate-400 dark:text-slate-500" />
+                      </div>
+                      <p className="font-semibold text-slate-700 dark:text-slate-300 text-lg">No programs found</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+                        {searchQuery ? `No results for "${searchQuery}"` : 'No programs match the selected filters'}
+                      </p>
+                      <div className="flex gap-2 mt-4">
+                        {searchQuery && <Button variant="outline" size="sm" onClick={clearSearch} className="rounded-lg">Clear search</Button>}
+                        {activeProgramFilterCount > 0 && <Button variant="outline" size="sm" onClick={clearProgramFilters} className="rounded-lg">Clear filters</Button>}
+                      </div>
                     </div>
                   )}
-                  {!isLoadingForm && filteredPrograms.length === 0 && !searchQuery && (
-                    <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
-                      <GraduationCap className="h-10 w-10 mb-3" />
-                      <p className="font-semibold">No programs added yet. Start by creating one.</p>
-                      <Button onClick={() => setIsProgramDialogOpen(true)} variant="link" className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Add First Program</Button>
+                  {!isLoadingForm && filteredPrograms.length === 0 && !searchQuery && activeProgramFilterCount === 0 && (
+                    <div className="flex flex-col items-center justify-center p-12 text-center min-h-[300px]">
+                      <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-violet-100 dark:bg-violet-900/30 mb-4">
+                        <GraduationCap className="h-8 w-8 text-violet-500 dark:text-violet-400" />
+                      </div>
+                      <p className="font-semibold text-slate-700 dark:text-slate-300 text-lg">No programs yet</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Get started by creating your first program</p>
+                      <Button onClick={() => setIsProgramDialogOpen(true)} className="mt-4 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white">
+                        <PlusCircle className="h-4 w-4 mr-2" />Add First Program
+                      </Button>
                     </div>
                   )}
                   {!isLoadingForm && filteredPrograms.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {filteredPrograms.map(program => (
-                        <Card key={program.id} className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-lg font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
-                              <BookOpen className="h-5 w-5 flex-shrink-0 text-violet-700 dark:text-violet-500" />
-                              {program.programTitle}
-                            </CardTitle>
-                            <CardDescription className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                                <Hash className="h-3.5 w-3.5" />{program.programCode}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-1 text-sm">
-                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                <span>Category: <Badge variant="secondary" className="capitalize">{program.programCategory.toLowerCase()}</Badge></span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                <span>Dept: {program.departmentName}</span>
-                            </div>
-                            {program.centerName && (
-                              <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                  <CheckSquare className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                  <span>Center: {program.centerName}</span>
+                      {filteredPrograms.map(program => {
+                        const catColor = getCategoryColor(program.programCategory);
+                        return (
+                          <Card key={program.id} className={`group bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 border-t-[3px] ${catColor.border} shadow-sm rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden`}>
+                            <CardHeader className="pb-2 pt-4 px-4">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-3 min-w-0">
+                                  <div className={`flex items-center justify-center h-10 w-10 rounded-xl ${catColor.iconBg} flex-shrink-0 mt-0.5`}>
+                                    <GraduationCap className={`h-5 w-5 ${catColor.icon}`} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <CardTitle className="text-[15px] font-semibold text-slate-800 dark:text-slate-100 leading-tight line-clamp-2">
+                                      {program.programTitle}
+                                    </CardTitle>
+                                    <div className="flex items-center gap-2 mt-1.5">
+                                      <Badge variant="outline" className="text-[11px] font-mono px-1.5 py-0 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400">
+                                        {program.programCode}
+                                      </Badge>
+                                      <Badge className={`text-[11px] px-2 py-0 font-medium border-0 ${catColor.badge}`}>
+                                        {program.programCategory === 'UNDERGRADUATE' ? 'UG' : program.programCategory === 'POSTGRADUATE' ? 'PG' : 'Dip'}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                            )}
-                            <Separator className="my-2" />
-                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                              <BookText className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                              <span>Courses: {program.courseCount}</span>
-                            </div>
-                            <div className="flex justify-end gap-1 mt-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingProgram(program); setIsEditProgramDialogOpen(true); }}>
-                                    <Edit2 className="h-4 w-4" />
-                                    <span className="sr-only">Edit Program</span>
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" 
-                                  onClick={() => { setDeletingProgram(program); setIsDeleteProgramDialogOpen(true); }}>
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Delete Program</span>
-                                </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                            </CardHeader>
+                            <CardContent className="px-4 pb-3 pt-1 space-y-2.5">
+                              <Separator className="my-1" />
+                              <div className="space-y-2">
+                                {program.departmentName ? (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Building2 className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                                    <span className="text-slate-600 dark:text-slate-300 truncate">{program.departmentName}</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Building2 className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                                    <span className="text-amber-600 dark:text-amber-400 italic">No department</span>
+                                  </div>
+                                )}
+                                {program.centerName && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Home className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                                    <span className="text-slate-600 dark:text-slate-300 truncate">{program.centerName}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between pt-1">
+                                <div className="flex items-center gap-1.5">
+                                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${program.courseCount > 0 ? 'bg-indigo-50 dark:bg-indigo-950/30' : 'bg-slate-50 dark:bg-slate-800'}`}>
+                                    <BookText className={`h-3.5 w-3.5 ${program.courseCount > 0 ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400'}`} />
+                                    <span className={`text-xs font-semibold ${program.courseCount > 0 ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500'}`}>{program.courseCount}</span>
+                                    <span className={`text-xs ${program.courseCount > 0 ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400'}`}>course{program.courseCount !== 1 ? 's' : ''}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20" onClick={() => { setEditingProgram(program); setIsEditProgramDialogOpen(true); }}>
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => { setDeletingProgram(program); setIsDeleteProgramDialogOpen(true); }}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1986,33 +2096,32 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
         </Tabs>
       </Card>
       <Dialog open={isDeleteDepartmentDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setDeletingDepartment(null); } setIsDeleteDepartmentDialogOpen(open); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-700"><Trash2 className="h-5 w-5" /> Delete Department</DialogTitle>
-            <DialogDescription>Are you sure you want to delete the department: <strong>{deletingDepartment?.name}</strong>?</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md text-sm flex items-start gap-2 mb-4">
-              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden rounded-2xl border-slate-200 dark:border-slate-700">
+          <div className="bg-gradient-to-r from-red-600 to-rose-700 px-6 py-5">
+            <DialogTitle className="text-white text-lg font-semibold flex items-center gap-2.5">
+              <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-white/20 backdrop-blur-sm"><Trash2 className="h-5 w-5 text-white" /></div>
+              Delete Department
+            </DialogTitle>
+            <DialogDescription className="text-red-200 text-sm mt-1">This action cannot be undone</DialogDescription>
+          </div>
+          <div className="p-6">
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+              Are you sure you want to delete <strong className="text-slate-800 dark:text-slate-100">{deletingDepartment?.name}</strong>?
+            </p>
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 p-3 rounded-xl text-sm flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium">Warning:</p>
-                <p>This action cannot be undone. Deleting this department may also affect programs and courses associated with it.</p>
+                <p className="font-medium">Warning</p>
+                <p className="text-xs mt-0.5 opacity-80">Deleting this department may also affect programs and courses associated with it.</p>
               </div>
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsDeleteDepartmentDialogOpen(false)} disabled={isLoadingForm} className="border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-              Cancel
-            </Button>
+          <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
+            <Button variant="outline" onClick={() => setIsDeleteDepartmentDialogOpen(false)} disabled={isLoadingForm} className="rounded-lg">Cancel</Button>
             <Button 
               onClick={async () => {
                 try {
-                  console.log("Delete button clicked for department:", deletingDepartment?.id);
-                  if (!deletingDepartment?.id) {
-                    console.error("Missing department ID for deletion");
-                    toast.error("Cannot delete: Missing department ID");
-                    return;
-                  }
+                  if (!deletingDepartment?.id) { toast.error("Cannot delete: Missing department ID"); return; }
                   setIsLoadingForm(true);
                   await handleDeleteDepartment();
                 } catch (error) {
@@ -2023,44 +2132,43 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                 }
               }}
               disabled={isLoadingForm} 
-              className="bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold"
+              className="rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-semibold shadow-md"
             >
               {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}
-              {isLoadingForm ? "Deleting..." : "Yes, Delete Department"}
+              {isLoadingForm ? "Deleting..." : "Delete Department"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Delete Program Confirmation Dialog */}
       <Dialog open={isDeleteProgramDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setDeletingProgram(null); } setIsDeleteProgramDialogOpen(open); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-700"><Trash2 className="h-5 w-5" /> Delete Program</DialogTitle>
-            <DialogDescription>Are you sure you want to delete the program: <strong>{deletingProgram?.programTitle}</strong> ({deletingProgram?.programCode})?</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md text-sm flex items-start gap-2 mb-4">
-              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden rounded-2xl border-slate-200 dark:border-slate-700">
+          <div className="bg-gradient-to-r from-red-600 to-rose-700 px-6 py-5">
+            <DialogTitle className="text-white text-lg font-semibold flex items-center gap-2.5">
+              <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-white/20 backdrop-blur-sm"><Trash2 className="h-5 w-5 text-white" /></div>
+              Delete Program
+            </DialogTitle>
+            <DialogDescription className="text-red-200 text-sm mt-1">This action cannot be undone</DialogDescription>
+          </div>
+          <div className="p-6">
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+              Are you sure you want to delete <strong className="text-slate-800 dark:text-slate-100">{deletingProgram?.programTitle}</strong> ({deletingProgram?.programCode})?
+            </p>
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 p-3 rounded-xl text-sm flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium">Warning:</p>
-                <p>This action cannot be undone. Deleting this program may also affect courses associated with it.</p>
+                <p className="font-medium">Warning</p>
+                <p className="text-xs mt-0.5 opacity-80">Deleting this program may also affect courses associated with it.</p>
               </div>
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsDeleteProgramDialogOpen(false)} disabled={isLoadingForm} className="border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-              Cancel
-            </Button>
+          <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
+            <Button variant="outline" onClick={() => setIsDeleteProgramDialogOpen(false)} disabled={isLoadingForm} className="rounded-lg">Cancel</Button>
             <Button 
               onClick={async () => {
                 try {
-                  console.log("Delete button clicked for program:", deletingProgram?.id);
-                  if (!deletingProgram?.id) {
-                    console.error("Missing program ID for deletion");
-                    toast.error("Cannot delete: Missing program ID");
-                    return;
-                  }
+                  if (!deletingProgram?.id) { toast.error("Cannot delete: Missing program ID"); return; }
                   setIsLoadingForm(true);
                   await handleDeleteProgram();
                 } catch (error) {
@@ -2071,12 +2179,12 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                 }
               }}
               disabled={isLoadingForm} 
-              className="bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold"
+              className="rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-semibold shadow-md"
             >
               {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}
-              {isLoadingForm ? "Deleting..." : "Yes, Delete Program"}
+              {isLoadingForm ? "Deleting..." : "Delete Program"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -2088,65 +2196,52 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
           } 
           setIsDeleteCourseDialogOpen(open); 
         }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-700"><Trash2 className="h-5 w-5" /> Delete Course</DialogTitle>
-            <DialogDescription>Are you sure you want to delete the course: <strong>{deletingCourse?.courseTitle}</strong> ({deletingCourse?.courseCode})?</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden rounded-2xl border-slate-200 dark:border-slate-700">
+          <div className="bg-gradient-to-r from-red-600 to-rose-700 px-6 py-5">
+            <DialogTitle className="text-white text-lg font-semibold flex items-center gap-2.5">
+              <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-white/20 backdrop-blur-sm"><Trash2 className="h-5 w-5 text-white" /></div>
+              Delete Course
+            </DialogTitle>
+            <DialogDescription className="text-red-200 text-sm mt-1">This action cannot be undone</DialogDescription>
+          </div>
+          <div className="p-6">
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+              Are you sure you want to delete <strong className="text-slate-800 dark:text-slate-100">{deletingCourse?.courseTitle}</strong> ({deletingCourse?.courseCode})?
+            </p>
             {/* Show assigned lecturers if any */}
             {courseAssignedLecturers.length > 0 && (
-              <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-md text-sm mb-4">
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 p-3 rounded-xl text-sm mb-4">
                 <div className="font-medium mb-1 flex items-center gap-2">
-                  <User className="h-4 w-4" /> This course is currently assigned to lecturers:
+                  <User className="h-4 w-4" /> Currently assigned to:
                 </div>
-                <ul className="list-disc pl-5 space-y-1 mb-3">
+                <ul className="list-disc pl-5 space-y-1 mb-3 text-xs">
                   {courseAssignedLecturers.map((lecturer, index) => (
                     <li key={index}>{lecturer.name}</li>
                   ))}
                 </ul>
                 <div className="flex justify-end mt-2">
-                  <Button 
-                    onClick={handleUnassignCourse} 
-                    disabled={isUnassigningCourse || isLoadingForm} 
-                    size="sm"
-                    className="bg-amber-600 hover:bg-amber-700 text-white"
-                  >
+                  <Button onClick={handleUnassignCourse} disabled={isUnassigningCourse || isLoadingForm} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs">
                     {isUnassigningCourse ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <UserPlus className="mr-2 h-3 w-3"/>}
                     {isUnassigningCourse ? "Unassigning..." : "Unassign All Lecturers"}
                   </Button>
                 </div>
               </div>
             )}
-            
-            <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md text-sm flex items-start gap-2 mb-4">
-              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 p-3 rounded-xl text-sm flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium">Warning:</p>
-                <p>This action cannot be undone. This will remove all assignments and associations for this course.</p>
+                <p className="font-medium">Warning</p>
+                <p className="text-xs mt-0.5 opacity-80">This will remove all assignments and associations for this course.</p>
               </div>
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsDeleteCourseDialogOpen(false)} disabled={isLoadingForm || isUnassigningCourse} className="border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-100">
-              Cancel
-            </Button>
+          <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
+            <Button variant="outline" onClick={() => setIsDeleteCourseDialogOpen(false)} disabled={isLoadingForm || isUnassigningCourse} className="rounded-lg">Cancel</Button>
             <Button 
               onClick={async () => {
                 try {
-                  console.log("Delete button clicked for course:", deletingCourse?.id);
-                  if (!deletingCourse?.id) {
-                    console.error("Missing course ID for deletion");
-                    toast.error("Cannot delete: Missing course ID");
-                    return;
-                  }
-                  
-                  // Check if we need to unassign first
-                  if (courseAssignedLecturers.length > 0) {
-                    toast.error("Please unassign all lecturers before deleting this course");
-                    return;
-                  }
-                  
+                  if (!deletingCourse?.id) { toast.error("Cannot delete: Missing course ID"); return; }
+                  if (courseAssignedLecturers.length > 0) { toast.error("Please unassign all lecturers before deleting"); return; }
                   setIsLoadingForm(true);
                   await handleDeleteCourse();
                 } catch (error) {
@@ -2157,12 +2252,12 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                 }
               }} 
               disabled={isLoadingForm || isUnassigningCourse || courseAssignedLecturers.length > 0} 
-              className="bg-red-700 hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold"
+              className="rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-semibold shadow-md"
             >
               {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}
-              {isLoadingForm ? "Deleting..." : "Yes, Delete Course"}
+              {isLoadingForm ? "Deleting..." : "Delete Course"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
       </>
