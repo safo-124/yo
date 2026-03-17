@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import {
-  Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
+  Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -11,14 +11,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { getLecturerMonthlyClaimSummary } from '@/lib/actions/registry.actions.js';
 import { toast } from "sonner";
-import { UserSearch, CalendarSearch, Printer, BarChartHorizontalBig, AlertTriangle, Hourglass, CheckSquare, XSquare, FileOutput, Loader2, CalendarDays, Users, Palette, BookOpenCheck, FileSymlink } from "lucide-react";
+import { UserSearch, CalendarSearch, Printer, BarChartHorizontalBig, AlertTriangle, CheckSquare, XSquare, FileOutput, Loader2, CalendarDays, FileSymlink, Clock, BookOpen, Banknote, Filter, ChevronsUpDown, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from "@/components/ui/badge";
 
 const focusRingClass = "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-700 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900";
-const violetButtonClasses = `text-white font-medium rounded-md bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 focus-visible:ring-violet-500 transition-all duration-200 ease-in-out shadow-md hover:shadow-lg disabled:opacity-70 ${focusRingClass}`;
 
 const dateLocaleStringOptions = { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' };
 const dateTimeLocaleStringOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'UTC' };
@@ -30,18 +29,28 @@ const CLAIM_TYPES = [
   { value: "THESIS_PROJECT", label: "Thesis/Project" },
 ];
 
-const getStatusBadgeClasses = (status) => {
+const getStatusConfig = (status) => {
   switch (status) {
-    case 'PENDING': return 'border-blue-500 text-blue-700 bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:bg-blue-900/40 hover:bg-blue-100/80';
-    case 'APPROVED': return 'border-violet-500 text-violet-700 bg-violet-100 dark:border-violet-600 dark:text-violet-300 dark:bg-violet-900/40 hover:bg-violet-100/80';
-    case 'REJECTED': return 'border-red-600 text-red-700 bg-red-100 dark:border-red-600 dark:text-red-300 dark:bg-red-900/40 hover:bg-red-100/80';
-    default: return 'border-slate-400 text-slate-600 bg-slate-100 dark:border-slate-600 dark:text-slate-400 dark:bg-slate-700/30 hover:bg-slate-100/80';
+    case 'PENDING': return { dot: 'bg-amber-500 animate-pulse', text: 'text-amber-700 dark:text-amber-300' };
+    case 'APPROVED': return { dot: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-300' };
+    case 'REJECTED': return { dot: 'bg-red-500', text: 'text-red-700 dark:text-red-300' };
+    default: return { dot: 'bg-slate-400', text: 'text-slate-600 dark:text-slate-400' };
+  }
+};
+
+const getTypeBadgeClasses = (type) => {
+  switch(type) {
+    case 'TEACHING': return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700';
+    case 'TRANSPORTATION': return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700';
+    case 'THESIS_PROJECT': return 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-700';
+    default: return 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
   }
 };
 
 export default function ManageLecturerSummariesTab({ allUsers = [] }) {
   const [lecturers, setLecturers] = useState([]);
   const [selectedLecturerId, setSelectedLecturerId] = useState('');
+  const [lecturerPopoverOpen, setLecturerPopoverOpen] = useState(false);
   const [selectedClaimType, setSelectedClaimType] = useState("ALL");
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -119,12 +128,6 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
 
     const uewDeepBlue = '#0D2C54';
     const uewDeepRed = '#8C181F';
-    const headingColor = uewDeepBlue;
-
-    let teachingDetailsTableHtml = '';
-    let teachingTransportTableHtml = '';
-    let otherClaimsHtml = `<div class="section-title">Other Claim Types (${selectedClaimType === 'ALL' ? 'Transportation & Thesis/Project' : selectedClaimType.replace("_", " ")})</div><table class="claims-table"><thead><tr><th>ID</th><th>Type</th><th>Details</th><th>Student Name</th><th>Thesis/Project Topic</th><th>Status</th><th>Submitted</th></tr></thead><tbody>`;
-    let hasOtherClaims = false;
 
     const teachingClaims = claimsToPrint.filter(c => c.claimType === 'TEACHING');
     const teachingClaimsWithTransport = teachingClaims.filter(c => [
@@ -137,192 +140,222 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
       c.transportToTeachingDistanceKM,
     ].some(Boolean));
 
-    if (teachingClaims.length > 0 && (selectedClaimType === 'ALL' || selectedClaimType === 'TEACHING')) {
-      teachingDetailsTableHtml = `<div class="section-title">Teaching Claim Details</div><table class="claims-table"><thead><tr><th>Course ID</th><th>Course Title</th><th>Hours Taught</th><th>Status</th></tr></thead><tbody>`;
-      teachingClaims.forEach(claim => {
-        teachingDetailsTableHtml += `<tr><td>${claim.courseCode || 'N/A'}</td><td>${claim.courseTitle || 'N/A'}</td><td>${claim.teachingHours ?? 'N/A'}</td><td><span class="status-badge status-${claim.status || 'UNKNOWN'}">${claim.status || 'N/A'}</span></td></tr>`;
-      });
-      teachingDetailsTableHtml += '</tbody></table>';
-
-      if (teachingClaimsWithTransport.length > 0) {
-        teachingTransportTableHtml = `<br/><div class="section-title">Optional Transportation for Teaching Sessions</div><table class="claims-table"><thead><tr><th>In-Date</th><th>From (To Venue)</th><th>To (To Venue)</th><th>Out-Date</th><th>From (Return)</th><th>To (Return)</th><th>Distance (KM)</th></tr></thead><tbody>`;
-        teachingClaimsWithTransport.forEach(claim => {
-          teachingTransportTableHtml += `<tr><td>${claim.transportToTeachingInDate ? new Date(claim.transportToTeachingInDate).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</td><td>${claim.transportToTeachingFrom || 'N/A'}</td><td>${claim.transportToTeachingTo || 'N/A'}</td><td>${claim.transportToTeachingOutDate ? new Date(claim.transportToTeachingOutDate).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</td><td>${claim.transportToTeachingReturnFrom || 'N/A'}</td><td>${claim.transportToTeachingReturnTo || 'N/A'}</td><td>${claim.transportToTeachingDistanceKM ?? 'N/A'}</td></tr>`;
-        });
-        teachingTransportTableHtml += '</tbody></table>';
-      }
-    }
-
-    claimsToPrint.filter(c => c.claimType !== 'TEACHING').forEach(claim => {
-      hasOtherClaims = true;
-      let detailsCellContent = 'N/A';
-      let studentNameContent = 'N/A';
-      let thesisTopicContent = 'N/A';
-
-      if (claim.claimType === 'TRANSPORTATION') {
-        detailsCellContent = `Type: ${claim.transportType || 'N/A'}<br/>From: ${claim.transportDestinationFrom || 'N/A'}<br/>To: ${claim.transportDestinationTo || 'N/A'}<br/>Amount: ${claim.transportAmount != null ? `GHS ${Number(claim.transportAmount).toFixed(2)}` : 'N/A'}`;
-        studentNameContent = '-';
-        thesisTopicContent = '-';
-      } else if (claim.claimType === 'THESIS_PROJECT') {
-        detailsCellContent = `Type: ${claim.thesisType || 'N/A'}<br/>`;
-        if (claim.thesisType === 'SUPERVISION') {
-          detailsCellContent += `Rank: ${claim.thesisSupervisionRank || 'N/A'}<br/>`;
-          if (claim.supervisedStudents && claim.supervisedStudents.length > 0) {
-            const studentsInfo = claim.supervisedStudents.filter(s => s.studentName || s.thesisTitle);
-            if (studentsInfo.length > 0) {
-              studentNameContent = studentsInfo.map(s => s.studentName || 'N/A').join('<br/>');
-              thesisTopicContent = studentsInfo.map(s => s.thesisTitle || 'N/A').join('<br/>');
-            } else {
-              studentNameContent = 'No students listed';
-              thesisTopicContent = 'No topics listed';
-            }
-          } else {
-            studentNameContent = 'No students listed';
-            thesisTopicContent = 'No topics listed';
-          }
-        } else if (claim.thesisType === 'EXAMINATION') {
-          detailsCellContent += `Course: ${claim.thesisExamCourseCode || 'N/A'}<br/>Date: ${claim.thesisExamDate ? new Date(claim.thesisExamDate).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}`;
-          studentNameContent = '-';
-          thesisTopicContent = '-';
-        }
-      }
-
-      otherClaimsHtml += `<tr><td>${claim.id ? claim.id.substring(0, 8) + '...' : 'N/A'}</td><td style="text-transform:capitalize;">${claim.claimType?.toLowerCase().replace("_", " ") || 'N/A'}</td><td>${detailsCellContent}</td><td>${studentNameContent}</td><td style="font-style: italic;">${thesisTopicContent}</td><td><span class="status-badge status-${claim.status || 'UNKNOWN'}">${claim.status || 'N/A'}</span></td><td>${claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString('en-US', dateLocaleStringOptions) : 'N/A'}</td></tr>`;
-    });
-
-    if (!hasOtherClaims && (selectedClaimType === 'ALL' || selectedClaimType === 'TRANSPORTATION' || selectedClaimType === 'THESIS_PROJECT')) {
-      otherClaimsHtml += '<tr><td colspan="7" style="text-align:center;">No claims of this specific type for the period.</td></tr>';
-    } else if (!hasOtherClaims && selectedClaimType === 'ALL' && teachingClaims.length === 0) {
-      otherClaimsHtml = `<div class="section-title">Other Claim Types</div><p>No other claim types (Transportation, Thesis/Project) found for this period.</p>`;
-    } else if (!hasOtherClaims) {
-      otherClaimsHtml = '';
-    }
+    const refNumber = `UEW/CODeL/CMS/${summaryData.year}/${String(summaryData.monthNumber || new Date().getMonth() + 1).padStart(2, '0')}/${Date.now().toString(36).toUpperCase().slice(-6)}`;
 
     const printHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lecturer Claim Summary - ${summaryData.lecturerName} - ${summaryData.month} ${summaryData.year}</title><style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
-        font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-        color: #2d3748;
+        font-family: 'Times New Roman', 'Georgia', 'Cambria', serif;
+        color: #1a202c;
         background: white;
         font-size: 11pt;
-        line-height: 1.5;
+        line-height: 1.6;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
 
-      @page { size: A4; margin: 15mm; }
+      @page { size: A4; margin: 18mm 20mm 20mm 20mm; }
 
-      .print-container { width: auto; margin: 0; padding: 0; }
-      /* Explicit page box size (A4 minus margins) to enable bottom anchoring */
-      .page { height: calc(297mm - 2 * 15mm); padding: 12mm 15mm; box-sizing: border-box; break-after: page; page-break-after: always; -webkit-break-after: page; }
-      .page:last-child { break-after: auto; page-break-after: auto; -webkit-break-after: auto; }
-      .signature-page { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
+      .print-container { max-width: 210mm; margin: 0 auto; }
 
-      .header { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 3px solid ${uewDeepBlue}; page-break-inside: avoid; }
-      .logo { height: 80px; width: auto; display: block; }
-      .header-right { text-align: center; }
-      .university-name { font-size: 22pt; font-weight: 700; color: ${uewDeepBlue}; margin-bottom: 6px; letter-spacing: .5px; }
-      .college-name { font-size: 14pt; font-weight: 500; color: ${uewDeepBlue}; margin-bottom: 10px; }
-      .document-title { font-size: 18pt; font-weight: 600; color: ${uewDeepRed}; text-transform: uppercase; letter-spacing: 1px; margin-top: 10px; }
+      /* ── Header ── */
+      .header { text-align: center; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 3px double ${uewDeepBlue}; }
+      .header-top { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 8px; }
+      .logo { height: 72px; width: auto; }
+      .header-text { text-align: center; }
+      .university-name { font-size: 18pt; font-weight: 700; color: ${uewDeepBlue}; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+      .college-name { font-size: 11pt; font-weight: 600; color: #374151; letter-spacing: 0.5px; margin-bottom: 0; }
+      .doc-title-bar { margin-top: 10px; padding: 7px 0; background: ${uewDeepBlue}; }
+      .doc-title { font-size: 13pt; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 2px; text-align: center; font-family: 'Segoe UI', Arial, sans-serif; }
+      .ref-line { font-size: 8pt; color: #6b7280; margin-top: 8px; font-family: 'Segoe UI', Arial, sans-serif; }
 
-      .section { margin-bottom: 14px; padding: 12px 0; break-inside: avoid; page-break-inside: avoid; }
-      .section-title { font-size: 12pt; font-weight: 700; color: ${headingColor}; margin-bottom: 8px; border-left: 4px solid ${uewDeepBlue}; padding-left: 10px; }
-      .info-row { display: flex; gap: 10px; margin: 6px 0; }
-      .info-label { font-weight: 600; color: ${headingColor}; min-width: 140px; }
-      .info-value { flex: 1; word-break: break-word; }
+      /* ── Sections ── */
+      .section { margin-bottom: 16px; page-break-inside: avoid; }
+      .section-heading { font-size: 11pt; font-weight: 700; color: ${uewDeepBlue}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid ${uewDeepBlue}; font-family: 'Segoe UI', Arial, sans-serif; }
 
-      .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 14px 0; }
-      .summary-item { padding: 18px 15px; text-align: center; border: 2px solid #e2e8f0; border-radius: 12px; background: white; }
-      .summary-item.total { border-color: ${uewDeepBlue}; background: linear-gradient(135deg,#eff6ff,#dbeafe); color: ${uewDeepBlue}; }
-      .summary-item.pending { border-color: #f59e0b; background: linear-gradient(135deg,#fffbeb,#fef3c7); color: #d97706; }
-      .summary-item.approved { border-color: #10b981; background: linear-gradient(135deg,#ecfdf5,#d1fae5); color: #047857; }
-      .summary-item.rejected { border-color: ${uewDeepRed}; background: linear-gradient(135deg,#fef2f2,#fecaca); color: ${uewDeepRed}; }
-      .summary-item b { display: block; font-size: 26pt; font-weight: 700; margin-bottom: 6px; line-height: 1; }
-      .summary-item span { font-size: 9pt; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
+      /* ── Info Grid ── */
+      .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
+      .info-block { padding: 8px 0; }
+      .info-block-title { font-size: 9pt; font-weight: 700; color: ${uewDeepBlue}; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; font-family: 'Segoe UI', Arial, sans-serif; }
+      .info-table { width: 100%; border-collapse: collapse; }
+      .info-table td { padding: 3px 0; font-size: 10pt; vertical-align: top; }
+      .info-table td:first-child { font-weight: 600; color: #374151; width: 130px; white-space: nowrap; padding-right: 12px; }
+      .info-table td:last-child { color: #1a202c; }
 
-      .claims-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10pt; background: white; }
-      .claims-table th, .claims-table td { border: 1px solid #cbd5e0; padding: 10px 8px; text-align: left; vertical-align: top; word-break: break-word; }
-      .claims-table th { background: linear-gradient(135deg,#f7fafc,#edf2f7); font-weight: 600; font-size: 9pt; text-transform: uppercase; letter-spacing: .5px; color: ${headingColor}; border-bottom: 2px solid ${uewDeepBlue}40; }
-      .claims-table tbody tr:nth-child(even) { background: #f8f9fa; }
+      /* ── Statistics ── */
+      .stats-row { display: flex; gap: 0; margin: 12px 0; border: 1.5px solid ${uewDeepBlue}; border-radius: 0; overflow: hidden; }
+      .stat-cell { flex: 1; text-align: center; padding: 10px 8px; border-right: 1px solid #d1d5db; }
+      .stat-cell:last-child { border-right: none; }
+      .stat-cell .stat-num { font-size: 22pt; font-weight: 700; line-height: 1.1; margin-bottom: 2px; font-family: 'Segoe UI', Arial, sans-serif; }
+      .stat-cell .stat-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; font-family: 'Segoe UI', Arial, sans-serif; }
+      .stat-total { background: ${uewDeepBlue}; color: white; }
+      .stat-total .stat-num, .stat-total .stat-label { color: white; }
+      .stat-pending .stat-num { color: #b45309; }
+      .stat-pending .stat-label { color: #92400e; }
+      .stat-pending { background: #fef9ee; }
+      .stat-approved .stat-num { color: #047857; }
+      .stat-approved .stat-label { color: #065f46; }
+      .stat-approved { background: #f0fdf8; }
+      .stat-rejected .stat-num { color: ${uewDeepRed}; }
+      .stat-rejected .stat-label { color: ${uewDeepRed}; }
+      .stat-rejected { background: #fef7f7; }
 
-      .status-badge { padding: 6px 10px; border-radius: 14px; font-weight: 700; font-size: 8pt; color: white; text-transform: uppercase; letter-spacing: .5px; }
-      .status-PENDING { background: linear-gradient(135deg,#f59e0b,#d97706); }
-      .status-APPROVED { background: linear-gradient(135deg,#10b981,#059669); }
-      .status-REJECTED { background: linear-gradient(135deg,${uewDeepRed},#b91c1c); }
+      .totals-strip { display: flex; gap: 12px; margin: 8px 0 0 0; }
+      .total-badge { flex: 1; padding: 6px 10px; font-size: 9pt; font-weight: 600; border-left: 3px solid; font-family: 'Segoe UI', Arial, sans-serif; background: #f8fafc; }
+      .total-badge.teaching { border-color: #059669; color: #065f46; }
+      .total-badge.transport { border-color: #d97706; color: #92400e; }
 
-      .highlight-box { margin-top: 10px; padding: 12px; border-radius: 8px; border-left: 4px solid; }
-      .highlight-teaching { background: #ecfdf5; border-color: #10b981; color: #047857; }
-      .highlight-transport { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
+      /* ── Tables ── */
+      .data-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9.5pt; }
+      .data-table th { background: ${uewDeepBlue}; color: white; font-weight: 600; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.5px; padding: 7px 8px; text-align: left; border: 1px solid ${uewDeepBlue}; font-family: 'Segoe UI', Arial, sans-serif; white-space: nowrap; }
+      .data-table td { padding: 7px 8px; border: 1px solid #d1d5db; vertical-align: top; }
+      .data-table tbody tr:nth-child(even) { background: #f8fafc; }
+      .data-table tbody tr:hover { background: #f1f5f9; }
 
-      .signature-section { padding-top: 10px; border-top: 2px solid #cbd5e0; background: white; }
-      .signature-title { font-size: 12pt; font-weight: 700; color: ${headingColor}; margin-bottom: 12px; text-align: left; }
-      .signature-area { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; align-items: end; }
-      .signature-block { text-align: center; }
-      .signature-line { height: 26px; border-bottom: 2px solid #2d3748; margin: 0 8px 6px 8px; }
-      .signature-label { font-size: 9pt; font-weight: 600; color: ${headingColor}; text-transform: uppercase; letter-spacing: .4px; }
+      .badge { display: inline-block; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Segoe UI', Arial, sans-serif; }
+      .badge-approved { background: #059669; color: white; }
+      .badge-pending { background: #d97706; color: white; }
+      .badge-rejected { background: ${uewDeepRed}; color: white; }
 
-      .footer { text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 9pt; color: #718096; font-style: italic; font-weight: 500; }
+      /* ── Signature ── */
+      .signature-section { margin-top: 36px; padding-top: 16px; border-top: 2px solid ${uewDeepBlue}; page-break-inside: avoid; }
+      .signature-heading { font-size: 10pt; font-weight: 700; color: ${uewDeepBlue}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 30px; font-family: 'Segoe UI', Arial, sans-serif; }
+      .sig-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+      .sig-block { text-align: center; }
+      .sig-line { border-bottom: 1.5px solid #1a202c; margin: 0 4px 5px 4px; height: 40px; }
+      .sig-name { font-size: 8pt; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.4px; font-family: 'Segoe UI', Arial, sans-serif; }
+      .sig-role { font-size: 7pt; color: #6b7280; margin-top: 1px; font-family: 'Segoe UI', Arial, sans-serif; }
+
+      /* ── Footer ── */
+      .doc-footer { text-align: center; margin-top: 24px; padding-top: 10px; border-top: 1px solid #d1d5db; font-size: 8pt; color: #6b7280; font-family: 'Segoe UI', Arial, sans-serif; }
+      .doc-footer .system { font-style: italic; }
+      .doc-footer .confidential { font-weight: 600; color: ${uewDeepRed}; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-top: 4px; }
 
       @media print {
-        .claims-table { page-break-inside: avoid; }
-        .section { break-inside: avoid; page-break-inside: avoid; }
+        .data-table { page-break-inside: auto; }
+        .data-table tr { page-break-inside: avoid; }
+        .section { page-break-inside: avoid; }
       }
     </style></head><body>
       <div class="print-container">
-        <div class="page page-1">
-          <div class="header">
-            <div class="header-left"><img src="/uew.png" alt="University Logo" class="logo" /></div>
-            <div class="header-right">
-              <div class="university-name">UNIVERSITY OF EDUCATION, WINNEBA</div>
-              <div class="college-name">COLLEGE OF DISTANCE AND e-LEARNING (CODeL)</div>
-              <div class="document-title">Lecturer Monthly Claim Summary</div>
+
+        <!-- Header -->
+        <div class="header">
+          <div class="header-top">
+            <img src="/uew.png" alt="UEW Logo" class="logo" />
+            <div class="header-text">
+              <div class="university-name">University of Education, Winneba</div>
+              <div class="college-name">College of Distance and e-Learning (CODeL)</div>
             </div>
           </div>
-
-          <div class="section">
-            <div class="section-title">Summary Information</div>
-            <div class="info-row"><span class="info-label">Lecturer:</span><span class="info-value"><strong>${summaryData.lecturerName}</strong> (${summaryData.lecturerEmail || 'N/A'}) ${summaryData.lecturerDesignation ? '- ' + summaryData.lecturerDesignation.replace(/_/g, ' ') : ''}</span></div>
-            <div class="info-row"><span class="info-label">Period:</span><span class="info-value"><strong>${summaryData.month}, ${summaryData.year}</strong></span></div>
-            ${selectedClaimType !== 'ALL' ? `<div class="info-row"><span class="info-label">Claim Type Filter:</span><span class="info-value" style="text-transform:capitalize; font-weight:600; color:${uewDeepRed};">${selectedClaimType.toLowerCase().replace("_", " ")}</span></div>` : ''}
+          <div class="doc-title-bar">
+            <div class="doc-title">Lecturer Monthly Claim Summary</div>
           </div>
-
-          <div class="section">
-            <div class="section-title">Payment Information</div>
-            <div class="info-row"><span class="info-label">Bank Name:</span><span class="info-value">${summaryData.lecturerBankName || 'N/A'}</span></div>
-            <div class="info-row"><span class="info-label">Bank Branch:</span><span class="info-value">${summaryData.lecturerBankBranch || 'N/A'}</span></div>
-            <div class="info-row"><span class="info-label">Account Name:</span><span class="info-value">${summaryData.lecturerAccountName || 'N/A'}</span></div>
-            <div class="info-row"><span class="info-label">Account Number:</span><span class="info-value"><strong>${summaryData.lecturerAccountNumber || 'N/A'}</strong></span></div>
-          </div>
-
-          <div class="section">
-            <div class="section-title">Overall Statistics for Period</div>
-            <div class="summary-grid">
-              <div class="summary-item total"><b>${summaryData.totalClaims}</b><span>Total Claims</span></div>
-              <div class="summary-item pending"><b>${summaryData.pending}</b><span>Pending</span></div>
-              <div class="summary-item approved"><b>${summaryData.approved}</b><span>Approved</span></div>
-              <div class="summary-item rejected"><b>${summaryData.rejected}</b><span>Rejected</span></div>
-            </div>
-            ${summaryData.totalTeachingHours > 0 ? `<div class="highlight-box highlight-teaching"><strong>Total Approved Teaching Hours:</strong> ${summaryData.totalTeachingHours.toFixed(1)} hours</div>` : ''}
-            ${summaryData.totalTransportAmount > 0 ? `<div class="highlight-box highlight-transport"><strong>Total Approved Transport Amount:</strong> GHS ${summaryData.totalTransportAmount.toFixed(2)}</div>` : ''}
-          </div>
-          ${teachingDetailsTableHtml ? `<div class="section">${teachingDetailsTableHtml}</div>` : ''}
-          ${teachingTransportTableHtml ? `<div class="section">${teachingTransportTableHtml}</div>` : ''}
-          ${otherClaimsHtml ? `<div class="section">${otherClaimsHtml}</div>` : ''}
-
-          <div class="footer">Generated on: ${new Date().toLocaleString('en-US', dateTimeLocaleStringOptions)} by UEW Claims Management System</div>
+          <div class="ref-line">Ref: ${refNumber} &nbsp;&bull;&nbsp; Period: ${summaryData.month} ${summaryData.year}</div>
         </div>
 
-        <div class="page page-2 signature-page">
-          <div class="signature-section">
-            <div class="signature-title">Authorization Signatures</div>
-            <div class="signature-area">
-              <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Prepared by</p></div>
-              <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Center Coordinator</p></div>
-              <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Head of Department</p></div>
-              <div class="signature-block"><div class="signature-line"></div><p class="signature-label">Duty Registrar</p></div>
-            </div>
+        <!-- Summary & Payment Info Side by Side -->
+        <div class="info-grid">
+          <div class="info-block">
+            <div class="info-block-title">Lecturer Information</div>
+            <table class="info-table">
+              <tr><td>Full Name</td><td><strong>${summaryData.lecturerName}</strong></td></tr>
+              <tr><td>Email</td><td>${summaryData.lecturerEmail || 'N/A'}</td></tr>
+              <tr><td>Designation</td><td>${summaryData.lecturerDesignation ? summaryData.lecturerDesignation.replace(/_/g, ' ') : 'N/A'}</td></tr>
+              <tr><td>Claim Period</td><td><strong>${summaryData.month}, ${summaryData.year}</strong></td></tr>
+              ${selectedClaimType !== 'ALL' ? `<tr><td>Type Filter</td><td style="font-weight:600;color:${uewDeepRed};text-transform:capitalize;">${selectedClaimType.toLowerCase().replace("_", " ")}</td></tr>` : ''}
+            </table>
+          </div>
+          <div class="info-block">
+            <div class="info-block-title">Payment Details</div>
+            <table class="info-table">
+              <tr><td>Bank Name</td><td>${summaryData.lecturerBankName || 'N/A'}</td></tr>
+              <tr><td>Branch</td><td>${summaryData.lecturerBankBranch || 'N/A'}</td></tr>
+              <tr><td>Account Name</td><td>${summaryData.lecturerAccountName || 'N/A'}</td></tr>
+              <tr><td>Account No.</td><td><strong>${summaryData.lecturerAccountNumber || 'N/A'}</strong></td></tr>
+            </table>
           </div>
         </div>
+
+        <!-- Statistics -->
+        <div class="section" style="margin-top: 6px;">
+          <div class="section-heading">Claim Statistics</div>
+          <div class="stats-row">
+            <div class="stat-cell stat-total"><div class="stat-num">${summaryData.totalClaims}</div><div class="stat-label">Total Claims</div></div>
+            <div class="stat-cell stat-pending"><div class="stat-num">${summaryData.pending}</div><div class="stat-label">Pending</div></div>
+            <div class="stat-cell stat-approved"><div class="stat-num">${summaryData.approved}</div><div class="stat-label">Approved</div></div>
+            <div class="stat-cell stat-rejected"><div class="stat-num">${summaryData.rejected}</div><div class="stat-label">Rejected</div></div>
+          </div>
+          ${(summaryData.totalTeachingHours > 0 || summaryData.totalTransportAmount > 0) ? `<div class="totals-strip">
+            ${summaryData.totalTeachingHours > 0 ? `<div class="total-badge teaching">Approved Teaching Hours: <strong>${summaryData.totalTeachingHours.toFixed(1)} hrs</strong></div>` : ''}
+            ${summaryData.totalTransportAmount > 0 ? `<div class="total-badge transport">Approved Transport Amount: <strong>GHS ${summaryData.totalTransportAmount.toFixed(2)}</strong></div>` : ''}
+          </div>` : ''}
+        </div>
+
+        <!-- Teaching Claims -->
+        ${teachingClaims.length > 0 && (selectedClaimType === 'ALL' || selectedClaimType === 'TEACHING') ? `
+        <div class="section">
+          <div class="section-heading">Teaching Claim Details</div>
+          <table class="data-table">
+            <thead><tr><th style="width:15%">Course Code</th><th style="width:40%">Course Title</th><th style="width:20%">Hours Taught</th><th style="width:25%">Status</th></tr></thead>
+            <tbody>${teachingClaims.map(c => `<tr><td>${c.courseCode || 'N/A'}</td><td>${c.courseTitle || 'N/A'}</td><td>${c.teachingHours ?? 'N/A'}</td><td><span class="badge badge-${(c.status || 'UNKNOWN').toLowerCase()}">${c.status || 'N/A'}</span></td></tr>`).join('')}</tbody>
+          </table>
+        </div>` : ''}
+
+        <!-- Teaching Transportation -->
+        ${teachingClaimsWithTransport.length > 0 ? `
+        <div class="section">
+          <div class="section-heading">Transportation for Teaching Sessions</div>
+          <table class="data-table">
+            <thead><tr><th>Date (In)</th><th>From</th><th>To (Venue)</th><th>Date (Out)</th><th>From (Return)</th><th>To (Return)</th><th>Dist. (KM)</th></tr></thead>
+            <tbody>${teachingClaimsWithTransport.map(c => `<tr><td>${c.transportToTeachingInDate ? new Date(c.transportToTeachingInDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</td><td>${c.transportToTeachingFrom || 'N/A'}</td><td>${c.transportToTeachingTo || 'N/A'}</td><td>${c.transportToTeachingOutDate ? new Date(c.transportToTeachingOutDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</td><td>${c.transportToTeachingReturnFrom || 'N/A'}</td><td>${c.transportToTeachingReturnTo || 'N/A'}</td><td>${c.transportToTeachingDistanceKM ?? 'N/A'}</td></tr>`).join('')}</tbody>
+          </table>
+        </div>` : ''}
+
+        <!-- Other Claims (Transport / Thesis) -->
+        ${(() => {
+          const otherClaims = claimsToPrint.filter(c => c.claimType !== 'TEACHING');
+          if (otherClaims.length === 0) return '';
+          return `<div class="section">
+            <div class="section-heading">Other Claims (Transportation &amp; Thesis/Project)</div>
+            <table class="data-table">
+              <thead><tr><th>ID</th><th>Type</th><th>Details</th><th>Student</th><th>Topic</th><th>Status</th><th>Submitted</th></tr></thead>
+              <tbody>${otherClaims.map(claim => {
+                let details = 'N/A', student = '-', topic = '-';
+                if (claim.claimType === 'TRANSPORTATION') {
+                  details = [claim.transportType, claim.transportDestinationFrom && claim.transportDestinationTo ? claim.transportDestinationFrom + ' → ' + claim.transportDestinationTo : null, claim.transportAmount != null ? 'GHS ' + Number(claim.transportAmount).toFixed(2) : null].filter(Boolean).join('<br/>');
+                } else if (claim.claimType === 'THESIS_PROJECT') {
+                  details = (claim.thesisType || 'N/A') + (claim.thesisSupervisionRank ? ' (' + claim.thesisSupervisionRank + ')' : '');
+                  if (claim.thesisType === 'SUPERVISION' && claim.supervisedStudents?.length) {
+                    student = claim.supervisedStudents.map(s => s.studentName || 'N/A').join(', ');
+                    topic = claim.supervisedStudents.map(s => s.thesisTitle || 'N/A').join(', ');
+                  } else if (claim.thesisType === 'EXAMINATION') {
+                    details += '<br/>Course: ' + (claim.thesisExamCourseCode || 'N/A');
+                  }
+                }
+                return '<tr><td style="font-family:monospace;font-size:8pt;">' + (claim.id ? claim.id.substring(0,8) : 'N/A') + '</td><td style="text-transform:capitalize;">' + (claim.claimType?.toLowerCase().replace("_"," ") || 'N/A') + '</td><td>' + details + '</td><td>' + student + '</td><td style="font-style:italic;">' + topic + '</td><td><span class="badge badge-' + (claim.status || 'unknown').toLowerCase() + '">' + (claim.status || 'N/A') + '</span></td><td>' + (claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A') + '</td></tr>';
+              }).join('')}</tbody>
+            </table>
+          </div>`;
+        })()}
+
+        <!-- Authorization Signatures -->
+        <div class="signature-section">
+          <div class="signature-heading">Authorization &amp; Approval</div>
+          <div class="sig-grid">
+            <div class="sig-block"><div class="sig-line"></div><div class="sig-name">Prepared By</div><div class="sig-role">Registry Officer</div></div>
+            <div class="sig-block"><div class="sig-line"></div><div class="sig-name">Center Coordinator</div><div class="sig-role">Verification</div></div>
+            <div class="sig-block"><div class="sig-line"></div><div class="sig-name">Head of Department</div><div class="sig-role">Endorsement</div></div>
+            <div class="sig-block"><div class="sig-line"></div><div class="sig-name">Duty Registrar</div><div class="sig-role">Final Approval</div></div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="doc-footer">
+          <div class="system">Generated on ${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })} &mdash; UEW Claims Management System</div>
+          <div class="confidential">This document is confidential and intended for official use only</div>
+        </div>
+
       </div>
     </body></html>`;
 
@@ -339,16 +372,14 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
-  const inputClass = `bg-white dark:bg-slate-700/50 border-slate-300 dark:border-slate-600 focus-visible:ring-blue-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-slate-100 ${focusRingClass} h-9 text-sm rounded-md`;
-  const selectTriggerClass = `${inputClass} data-[placeholder]:text-slate-400 dark:data-[placeholder]:text-slate-500`;
-  const selectContentClass = "bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-md shadow-lg";
+  const selectContentClass = "bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg shadow-lg";
   const labelClass = "text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5";
 
   const summaryStatItems = summaryData ? [
-    { label: "Total Claims", value: summaryData.totalClaims, icon: FileOutput, color: "text-blue-700 dark:text-blue-400", borderColor: "border-t-blue-700 dark:border-t-blue-500" },
-    { label: "Pending", value: summaryData.pending, icon: Hourglass, color: "text-orange-600 dark:text-orange-400", borderColor: "border-t-orange-500 dark:border-t-orange-400" },
-    { label: "Approved", value: summaryData.approved, icon: CheckSquare, color: "text-violet-700 dark:text-violet-400", borderColor: "border-t-violet-700 dark:border-t-violet-500" },
-    { label: "Rejected", value: summaryData.rejected, icon: XSquare, color: "text-red-700 dark:text-red-400", borderColor: "border-t-red-700 dark:border-t-red-500" },
+    { label: 'Total Claims', value: summaryData.totalClaims, icon: FileOutput, gradient: 'from-violet-600 to-indigo-600', lightBg: 'bg-violet-50 dark:bg-violet-950/30', iconBg: 'bg-violet-100 dark:bg-violet-900/40', text: 'text-violet-700 dark:text-violet-300' },
+    { label: 'Pending', value: summaryData.pending, icon: Clock, gradient: 'from-amber-500 to-orange-500', lightBg: 'bg-amber-50 dark:bg-amber-950/30', iconBg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-300' },
+    { label: 'Approved', value: summaryData.approved, icon: CheckSquare, gradient: 'from-emerald-500 to-teal-500', lightBg: 'bg-emerald-50 dark:bg-emerald-950/30', iconBg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300' },
+    { label: 'Rejected', value: summaryData.rejected, icon: XSquare, gradient: 'from-red-500 to-rose-500', lightBg: 'bg-red-50 dark:bg-red-950/30', iconBg: 'bg-red-100 dark:bg-red-900/40', text: 'text-red-700 dark:text-red-300' },
   ] : [];
 
   const displayedClaims = useMemo(() => {
@@ -358,153 +389,241 @@ export default function ManageLecturerSummariesTab({ allUsers = [] }) {
   }, [summaryData, selectedClaimType]);
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <Card className="bg-white dark:bg-slate-800/80 shadow-xl border-slate-200 dark:border-slate-700/80 rounded-lg">
-        <CardHeader className="border-b border-slate-200 dark:border-slate-700 p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+    <div className="space-y-5">
+
+      {/* ── B) Redesigned Filter/Form Card ── */}
+      <Card className="bg-white dark:bg-slate-800/80 shadow-xl border-slate-200 dark:border-slate-700/80 rounded-xl overflow-hidden">
+        <div className="bg-gradient-to-r from-violet-600 to-indigo-700 px-5 py-4">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <CalendarSearch className="h-5 w-5 text-white" />
+            </div>
             <div>
-              <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2 text-blue-800 dark:text-blue-300">
-                <BarChartHorizontalBig className="h-6 w-6 sm:h-7 sm:w-7 text-violet-700 dark:text-violet-500" />
-                Lecturer Claim Summaries
-              </CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-400 mt-1 text-sm">
-                Generate and view monthly claim summaries for individual lecturers.
-              </CardDescription>
+              <h3 className="text-white font-semibold text-base">Generate Summary</h3>
+              <p className="text-white/70 text-xs">Select a lecturer and period to generate their claim report.</p>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="pt-5 sm:pt-6 p-4 sm:p-5 space-y-6">
-          <Card className="bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/70 p-4 rounded-lg shadow">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-              <div className="space-y-1.5 lg:col-span-1">
-                <Label htmlFor="selectLecturer" className={labelClass}><UserSearch className="h-3.5 w-3.5"/>Select Lecturer <span className="text-red-600">*</span></Label>
-                <Select value={selectedLecturerId} onValueChange={setSelectedLecturerId}>
-                  <SelectTrigger id="selectLecturer" className={selectTriggerClass}><SelectValue placeholder="Choose a lecturer" /></SelectTrigger>
-                  <SelectContent className={`${selectContentClass} max-h-60`}>
-                    {lecturers.length > 0 ? lecturers.map(lecturer => (
-                      <SelectItem key={lecturer.id} value={lecturer.id} className="focus:bg-slate-100 dark:focus:bg-slate-700 hover:bg-slate-100/70 dark:hover:bg-slate-700/70 cursor-pointer text-sm py-2">
-                        {lecturer.name} <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">({lecturer.email})</span>
-                      </SelectItem>
-                    )) : <div className="p-3 text-sm text-slate-500 dark:text-slate-400">No lecturers found.</div>}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="selectClaimType" className={labelClass}><FileSymlink className="h-3.5 w-3.5"/>Claim Type</Label>
-                <Select value={selectedClaimType} onValueChange={setSelectedClaimType}>
-                    <SelectTrigger id="selectClaimType" className={selectTriggerClass}><SelectValue /></SelectTrigger>
-                    <SelectContent className={selectContentClass}>
-                        {CLAIM_TYPES.map(type => (<SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>))}
-                    </SelectContent>
-                </Select>
-              </div>
-                <div className="grid grid-cols-2 gap-4 items-end">
-                    <div className="space-y-1.5">
-                        <Label htmlFor="selectMonth" className={labelClass}><CalendarDays className="h-3.5 w-3.5"/>Month <span className="text-red-600">*</span></Label>
-                        <Select value={String(selectedMonth)} onValueChange={(val) => setSelectedMonth(Number(val))}>
-                            <SelectTrigger id="selectMonth" className={selectTriggerClass}><SelectValue placeholder="Month" /></SelectTrigger>
-                            <SelectContent className={`${selectContentClass} max-h-60`}>{months.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.label}</SelectItem>))}</SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="selectYear" className={labelClass}><CalendarDays className="h-3.5 w-3.5"/>Year <span className="text-red-600">*</span></Label>
-                        <Select value={String(selectedYear)} onValueChange={(val) => setSelectedYear(Number(val))}>
-                            <SelectTrigger id="selectYear" className={selectTriggerClass}><SelectValue placeholder="Year" /></SelectTrigger>
-                            <SelectContent className={`${selectContentClass} max-h-60`}>{yearOptions.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent>
-                        </Select>
-                    </div>
-                </div>
-            </div>
-              <div className="flex justify-end items-end pt-4 mt-2">
-                <Button onClick={handleGenerateSummary} disabled={isLoadingSummary || !selectedLecturerId} className={`gap-2 w-full md:w-auto px-6 py-2.5 h-auto text-sm ${violetButtonClasses}`}>
-                    {isLoadingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarSearch className="h-4 w-4" />}
-                    {isLoadingSummary ? "Generating..." : "Generate Summary"}
-                </Button>
-              </div>
-          </Card>
-
-          {isLoadingSummary && (
-            <div className="space-y-4 p-4 sm:p-6 mt-4 bg-slate-100 dark:bg-slate-800/30 rounded-lg border border-slate-200 dark:border-slate-700">
-              <Skeleton className="h-8 w-3/4 sm:w-1/2 bg-slate-200 dark:bg-slate-700 rounded" />
-              <Skeleton className="h-6 w-1/2 sm:w-1/3 bg-slate-200 dark:bg-slate-700 rounded" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-3">
-                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-md bg-slate-200 dark:bg-slate-700" />)}
-              </div>
-            </div>
-          )}
-
-          {fetchError && !isLoadingSummary && (
-            <Card className="border-red-600 dark:border-red-700 bg-red-50 dark:bg-red-900/20 shadow-md rounded-lg mt-4">
-              <CardHeader className="flex flex-row items-center gap-2.5 pb-2 pt-4 px-4">
-                <AlertTriangle className="h-5 w-5 text-red-700 dark:text-red-400 flex-shrink-0" />
-                <CardTitle className="text-red-800 dark:text-red-300 text-md sm:text-lg">Error Fetching Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 pt-1">
-                <p className="text-red-700 dark:text-red-300 text-sm">{fetchError}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {summaryData && !isLoadingSummary && !fetchError && (
-            <Card className="mt-6 bg-white dark:bg-slate-800/70 shadow-lg border-slate-200 dark:border-slate-700/70 rounded-lg">
-                <CardHeader className="border-b border-slate-200 dark:border-slate-700 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                    <div>
-                        <CardTitle className="text-lg sm:text-xl font-semibold text-blue-800 dark:text-blue-300">Summary for {summaryData.lecturerName}</CardTitle>
-                        <CardDescription className="text-slate-600 dark:text-slate-400 text-sm mt-1">Period: {summaryData.month}, {summaryData.year} {selectedClaimType !== "ALL" ? `(Filtered by Type: ${selectedClaimType.toLowerCase().replace("_"," ")})` : ''}</CardDescription>
-                        {summaryData.lecturerDesignation && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Designation: {summaryData.lecturerDesignation.replace(/_/g, " ")}</p>}
-                    </div>
-                    <Button onClick={handlePrintSummary} variant="outline" className={`gap-2 mt-3 sm:mt-0 ${focusRingClass} border-blue-600 text-blue-700 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-300 dark:hover:bg-blue-700/30 h-9 text-xs sm:h-10 sm:text-sm`}>
-                        <Printer className="h-4 w-4" /> Print Summary
-                    </Button>
-                </CardHeader>
-                <CardContent className="pt-4 sm:pt-5 p-4 sm:p-5 space-y-4 sm:space-y-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
-                        {summaryStatItems.map(stat => (
-                            <Card key={stat.label} className={`bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg shadow-md border-t-4 ${stat.borderColor} hover:shadow-lg transition-shadow`}>
-                                <stat.icon className={`h-7 w-7 mx-auto mb-1.5 ${stat.color} opacity-90`} />
-                                <p className="text-xl font-bold text-slate-800 dark:text-slate-100">{stat.value}</p>
-                                <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">{stat.label}</p>
-                            </Card>
+        </div>
+        <CardContent className="p-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+            <div className="space-y-1.5">
+              <Label htmlFor="selectLecturer" className={labelClass}><UserSearch className="h-3.5 w-3.5"/>Lecturer <span className="text-red-500">*</span></Label>
+              <Popover open={lecturerPopoverOpen} onOpenChange={setLecturerPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" aria-expanded={lecturerPopoverOpen} className="w-full h-9 justify-between text-sm font-normal bg-white dark:bg-slate-700/80 border-slate-300 dark:border-slate-600/80 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 focus:ring-violet-500 focus:border-violet-500">
+                    {selectedLecturerId
+                      ? <span className="truncate">{lecturers.find(l => l.id === selectedLecturerId)?.name || "Choose a lecturer"}</span>
+                      : <span className="text-muted-foreground">Choose a lecturer</span>}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search by name or email..." />
+                    <CommandList>
+                      <CommandEmpty>No lecturer found.</CommandEmpty>
+                      <CommandGroup className="max-h-60 overflow-y-auto">
+                        {lecturers.map(lecturer => (
+                          <CommandItem
+                            key={lecturer.id}
+                            value={`${lecturer.name} ${lecturer.email}`}
+                            onSelect={() => {
+                              setSelectedLecturerId(lecturer.id === selectedLecturerId ? "" : lecturer.id);
+                              setLecturerPopoverOpen(false);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${selectedLecturerId === lecturer.id ? "opacity-100" : "opacity-0"}`} />
+                            <div className="flex flex-col">
+                              <span className="text-sm">{lecturer.name}</span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">{lecturer.email}</span>
+                            </div>
+                          </CommandItem>
                         ))}
-                    </div>
-                    {(summaryData.totalTeachingHours > 0 || summaryData.totalTransportAmount > 0) && (
-                        <div className="p-3 bg-slate-100 dark:bg-slate-700/70 rounded-md space-y-1 text-slate-700 dark:text-slate-200 text-sm border border-slate-200 dark:border-slate-600">
-                            {summaryData.totalTeachingHours > 0 && <p><b>Total Approved Teaching Hours (Period):</b> <span className="font-semibold text-blue-700 dark:text-blue-300">{summaryData.totalTeachingHours.toFixed(1)} hrs</span></p>}
-                            {summaryData.totalTransportAmount > 0 && <p><b>Total Approved Transport Amount (Period):</b> <span className="font-semibold text-blue-700 dark:text-blue-300">GHS {summaryData.totalTransportAmount.toFixed(2)}</span></p>}
-                        </div>
-                    )}
-                    {displayedClaims.length > 0 ? (
-                        <div className="mt-4 space-y-3">
-                            <h4 className="font-medium text-md text-violet-700 dark:text-violet-400 border-b dark:border-slate-700 pb-1.5">
-                                Claims in Period {selectedClaimType !== "ALL" ? `(Type: ${selectedClaimType.toLowerCase().replace("_"," ")})` : ''}:
-                            </h4>
-                            <ScrollArea className="max-h-80 border dark:border-slate-700 rounded-md p-3 bg-slate-50/50 dark:bg-slate-800/40">
-                               <ul className="list-none pl-0 space-y-2.5">
-                                {displayedClaims.map(claim => (
-                                    <li key={claim.id} className="text-xs p-2.5 border-b dark:border-slate-700/60 last:border-b-0 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded">
-                                        <div className="flex justify-between items-center">
-                                            <span className="font-mono text-slate-500 dark:text-slate-400">{claim.id.substring(0,8)}...</span>
-                                            <Badge variant="outline" className={`text-[9px] ${getStatusBadgeClasses(claim.status)}`}>{claim.status}</Badge>
-                                        </div>
-                                        <span className="capitalize font-medium text-slate-700 dark:text-slate-200 block mt-0.5"> {claim.claimType.toLowerCase().replace("_", " ")}</span>
-                                        <span className="block text-slate-500 dark:text-slate-400 text-[11px]">
-                                            Submitted: {new Date(claim.submittedAt).toLocaleDateString('en-US', dateLocaleStringOptions)}
-                                            {claim.claimType === 'TEACHING' ? ` | Course: ${claim.courseCode || 'N/A'}` : ''}
-                                            {claim.claimType === 'TRANSPORTATION' ? ` | Amount: GHS ${claim.transportAmount?.toFixed(2) || 'N/A'}` : ''}
-                                        </span>
-                                    </li>
-                                ))}
-                               </ul>
-                            </ScrollArea>
-                        </div>
-                    ) : (
-                        <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-6 italic">No claims of the selected type found for this lecturer in this period.</p>
-                    )}
-                </CardContent>
-            </Card>
-          )}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="selectClaimType" className={labelClass}><FileSymlink className="h-3.5 w-3.5"/>Claim Type</Label>
+              <Select value={selectedClaimType} onValueChange={setSelectedClaimType}>
+                <SelectTrigger id="selectClaimType" className="h-9 text-sm bg-white dark:bg-slate-700/80 border-slate-300 dark:border-slate-600/80 rounded-lg focus:ring-violet-500 focus:border-violet-500"><SelectValue /></SelectTrigger>
+                <SelectContent className={selectContentClass}>
+                  {CLAIM_TYPES.map(type => (<SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="selectMonth" className={labelClass}><CalendarDays className="h-3.5 w-3.5"/>Month <span className="text-red-500">*</span></Label>
+              <Select value={String(selectedMonth)} onValueChange={(val) => setSelectedMonth(Number(val))}>
+                <SelectTrigger id="selectMonth" className="h-9 text-sm bg-white dark:bg-slate-700/80 border-slate-300 dark:border-slate-600/80 rounded-lg focus:ring-violet-500 focus:border-violet-500"><SelectValue placeholder="Month" /></SelectTrigger>
+                <SelectContent className={`${selectContentClass} max-h-60`}>{months.map(month => (<SelectItem key={month.value} value={String(month.value)}>{month.label}</SelectItem>))}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="selectYear" className={labelClass}><CalendarDays className="h-3.5 w-3.5"/>Year <span className="text-red-500">*</span></Label>
+              <Select value={String(selectedYear)} onValueChange={(val) => setSelectedYear(Number(val))}>
+                <SelectTrigger id="selectYear" className="h-9 text-sm bg-white dark:bg-slate-700/80 border-slate-300 dark:border-slate-600/80 rounded-lg focus:ring-violet-500 focus:border-violet-500"><SelectValue placeholder="Year" /></SelectTrigger>
+                <SelectContent className={`${selectContentClass} max-h-60`}>{yearOptions.map(year => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleGenerateSummary} disabled={isLoadingSummary || !selectedLecturerId} className="gap-2 w-full sm:w-auto px-6 h-10 text-sm font-medium rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg disabled:opacity-60 transition-all">
+              {isLoadingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarSearch className="h-4 w-4" />}
+              {isLoadingSummary ? "Generating..." : "Generate Summary"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Loading Skeleton */}
+      {isLoadingSummary && (
+        <div className="space-y-4 p-5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+          <Skeleton className="h-8 w-3/4 sm:w-1/2 bg-slate-200 dark:bg-slate-700 rounded-lg" />
+          <Skeleton className="h-5 w-1/2 sm:w-1/3 bg-slate-200 dark:bg-slate-700 rounded-lg" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-3">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl bg-slate-200 dark:bg-slate-700" />)}
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {fetchError && !isLoadingSummary && (
+        <Card className="border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 shadow-md rounded-xl">
+          <CardHeader className="flex flex-row items-center gap-2.5 pb-2 pt-4 px-5">
+            <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+            <CardTitle className="text-red-800 dark:text-red-300 text-base">Error Fetching Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-4 pt-1">
+            <p className="text-red-700 dark:text-red-300 text-sm">{fetchError}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── C+D+E+F) Summary Results ── */}
+      {summaryData && !isLoadingSummary && !fetchError && (
+        <Card className="bg-white dark:bg-slate-800/70 shadow-xl border-slate-200 dark:border-slate-700/70 rounded-xl overflow-hidden">
+
+          {/* ── C) Gradient Results Header ── */}
+          <div className="bg-gradient-to-r from-violet-600 to-indigo-700 px-5 py-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h3 className="text-white font-semibold text-lg">{summaryData.lecturerName}</h3>
+                <p className="text-white/70 text-sm mt-0.5">
+                  {summaryData.month}, {summaryData.year}
+                  {selectedClaimType !== "ALL" && <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs">Filtered: {selectedClaimType.toLowerCase().replace("_"," ")}</span>}
+                </p>
+                {summaryData.lecturerDesignation && <p className="text-white/50 text-xs mt-0.5">{summaryData.lecturerDesignation.replace(/_/g, " ")}</p>}
+              </div>
+              <Button onClick={handlePrintSummary} variant="ghost" className="gap-2 h-9 text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 border border-white/30 rounded-lg px-3.5">
+                <Printer className="h-3.5 w-3.5" /> Print Summary
+              </Button>
+            </div>
+          </div>
+
+          <CardContent className="p-5 space-y-5">
+
+            {/* ── D) Enhanced Stat Cards ── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {summaryStatItems.map((stat) => (
+                <div key={stat.label} className={`relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700/70 ${stat.lightBg} p-4 transition-all hover:shadow-md group`}>
+                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.gradient}`} />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">{stat.label}</p>
+                      <p className={`text-2xl font-bold mt-1 ${stat.text}`}>{stat.value}</p>
+                    </div>
+                    <div className={`h-10 w-10 rounded-xl ${stat.iconBg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                      <stat.icon className={`h-5 w-5 ${stat.text}`} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── E) Highlights Strip ── */}
+            {(summaryData.totalTeachingHours > 0 || summaryData.totalTransportAmount > 0) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {summaryData.totalTeachingHours > 0 && (
+                  <div className="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+                    <div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-shrink-0">
+                      <BookOpen className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Approved Teaching Hours</p>
+                      <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{summaryData.totalTeachingHours.toFixed(1)} hrs</p>
+                    </div>
+                  </div>
+                )}
+                {summaryData.totalTransportAmount > 0 && (
+                  <div className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                    <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+                      <Banknote className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Approved Transport Amount</p>
+                      <p className="text-lg font-bold text-amber-700 dark:text-amber-300">GHS {summaryData.totalTransportAmount.toFixed(2)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── F) Claims List Upgrade ── */}
+            {displayedClaims.length > 0 ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                  <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Claims in Period {selectedClaimType !== "ALL" ? `— ${selectedClaimType.toLowerCase().replace("_"," ")}` : ''} ({displayedClaims.length})
+                  </h4>
+                </div>
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700/70 overflow-hidden">
+                  <div className="max-h-96 overflow-y-auto">
+                    {displayedClaims.map((claim, idx) => {
+                      const sc = getStatusConfig(claim.status);
+                      return (
+                        <div key={claim.id} className={`flex items-center gap-3 px-4 py-3 transition-colors hover:bg-violet-50/50 dark:hover:bg-violet-900/10 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900/20' : 'bg-slate-50/50 dark:bg-slate-800/30'} ${idx > 0 ? 'border-t border-slate-100 dark:border-slate-700/50' : ''}`}>
+                          {/* Left border accent */}
+                          <div className={`w-1 h-10 rounded-full self-stretch flex-shrink-0 ${claim.claimType === 'TEACHING' ? 'bg-blue-500' : claim.claimType === 'TRANSPORTATION' ? 'bg-amber-500' : 'bg-violet-500'}`} />
+                          {/* Main content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={`capitalize text-[10px] px-1.5 py-0 rounded-md font-medium border ${getTypeBadgeClasses(claim.claimType)}`}>
+                                {claim.claimType?.toLowerCase().replace('_', ' ')}
+                              </Badge>
+                              <span className="font-mono text-[11px] text-slate-400 dark:text-slate-500 truncate">{claim.id.substring(0,10)}...</span>
+                            </div>
+                            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 truncate">
+                              {new Date(claim.submittedAt).toLocaleDateString('en-US', dateLocaleStringOptions)}
+                              {claim.claimType === 'TEACHING' && claim.courseCode ? ` • ${claim.courseCode}${claim.courseTitle ? ' — ' + claim.courseTitle : ''}` : ''}
+                              {claim.claimType === 'TRANSPORTATION' && claim.transportAmount != null ? ` • GHS ${Number(claim.transportAmount).toFixed(2)}` : ''}
+                              {claim.claimType === 'THESIS_PROJECT' && claim.thesisType ? ` • ${claim.thesisType}` : ''}
+                            </p>
+                          </div>
+                          {/* Status */}
+                          <span className="inline-flex items-center gap-1.5 flex-shrink-0">
+                            <span className={`h-2 w-2 rounded-full ${sc.dot}`} />
+                            <span className={`text-xs font-medium capitalize ${sc.text}`}>{claim.status.toLowerCase()}</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-10 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/30">
+                <BarChartHorizontalBig className="mx-auto h-10 w-10 text-slate-400 dark:text-slate-500 opacity-80" />
+                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No claims of the selected type found for this period.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
