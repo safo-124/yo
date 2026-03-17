@@ -13,6 +13,9 @@ import {
 } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import {
   createProgram, getPrograms, createCourse, getCourses, getDepartments, getLecturersForAssignment, bulkUploadCourses, assignCoursesToLecturers, createDepartment,
   updateProgram, updateCourse, updateDepartment, // Import update actions
   deleteCourse, deleteProgram, deleteDepartment, // Import delete actions
@@ -23,7 +26,8 @@ import {
 import { toast } from "sonner";
 import {
   PlusCircle, BookOpen, GraduationCap, Building2, Layers, CalendarDays, BookText, Hash, Clock, FileWarning, Loader2,
-  List, CheckSquare, Search, XCircle, Upload, UserPlus, Home, User, Edit2, Trash2, AlertTriangle // Added icons
+  List, CheckSquare, Search, XCircle, Upload, UserPlus, Home, User, Edit2, Trash2, AlertTriangle,
+  LayoutGrid, ChevronLeft, ChevronRight, Filter, Users, ChevronDown, X
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -111,6 +115,16 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
   const [formError, setFormError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Filter states for courses tab
+  const [filterProgram, setFilterProgram] = useState('');
+  const [filterLevel, setFilterLevel] = useState('');
+  const [filterSemester, setFilterSemester] = useState('');
+
+  // View mode and pagination  
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 24;
+
   // Form states for Create Program
   const [newProgramCode, setNewProgramCode] = useState('');
   const [newProgramTitle, setNewProgramTitle] = useState('');
@@ -169,21 +183,91 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
 
   // Filter courses for display
   const filteredCourses = useMemo(() => {
+    let result = courses;
+    
+    // Apply program filter
+    if (filterProgram) {
+      result = result.filter(c => c.programId === filterProgram);
+    }
+    // Apply level filter
+    if (filterLevel) {
+      result = result.filter(c => c.level === filterLevel);
+    }
+    // Apply semester filter
+    if (filterSemester) {
+      result = result.filter(c => c.academicSemester === filterSemester);
+    }
+    
+    // Apply search query
     const query = searchQuery.toLowerCase().trim();
-    if (!query) return courses;
-    return courses.filter(course => {
-      const codeMatch = course.courseCode?.toLowerCase().includes(query);
-      const titleMatch = course.courseTitle?.toLowerCase().includes(query);
-      const levelMatch = course.level?.toLowerCase().includes(query);
-      const semesterMatch = course.academicSemester?.toLowerCase().includes(query);
-      const programTitleMatch = course.programTitle?.toLowerCase().includes(query);
-      const programCodeMatch = course.programCode?.toLowerCase().includes(query);
-      const deptMatch = course.departmentName?.toLowerCase().includes(query);
-      const lecturerMatch = course.assignedLecturers?.some(l => l.name?.toLowerCase().includes(query));
+    if (query) {
+      result = result.filter(course => {
+        const codeMatch = course.courseCode?.toLowerCase().includes(query);
+        const titleMatch = course.courseTitle?.toLowerCase().includes(query);
+        const levelMatch = course.level?.toLowerCase().includes(query);
+        const semesterMatch = course.academicSemester?.toLowerCase().includes(query);
+        const programTitleMatch = course.programTitle?.toLowerCase().includes(query);
+        const programCodeMatch = course.programCode?.toLowerCase().includes(query);
+        const deptMatch = course.departmentName?.toLowerCase().includes(query);
+        const lecturerMatch = course.assignedLecturers?.some(l => l.name?.toLowerCase().includes(query));
+        return codeMatch || titleMatch || levelMatch || semesterMatch || programTitleMatch || programCodeMatch || deptMatch || lecturerMatch;
+      });
+    }
+    
+    return result;
+  }, [courses, searchQuery, filterProgram, filterLevel, filterSemester]);
 
-      return codeMatch || titleMatch || levelMatch || semesterMatch || programTitleMatch || programCodeMatch || deptMatch || lecturerMatch;
-    });
-  }, [courses, searchQuery]);
+  // Pagination for courses
+  const totalPages = Math.max(1, Math.ceil(filteredCourses.length / ITEMS_PER_PAGE));
+  const paginatedCourses = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredCourses.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredCourses, currentPage, ITEMS_PER_PAGE]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterProgram, filterLevel, filterSemester]);
+
+  // Active filter count
+  const activeFilterCount = [filterProgram, filterLevel, filterSemester].filter(Boolean).length;
+
+  // Helper: get a color for program badges based on program code  
+  const getProgramColor = (programCode) => {
+    const colors = [
+      'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+      'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+      'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+      'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+      'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+      'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+      'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+      'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
+    ];
+    if (!programCode) return colors[0];
+    let hash = 0;
+    for (let i = 0; i < programCode.length; i++) hash = programCode.charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  // Helper: get accent border color for course cards
+  const getProgramBorderColor = (programCode) => {
+    const colors = [
+      'border-t-blue-500', 'border-t-violet-500', 'border-t-emerald-500', 'border-t-amber-500',
+      'border-t-rose-500', 'border-t-cyan-500', 'border-t-orange-500', 'border-t-indigo-500',
+      'border-t-teal-500', 'border-t-pink-500',
+    ];
+    if (!programCode) return colors[0];
+    let hash = 0;
+    for (let i = 0; i < programCode.length; i++) hash = programCode.charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  // Stats for the banner
+  const coursesWithLecturers = courses.filter(c => c.assignedLecturers && c.assignedLecturers.length > 0).length;
+  const uniqueLecturerCount = new Set(courses.flatMap(c => (c.assignedLecturers || []).map(l => l.id || l.name))).size;
 
   // Filter departments for display
   const filteredDepartments = useMemo(() => {
@@ -861,26 +945,171 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
     };
 
     const clearSearch = () => setSearchQuery('');
+    const clearFilters = () => { setFilterProgram(''); setFilterLevel(''); setFilterSemester(''); };
 
     return (
       <>
         <Card className="bg-white dark:bg-slate-800/90 shadow-xl border-slate-200 dark:border-slate-700/80 rounded-lg p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          {/* ── Stat Cards Banner ─────────────────────────────── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-violet-50 to-white dark:from-violet-950/30 dark:to-slate-800 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-violet-100 dark:bg-violet-900/40">
+                  <BookText className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{courses.length}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Total Courses</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/30 dark:to-slate-800 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/40">
+                  <GraduationCap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{programs.length}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Programs</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-slate-800 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                  <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{departments.length}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Departments</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/30 dark:to-slate-800 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                  <Users className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{coursesWithLecturers}<span className="text-sm font-normal text-slate-400">/{courses.length}</span></p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Assigned Courses</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Toolbar: Search + Create Dropdown + Actions Dropdown ── */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
             {/* Search bar */}
-            <div className="relative flex-grow sm:max-w-xs">
+            <div className="relative flex-grow sm:max-w-sm">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-slate-400 dark:text-slate-500" /></div>
               <Input id="search-programs-courses" type="text" placeholder={`Search ${activeTab === 'programs' ? 'programs' : activeTab === 'courses' ? 'courses' : 'departments'}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`pl-11 pr-10 w-full ${dialogInputClass}`} />
               {searchQuery && (<Button variant="ghost" size="sm" className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 h-full" onClick={clearSearch}><XCircle className="h-4 w-4" /><span className="sr-only">Clear search</span></Button>)}
             </div>
-          {/* Add New buttons */}
-          <div className="flex gap-2 flex-wrap justify-end">
-            {/* Add Department Dialog/Button */}
+
+            <div className="flex gap-2 flex-wrap items-center">
+              {/* View toggle (courses tab only) */}
+              {activeTab === 'courses' && (
+                <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                  <Button variant="ghost" size="sm" className={`h-9 px-3 rounded-none ${viewMode === 'grid' ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300' : 'text-slate-500'}`} onClick={() => setViewMode('grid')}>
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className={`h-9 px-3 rounded-none ${viewMode === 'table' ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300' : 'text-slate-500'}`} onClick={() => setViewMode('table')}>
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Create Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-9 px-4 text-sm rounded-lg shadow-md">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Create <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                  <DropdownMenuLabel className="text-xs text-slate-500">Create New</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => setIsDepartmentDialogOpen(true)} className="cursor-pointer">
+                    <Building2 className="mr-2 h-4 w-4 text-blue-600" /> Department
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setIsProgramDialogOpen(true)} className="cursor-pointer">
+                    <GraduationCap className="mr-2 h-4 w-4 text-violet-600" /> Program
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setIsCourseDialogOpen(true)} className="cursor-pointer">
+                    <BookText className="mr-2 h-4 w-4 text-indigo-600" /> Course
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setIsBulkUploadDialogOpen(true)} className="cursor-pointer">
+                    <Upload className="mr-2 h-4 w-4 text-slate-600" /> Bulk Upload Courses
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Actions Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="border-slate-300 dark:border-slate-600 font-medium h-9 px-4 text-sm rounded-lg">
+                    Actions <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                  <DropdownMenuLabel className="text-xs text-slate-500">Lecturer Assignment</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => setIsAssignCoursesDialogOpen(true)} className="cursor-pointer">
+                    <UserPlus className="mr-2 h-4 w-4 text-blue-600" /> Assign Courses
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setIsUnassignCoursesDialogOpen(true)} className="cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400">
+                    <User className="mr-2 h-4 w-4" /> Unassign Courses
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          {/* ── Filter Bar (courses tab only) ──────────────── */}
+          {activeTab === 'courses' && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 shrink-0">
+                <Filter className="h-3.5 w-3.5" /> Filters
+              </div>
+              <div className="flex flex-wrap gap-2 flex-1">
+                <Select value={filterProgram} onValueChange={setFilterProgram}>
+                  <SelectTrigger className="h-8 w-[180px] text-xs bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 rounded-md">
+                    <SelectValue placeholder="All Programs" />
+                  </SelectTrigger>
+                  <SelectContent className={dialogSelectContentClass}>
+                    {programs.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.programCode} — {p.programTitle}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={filterLevel} onValueChange={setFilterLevel}>
+                  <SelectTrigger className="h-8 w-[140px] text-xs bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 rounded-md">
+                    <SelectValue placeholder="All Levels" />
+                  </SelectTrigger>
+                  <SelectContent className={dialogSelectContentClass}>
+                    {COURSE_LEVELS.map(l => <SelectItem key={l.value} value={l.value} className="text-xs">{l.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={filterSemester} onValueChange={setFilterSemester}>
+                  <SelectTrigger className="h-8 w-[160px] text-xs bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 rounded-md">
+                    <SelectValue placeholder="All Semesters" />
+                  </SelectTrigger>
+                  <SelectContent className={dialogSelectContentClass}>
+                    {ACADEMIC_SEMESTERS.map(s => <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {activeFilterCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 px-2.5 text-xs text-slate-500 hover:text-red-600">
+                    <X className="mr-1 h-3 w-3" /> Clear ({activeFilterCount})
+                  </Button>
+                )}
+              </div>
+              {filteredCourses.length !== courses.length && (
+                <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">{filteredCourses.length} of {courses.length} courses</span>
+              )}
+            </div>
+          )}
+          {/* Hidden dialogs (triggered from dropdown menus) */}
+            {/* Add Department Dialog */}
             <Dialog open={isDepartmentDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetDepartmentForm(); } setIsDepartmentDialogOpen(open); }}>
-              <DialogTrigger asChild>
-                <Button className="bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
-                  <PlusCircle className="mr-2 h-4 w-4" /><span>New Department</span>
-                </Button>
-              </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2"><Building2 className="h-5 w-5 text-blue-700" /> Create New Department</DialogTitle>
@@ -935,13 +1164,8 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
               </DialogContent>
             </Dialog>
 
-            {/* Add Program Dialog/Button */}
+            {/* Add Program Dialog */}
             <Dialog open={isProgramDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetProgramForm(); } setIsProgramDialogOpen(open); }}>
-              <DialogTrigger asChild>
-                <Button className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
-                  <PlusCircle className="mr-2 h-4 w-4" /><span>New Program</span>
-                </Button>
-              </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-violet-700" /> Create New Program</DialogTitle>
@@ -1014,13 +1238,8 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
               </DialogContent>
             </Dialog>
 
-            {/* Add Course Dialog/Button */}
+            {/* Add Course Dialog */}
             <Dialog open={isCourseDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetCourseForm(); } setIsCourseDialogOpen(open); }}>
-              <DialogTrigger asChild>
-                <Button className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white font-medium h-10 px-5 text-sm rounded-lg shadow-md">
-                  <PlusCircle className="mr-2 h-4 w-4" /><span>New Course</span>
-                </Button>
-              </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-violet-700" /> Create New Course</DialogTitle>
@@ -1079,14 +1298,8 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
               </DialogContent>
             </Dialog>
 
-            {/* Bulk Upload Courses Dialog/Button */}
+            {/* Bulk Upload Courses Dialog */}
 <Dialog open={isBulkUploadDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setExcelFile(null); setBulkUploadStatus(null); setFormError(''); } setIsBulkUploadDialogOpen(open); }}>
-  <DialogTrigger asChild>
-    <Button variant="outline" className="text-slate-700 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium h-10 px-5 text-sm rounded-lg shadow-md">
-      <Upload className="mr-2 h-4 w-4" />
-      Bulk Upload Courses
-    </Button>
-  </DialogTrigger>
   <DialogContent className="sm:max-w-md">
     <DialogHeader>
       <DialogTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-blue-700" /> Bulk Upload Courses</DialogTitle>
@@ -1143,11 +1356,8 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
   </DialogContent>
 </Dialog>
 
-            {/* Assign Courses Dialog/Button */}
+            {/* Assign Courses Dialog */}
             <Dialog open={isAssignCoursesDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setSelectedCoursesForAssignment([]); setSelectedLecturerForAssignment(''); setFormError(''); } setIsAssignCoursesDialogOpen(open); }}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="text-blue-700 border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700/30 font-medium h-10 px-5 text-sm rounded-lg shadow-md"><UserPlus className="mr-2 h-4 w-4" />Assign Courses</Button>
-              </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-blue-700" /> Assign Courses to Lecturer</DialogTitle>
@@ -1205,11 +1415,8 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
               </DialogContent>
             </Dialog>
 
-            {/* Unassign Courses Dialog/Button */}
+            {/* Unassign Courses Dialog */}
             <Dialog open={isUnassignCoursesDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { setSelectedCoursesForUnassignment([]); setSelectedLecturerForUnassignment(''); setLecturerAssignedCourses([]); setFormError(''); } setIsUnassignCoursesDialogOpen(open); }}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="text-red-700 border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-700/30 font-medium h-10 px-5 text-sm rounded-lg shadow-md"><User className="mr-2 h-4 w-4" />Unassign Courses</Button>
-              </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2"><User className="h-5 w-5 text-red-700" /> Unassign Courses from Lecturer</DialogTitle>
@@ -1269,15 +1476,19 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
-        </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
           {/* Updated TabsList to include Departments tab */}
-          <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-700 rounded-lg p-1 mb-4 flex-shrink-0">
-            <TabsTrigger value="departments" className="px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all">Department Management</TabsTrigger>
-            <TabsTrigger value="programs" className="px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all">Program Management</TabsTrigger>
-            <TabsTrigger value="courses" className="px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all">Course Management</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 bg-slate-100/80 dark:bg-slate-700/50 rounded-xl p-1.5 mb-4 flex-shrink-0 h-auto">
+            <TabsTrigger value="departments" className="px-4 py-2.5 text-sm font-medium rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2">
+              <Building2 className="h-4 w-4" /> <span className="hidden sm:inline">Department</span> <span className="sm:hidden">Depts</span>
+            </TabsTrigger>
+            <TabsTrigger value="programs" className="px-4 py-2.5 text-sm font-medium rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2">
+              <GraduationCap className="h-4 w-4" /> <span className="hidden sm:inline">Program</span> <span className="sm:hidden">Progs</span>
+            </TabsTrigger>
+            <TabsTrigger value="courses" className="px-4 py-2.5 text-sm font-medium rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2">
+              <BookOpen className="h-4 w-4" /> <span className="hidden sm:inline">Course</span> <span className="sm:hidden">Courses</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* FIX: Changed parent div to flex-1 flex-col to better control height for TabsContent children */}
@@ -1446,82 +1657,116 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
               {/* ======================= EDIT COURSE DIALOG ======================= */}
               {editingCourse && (
                 <Dialog open={isEditCourseDialogOpen} onOpenChange={(open) => { if (!open && !isLoadingForm) { resetEditCourseForm(); } setIsEditCourseDialogOpen(open); }}>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center gap-2"><Edit2 className="h-5 w-5 text-violet-700" /> Edit Course</DialogTitle>
-                      <DialogDescription>Update the details for the course: {editingCourse.courseCode}.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleUpdateCourse}>
-                      <div className="grid gap-4 py-4">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="editCourseCode" className={dialogLabelClass}>Course Code <span className="text-red-700">*</span></Label>
-                          <Input
-                            id="editCourseCode"
-                            value={editingCourse.courseCode || ''}
-                            onChange={(e) => setEditingCourse(prev => ({ ...prev, courseCode: e.target.value }))}
-                            placeholder="e.g., CSCD101"
-                            disabled={isLoadingForm}
-                            className={dialogInputClass}
-                          />
+                  <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden rounded-2xl border-slate-200 dark:border-slate-700">
+                    {/* ── Gradient Header ──────────────────────────────────── */}
+                    <div className="bg-gradient-to-r from-violet-600 to-indigo-700 px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-white/20 backdrop-blur-sm">
+                          <Edit2 className="h-5 w-5 text-white" />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="editCourseTitle" className={dialogLabelClass}>Course Title <span className="text-red-700">*</span></Label>
+                        <div>
+                          <DialogTitle className="text-lg font-bold text-white">Edit Course</DialogTitle>
+                          <DialogDescription className="text-violet-200 text-sm mt-0.5">
+                            Updating <span className="font-semibold text-white">{editingCourse.courseCode}</span>
+                          </DialogDescription>
+                        </div>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleUpdateCourse}>
+                      <div className="px-6 py-5 space-y-5">
+                        {/* ── Course Code & Credit Hours (side by side) ────── */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="editCourseCode" className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <Hash className="h-3.5 w-3.5" /> Course Code <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                              id="editCourseCode"
+                              value={editingCourse.courseCode || ''}
+                              onChange={(e) => setEditingCourse(prev => ({ ...prev, courseCode: e.target.value }))}
+                              placeholder="e.g., CSCD101"
+                              disabled={isLoadingForm}
+                              className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="editCreditHours" className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <Clock className="h-3.5 w-3.5" /> Credits <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                              id="editCreditHours"
+                              type="number"
+                              step="0.5"
+                              value={editingCourse.creditHours || ''}
+                              onChange={(e) => setEditingCourse(prev => ({ ...prev, creditHours: e.target.value }))}
+                              placeholder="e.g., 3"
+                              disabled={isLoadingForm}
+                              className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1"
+                            />
+                          </div>
+                        </div>
+
+                        {/* ── Course Title ──────────────────────────────────── */}
+                        <div className="space-y-2">
+                          <Label htmlFor="editCourseTitle" className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <BookText className="h-3.5 w-3.5" /> Course Title <span className="text-red-500">*</span>
+                          </Label>
                           <Input
                             id="editCourseTitle"
                             value={editingCourse.courseTitle || ''}
                             onChange={(e) => setEditingCourse(prev => ({ ...prev, courseTitle: e.target.value }))}
                             placeholder="e.g., Introduction to Programming"
                             disabled={isLoadingForm}
-                            className={dialogInputClass}
+                            className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl text-sm focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1"
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="editCreditHours" className={dialogLabelClass}>Credit Hours <span className="text-red-700">*</span></Label>
-                          <Input
-                            id="editCreditHours"
-                            type="number"
-                            step="0.5"
-                            value={editingCourse.creditHours || ''}
-                            onChange={(e) => setEditingCourse(prev => ({ ...prev, creditHours: e.target.value }))}
-                            placeholder="e.g., 3.0"
-                            disabled={isLoadingForm}
-                            className={dialogInputClass}
-                          />
+
+                        {/* ── Level & Semester (side by side) ───────────────── */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="editCourseLevel" className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <Layers className="h-3.5 w-3.5" /> Level <span className="text-red-500">*</span>
+                            </Label>
+                            <Select
+                              value={editingCourse.level || ''}
+                              onValueChange={(val) => setEditingCourse(prev => ({ ...prev, level: val }))}
+                              disabled={isLoadingForm}
+                            >
+                              <SelectTrigger id="editCourseLevel" className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl text-sm focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1"><SelectValue placeholder="Select level" /></SelectTrigger>
+                              <SelectContent className={dialogSelectContentClass}>
+                                {COURSE_LEVELS.map(level => <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="editAcademicSemester" className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <CalendarDays className="h-3.5 w-3.5" /> Semester <span className="text-red-500">*</span>
+                            </Label>
+                            <Select
+                              value={editingCourse.academicSemester || ''}
+                              onValueChange={(val) => setEditingCourse(prev => ({ ...prev, academicSemester: val }))}
+                              disabled={isLoadingForm}
+                            >
+                              <SelectTrigger id="editAcademicSemester" className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl text-sm focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1"><SelectValue placeholder="Select semester" /></SelectTrigger>
+                              <SelectContent className={dialogSelectContentClass}>
+                                {ACADEMIC_SEMESTERS.map(sem => <SelectItem key={sem.value} value={sem.value}>{sem.label}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="editCourseLevel" className={dialogLabelClass}>Level <span className="text-red-700">*</span></Label>
-                          <Select
-                            value={editingCourse.level || ''}
-                            onValueChange={(val) => setEditingCourse(prev => ({ ...prev, level: val }))}
-                            disabled={isLoadingForm}
-                          >
-                            <SelectTrigger id="editCourseLevel" className={dialogSelectTriggerClass}><SelectValue placeholder="Select level" /></SelectTrigger>
-                            <SelectContent className={dialogSelectContentClass}>
-                              {COURSE_LEVELS.map(level => <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="editAcademicSemester" className={dialogLabelClass}>Academic Semester <span className="text-red-700">*</span></Label>
-                          <Select
-                            value={editingCourse.academicSemester || ''}
-                            onValueChange={(val) => setEditingCourse(prev => ({ ...prev, academicSemester: val }))}
-                            disabled={isLoadingForm}
-                          >
-                            <SelectTrigger id="editAcademicSemester" className={dialogSelectTriggerClass}><SelectValue placeholder="Select semester" /></SelectTrigger>
-                            <SelectContent className={dialogSelectContentClass}>
-                              {ACADEMIC_SEMESTERS.map(sem => <SelectItem key={sem.value} value={sem.value}>{sem.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="editCourseProgramId" className={dialogLabelClass}>Program <span className="text-red-700">*</span></Label>
+
+                        {/* ── Program ───────────────────────────────────────── */}
+                        <div className="space-y-2">
+                          <Label htmlFor="editCourseProgramId" className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <GraduationCap className="h-3.5 w-3.5" /> Program <span className="text-red-500">*</span>
+                          </Label>
                           <Select
                             value={editingCourse.programId || ''}
                             onValueChange={(val) => setEditingCourse(prev => ({ ...prev, programId: val }))}
                             disabled={isLoadingForm || programs.length === 0}
                           >
-                            <SelectTrigger id="editCourseProgramId" className={dialogSelectTriggerClass}><SelectValue placeholder="Select program" /></SelectTrigger>
+                            <SelectTrigger id="editCourseProgramId" className="h-11 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl text-sm focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1"><SelectValue placeholder="Select program" /></SelectTrigger>
                             <SelectContent className={dialogSelectContentClass}>
                               {programs.length > 0 ? programs.map(program => (
                                 <SelectItem key={program.id} value={program.id}>{program.programTitle} ({program.programCode})</SelectItem>
@@ -1529,15 +1774,27 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                             </SelectContent>
                           </Select>
                         </div>
-                        {formError && (<div className={dialogErrorClass}><FileWarning className="h-4 w-4"/> {formError}</div>)}
+
+                        {/* ── Error Message ─────────────────────────────────── */}
+                        {formError && (
+                          <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 rounded-xl text-sm text-red-700 dark:text-red-400">
+                            <FileWarning className="h-4 w-4 flex-shrink-0" /> {formError}
+                          </div>
+                        )}
                       </div>
-                      <DialogFooter>
-                        <DialogClose asChild><Button type="button" variant="outline" disabled={isLoadingForm}>Cancel</Button></DialogClose>
-                        <Button type="submit" disabled={isLoadingForm}>
-                          {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+
+                      {/* ── Footer ──────────────────────────────────────────── */}
+                      <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
+                        <DialogClose asChild>
+                          <Button type="button" variant="outline" disabled={isLoadingForm} className="h-10 px-5 rounded-xl border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium">
+                            Cancel
+                          </Button>
+                        </DialogClose>
+                        <Button type="submit" disabled={isLoadingForm} className="h-10 px-6 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-700 hover:to-indigo-800 text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all">
+                          {isLoadingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Edit2 className="mr-2 h-4 w-4" />}
                           Save Changes
                         </Button>
-                      </DialogFooter>
+                      </div>
                     </form>
                   </DialogContent>
                 </Dialog>
@@ -1554,83 +1811,132 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                             <Skeleton className="h-10 w-full rounded-md bg-slate-200 dark:bg-slate-700"/>
                         </div>
                     )}
-                    {searchQuery && filteredCourses.length === 0 && (
+                    {(searchQuery || activeFilterCount > 0) && filteredCourses.length === 0 && (
                         <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
                           <Search className="h-10 w-10 mb-3" />
-                          <p className="font-semibold">No courses found for "{searchQuery}".</p>
-                          <Button variant="link" onClick={clearSearch} className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Clear Search</Button>
+                          <p className="font-semibold">No courses match your {searchQuery ? 'search' : 'filters'}.</p>
+                          <div className="flex gap-2 mt-3">
+                            {searchQuery && <Button variant="link" onClick={clearSearch} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Clear Search</Button>}
+                            {activeFilterCount > 0 && <Button variant="link" onClick={clearFilters} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">Clear Filters</Button>}
+                          </div>
                         </div>
                     )}
-                    {!isLoadingForm && courses.length === 0 && !searchQuery && (
+                    {!isLoadingForm && courses.length === 0 && !searchQuery && activeFilterCount === 0 && (
                         <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400 min-h-[200px]">
                             <BookOpen className="h-10 w-10 mb-3" />
                             <p className="font-semibold">No courses added yet. Start by creating a program first.</p>
                             <Button onClick={() => setIsCourseDialogOpen(true)} variant="link" className="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200" disabled={programs.length === 0}>Add First Course</Button>
                         </div>
                     )}
-                    {!isLoadingForm && filteredCourses.length > 0 && (
+
+                    {/* ── Table View ──────────────────────────────────── */}
+                    {!isLoadingForm && filteredCourses.length > 0 && viewMode === 'table' && (
+                      <>
+                        <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-slate-50 dark:bg-slate-800/60">
+                                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 w-[120px]">Code</TableHead>
+                                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Title</TableHead>
+                                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 w-[70px] text-center">Credits</TableHead>
+                                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 w-[100px]">Level</TableHead>
+                                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 w-[130px]">Semester</TableHead>
+                                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 w-[140px]">Program</TableHead>
+                                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 w-[100px] text-center">Lecturers</TableHead>
+                                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 w-[80px] text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {paginatedCourses.map(course => (
+                                <TableRow key={course.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                                  <TableCell className="font-medium text-sm text-violet-700 dark:text-violet-400">{course.courseCode}</TableCell>
+                                  <TableCell className="text-sm text-slate-700 dark:text-slate-200 max-w-[250px] truncate">{course.courseTitle}</TableCell>
+                                  <TableCell className="text-sm text-center text-slate-600 dark:text-slate-300">{course.creditHours}</TableCell>
+                                  <TableCell><Badge variant="secondary" className="capitalize text-xs">{course.level?.toLowerCase().replace('_', ' ')}</Badge></TableCell>
+                                  <TableCell><Badge variant="secondary" className="capitalize text-xs">{course.academicSemester?.toLowerCase().replace('_', ' ')}</Badge></TableCell>
+                                  <TableCell>
+                                    <Badge className={`text-xs font-medium ${getProgramColor(course.programCode)}`}>{course.programCode}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {course.assignedLecturers && course.assignedLecturers.length > 0 ? (
+                                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">
+                                        <Users className="h-3 w-3 mr-1" />{course.assignedLecturers.length}
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-xs text-slate-400">—</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex justify-end gap-0.5">
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingCourse(course); setIsEditCourseDialogOpen(true); }}>
+                                        <Edit2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" 
+                                        onClick={() => { setDeletingCourse(course); setCourseAssignedLecturers(course.assignedLecturers?.length > 0 ? course.assignedLecturers : []); setIsDeleteCourseDialogOpen(true); }}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </>
+                    )}
+
+                    {/* ── Grid View (Improved Cards) ──────────────────── */}
+                    {!isLoadingForm && filteredCourses.length > 0 && viewMode === 'grid' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredCourses.map(course => (
-                                <Card key={course.id} className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg hover:shadow-md transition-shadow">
-                                    <CardHeader className="pb-3">
-                                        <CardTitle className="text-lg font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
-                                            <BookText className="h-5 w-5 flex-shrink-0 text-violet-700 dark:text-violet-500" />
-                                            {course.courseTitle}
-                                        </CardTitle>
-                                        <CardDescription className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                                            <Hash className="h-3.5 w-3.5" />{course.courseCode}
-                                        </CardDescription>
+                            {paginatedCourses.map(course => (
+                                <Card key={course.id} className={`bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm rounded-xl hover:shadow-lg transition-all border-t-4 ${getProgramBorderColor(course.programCode)} overflow-hidden`}>
+                                    <CardHeader className="pb-2 pt-4">
+                                        <div className="flex items-start justify-between gap-2">
+                                          <div className="flex-1 min-w-0">
+                                            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-100 leading-tight line-clamp-2">
+                                                {course.courseTitle}
+                                            </CardTitle>
+                                            <div className="flex items-center gap-2 mt-1.5">
+                                              <span className="text-sm font-mono font-medium text-violet-600 dark:text-violet-400">{course.courseCode}</span>
+                                              <Badge className={`text-[10px] px-1.5 py-0 font-medium ${getProgramColor(course.programCode)}`}>{course.programCode}</Badge>
+                                            </div>
+                                          </div>
+                                          <Badge variant="outline" className="shrink-0 text-xs font-medium border-slate-300 dark:border-slate-600">
+                                            <Clock className="h-3 w-3 mr-1" />{course.creditHours} cr
+                                          </Badge>
+                                        </div>
                                     </CardHeader>
-                                    <CardContent className="space-y-1 text-sm">
-                                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                            <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                            <span>Credits: {course.creditHours}</span>
+                                    <CardContent className="pb-3 space-y-2 text-sm">
+                                        <div className="flex flex-wrap gap-1.5">
+                                            <Badge variant="secondary" className="capitalize text-xs">{course.level?.toLowerCase().replace('_', ' ')}</Badge>
+                                            <Badge variant="secondary" className="capitalize text-xs">{course.academicSemester?.toLowerCase().replace('_', ' ')}</Badge>
                                         </div>
-                                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                            <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                            <span>Level: <Badge variant="secondary" className="capitalize">{course.level.toLowerCase().replace('_', ' ')}</Badge></span>
+                                        <div className="flex items-center justify-between pt-1">
+                                          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 min-w-0 truncate">
+                                            <GraduationCap className="h-3.5 w-3.5 shrink-0" />
+                                            <span className="truncate">{course.programTitle}</span>
+                                          </div>
+                                          {course.assignedLecturers && course.assignedLecturers.length > 0 ? (
+                                            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs shrink-0">
+                                              <Users className="h-3 w-3 mr-1" />{course.assignedLecturers.length} lecturer{course.assignedLecturers.length > 1 ? 's' : ''}
+                                            </Badge>
+                                          ) : (
+                                            <Badge variant="outline" className="text-xs text-slate-400 border-dashed shrink-0">Unassigned</Badge>
+                                          )}
                                         </div>
-                                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                            <CalendarDays className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                            <span>Semester: <Badge variant="secondary" className="capitalize">{course.academicSemester.toLowerCase().replace('_', ' ')}</Badge></span>
-                                        </div>
-                                        <Separator className="my-2" />
-                                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                            <GraduationCap className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                            <span>Program: {course.programTitle} ({course.programCode})</span>
-                                        </div>
-                                        {course.departmentName && (
-                                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                                <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                                <span>Dept: {course.departmentName}</span>
-                                            </div>
-                                        )}
-                                        {course.assignedLecturers && course.assignedLecturers.length > 0 && (
-                                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                                                <User className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                                                <span>Assigned: {course.assignedLecturers.map(l => l.name).join(', ')}</span>
-                                            </div>
-                                        )}
                                     </CardContent>
-                                    <div className="flex justify-end gap-1 mt-2 px-4 pb-3">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingCourse(course); setIsEditCourseDialogOpen(true); }}>
-                                            <Edit2 className="h-4 w-4" />
+                                    <div className="flex justify-end gap-1 px-4 pb-3 border-t border-slate-100 dark:border-slate-700/50 pt-2">
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingCourse(course); setIsEditCourseDialogOpen(true); }}>
+                                            <Edit2 className="h-3.5 w-3.5" />
                                             <span className="sr-only">Edit Course</span>
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" 
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" 
                                           onClick={() => { 
-                                            console.log("Course to delete:", course);
                                             setDeletingCourse(course);
-                                            setCourseAssignedLecturers([]);
-                                            
-                                            // Check if course has assigned lecturers
-                                            if (course.assignedLecturers && course.assignedLecturers.length > 0) {
-                                              setCourseAssignedLecturers(course.assignedLecturers);
-                                            }
-                                            
+                                            setCourseAssignedLecturers(course.assignedLecturers?.length > 0 ? course.assignedLecturers : []);
                                             setIsDeleteCourseDialogOpen(true); 
                                           }}>
-                                            <Trash2 className="h-4 w-4" />
+                                            <Trash2 className="h-3.5 w-3.5" />
                                             <span className="sr-only">Delete Course</span>
                                         </Button>
                                     </div>
@@ -1638,6 +1944,41 @@ export default function ManageCoursesTab({ initialPrograms = [], initialDepartme
                             ))}
                         </div>
                     )}
+
+                    {/* ── Pagination ──────────────────────────────────── */}
+                    {!isLoadingForm && filteredCourses.length > ITEMS_PER_PAGE && (
+                      <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredCourses.length)} of {filteredCourses.length} courses
+                        </p>
+                        <div className="flex items-center gap-1">
+                          <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="h-8 px-2.5 text-xs">
+                            <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Prev
+                          </Button>
+                          {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                            let page;
+                            if (totalPages <= 5) {
+                              page = i + 1;
+                            } else if (currentPage <= 3) {
+                              page = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              page = totalPages - 4 + i;
+                            } else {
+                              page = currentPage - 2 + i;
+                            }
+                            return (
+                              <Button key={page} variant={currentPage === page ? "default" : "outline"} size="sm" onClick={() => setCurrentPage(page)}
+                                className={`h-8 w-8 p-0 text-xs ${currentPage === page ? 'bg-violet-600 hover:bg-violet-700 text-white' : ''}`}>
+                                {page}
+                              </Button>
+                            );
+                          })}
+                          <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="h-8 px-2.5 text-xs">
+                            Next <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}       
                 </div>
               </ScrollArea>
             </TabsContent>
